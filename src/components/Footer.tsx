@@ -3,12 +3,16 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiHeart, FiPhone, FiMail, FiMapPin, FiFacebook, FiTwitter, FiInstagram, FiLinkedin } from 'react-icons/fi';
+import { FiHeart, FiPhone, FiMail, FiMapPin, FiFacebook, FiTwitter, FiInstagram, FiLinkedin, FiCalendar, FiUsers } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/context/LanguageContext';
+import { camps } from '@/data/mockData';
 
 export default function Footer() {
   const { t } = useLanguage();
+  
+  const upcomingCamps = camps.slice(0, 3);
+  
   return (
     <footer className="bg-gray-900 text-white relative z-20">
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -69,14 +73,13 @@ export default function Footer() {
             <ul className="space-y-2">
               {[
                 { href: '/hospitals', label: t('findHospitals') },
-                { href: '/specialists', label: t('findSpecialists') },
+                { href: '/specialists', label: 'Find Doctors' },
                 { href: '/camps', label: t('healthCamps') },
                 { href: '/emergency', label: t('emergency') },
                 { href: '/dashboard', label: t('myHealth') },
                 { href: '/hospital-dashboard', label: 'Staff Portal' },
                 { href: '/feedback', label: 'Feedback' },
                 { href: '/sponsor', label: 'Partner With Us' },
-                { href: '/build-pipeline', label: 'SaaS Builder' },
               ].map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-gray-400 hover:text-primary-400 transition hover:translate-x-1 inline-block">
@@ -87,21 +90,32 @@ export default function Footer() {
             </ul>
           </motion.div>
 
-          {/* Services */}
+          {/* Health Camps */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <h4 className="font-bold text-lg mb-4">Services</h4>
-            <ul className="space-y-2">
-              <li><Link href="/booking" className="text-gray-400 hover:text-primary-400 transition">Online Consultation</Link></li>
-              <li><Link href="/booking" className="text-gray-400 hover:text-primary-400 transition">Book Appointments</Link></li>
-              <li><Link href="/dashboard" className="text-gray-400 hover:text-primary-400 transition">Medical Records</Link></li>
-              <li><Link href="/subscription" className="text-gray-400 hover:text-primary-400 transition">Health Packages</Link></li>
-              <li><Link href="/emergency" className="text-gray-400 hover:text-primary-400 transition">Emergency Services</Link></li>
-            </ul>
+            <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
+              <FiCalendar className="text-teal-400" />
+              Upcoming Health Camps
+            </h4>
+            <div className="space-y-3">
+              {upcomingCamps.map((camp) => (
+                <Link 
+                  key={camp.id} 
+                  href="/camps" 
+                  className="block bg-slate-800/50 rounded-lg p-3 hover:bg-slate-800 transition"
+                >
+                  <p className="text-white text-sm font-medium">{camp.name}</p>
+                  <p className="text-gray-400 text-xs">{camp.date} • {camp.city}</p>
+                </Link>
+              ))}
+            </div>
+            <Link href="/camps" className="inline-block mt-3 text-teal-400 text-sm hover:underline">
+              View All Camps →
+            </Link>
           </motion.div>
 
           {/* Contact */}
@@ -111,11 +125,11 @@ export default function Footer() {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <h4 className="font-bold text-lg mb-4">Legal & Contact</h4>
+            <h4 className="font-bold text-lg mb-4">Contact Us</h4>
             <ul className="space-y-3">
               <li className="flex items-center gap-3 text-gray-400">
                 <FiPhone className="text-primary-400" />
-                <span>1800-XXX-XXXX (Toll Free)</span>
+                <span>1800-ZYN TRA (24/7)</span>
               </li>
               <li className="flex items-center gap-3 text-gray-400">
                 <FiMail className="text-primary-400" />
@@ -145,11 +159,6 @@ export default function Footer() {
           <p className="text-gray-400 text-sm">
             © 2026 ZyntraCare. All rights reserved.
           </p>
-          <div className="flex gap-6 text-sm">
-            <Link href="/legal" className="text-gray-400 hover:text-primary-400 transition">Privacy Policy</Link>
-            <Link href="/legal/terms" className="text-gray-400 hover:text-primary-400 transition">Terms of Service</Link>
-            <Link href="/contact" className="text-gray-400 hover:text-primary-400 transition">Contact</Link>
-          </div>
         </motion.div>
       </div>
     </footer>

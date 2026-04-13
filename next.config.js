@@ -5,6 +5,7 @@ const nextConfig = {
 
   output: 'standalone',
 
+  // Image optimization
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
@@ -17,12 +18,14 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
+  // Disable static generation for heavy pages in dev for faster builds
   typescript: { ignoreBuildErrors: false },
 
   experimental: {
     optimizeCss: false,
   },
 
+  // Simplified webpack config
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -45,6 +48,7 @@ const nextConfig = {
     },
   },
 
+  // Headers for performance
   async headers() {
     return [
       {
@@ -55,6 +59,7 @@ const nextConfig = {
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(self)' },
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
         ],
       },
     ];
