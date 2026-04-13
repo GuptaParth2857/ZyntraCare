@@ -30,7 +30,7 @@ git push -u origin main
 ```
 NEXTAUTH_URL=https://your-project.vercel.app
 NEXTAUTH_SECRET=any-random-secret-min-32-chars
-GOOGLE_CLIENT_ID=987923513513-37gf2dha9ei3or7lsvhgkbm3a1cb43vr.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_SECRET
 NEXT_PUBLIC_APP_URL=https://your-project.vercel.app
 
