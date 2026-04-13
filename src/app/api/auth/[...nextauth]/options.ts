@@ -142,7 +142,7 @@ export const authOptions: NextAuthOptions = {
                   html: `
                     <div style="font-family: sans-serif; padding: 20px;">
                       <h2 style="color: #0ea5e9;">New Phone User Signed Up!</h2>
-                      <p><strong>Phone:</strong> ${user.phone}</p>
+                      <p><strong>Phone:</strong> ${user?.phone || credentials.phone}</p>
                       <p>Login to admin dashboard to view more details.</p>
                     </div>
                   `
