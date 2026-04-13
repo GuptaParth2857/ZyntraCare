@@ -252,8 +252,8 @@ export default function DashboardPage() {
 
             {/* LIVE MAP TAB (Map integration requested) */}
             {activeTab === 'map' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative">
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-slate-900 to-transparent p-6 z-[1001] pointer-events-none">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative bg-slate-900">
+                <div className="bg-slate-900 border-b border-white/10 p-5 z-[1001]">
                   <h2 className="text-xl font-bold text-white flex items-center gap-2"><FiMapPin className="text-blue-400" /> Live Nearby Hospitals & Real-time Beds</h2>
                 </div>
                 {/* Use the already beautiful NearbyHospitalsMap component inside the glowing container */}

@@ -211,18 +211,17 @@ export default function EmergencyCallWidget() {
       <motion.button
         onClick={() => { setIsOpen(true); setTimeout(() => startTracking(), 300); }}
         className="fixed bottom-[270px] left-2 md:left-6 z-[9999] flex flex-col items-center group"
-        animate={{ scale: [1, 1.04, 1] }}
-        transition={{ duration: 2.5, repeat: Infinity }}
         whileTap={{ scale: 0.93 }}
+        whileHover={{ scale: 1.05 }}
         aria-label="SOS Emergency"
       >
         <div className="relative">
-          <div className="absolute inset-0 bg-red-500 rounded-full blur-lg opacity-60 animate-pulse" />
+          <div className="absolute inset-0 bg-red-500 rounded-full blur-lg opacity-40" />
           {/* Mobile: 48px | Desktop: 70px */}
           <div className="relative w-12 h-12 md:w-[70px] md:h-[70px] bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-500/50 border-2 md:border-4 border-white">
             <FiPhoneCall className="text-white text-lg md:text-3xl" />
           </div>
-          <div className="absolute -top-1 -right-1 w-5 h-5 md:w-7 md:h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+          <div className="absolute -top-1 -right-1 w-5 h-5 md:w-7 md:h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
             <span className="text-white text-[8px] md:text-[10px] font-black">SOS</span>
           </div>
         </div>

@@ -121,8 +121,8 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
       });
 
       const popupContent = `
-        <div style="min-width:260px;font-family:Inter,system-ui,sans-serif;">
-          <h3 style="font-weight:700;font-size:15px;margin:0 0 4px;">${hospital.name}</h3>
+        <div style="min-width:260px;font-family:Inter,system-ui,sans-serif;color:#0f172a;">
+          <h3 style="font-weight:900;font-size:16px;margin:0 0 4px;color:#1e293b;">${hospital.name}</h3>
           <p style="color:#6b7280;font-size:12px;margin:0 0 8px;">📍 ${hospital.address}, ${hospital.city}</p>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
             <div style="background:#f0fdf4;padding:6px;border-radius:8px;text-align:center;">
@@ -138,8 +138,8 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
               <div style="font-weight:700;color:#ca8a04;font-size:16px;">⭐${hospital.rating}</div>
             </div>
           </div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">📞 ${hospital.phone}</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">🕐 ${hospital.workingHours}</div>
+          <div style="font-size:12px;color:#475569;margin-bottom:4px;font-weight:600;">📞 ${hospital.phone}</div>
+          <div style="font-size:12px;color:#475569;margin-bottom:8px;font-weight:600;">🕐 ${hospital.workingHours}</div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
             ${hospital.specialties.slice(0, 3).map(s => `<span style="font-size:10px;background:#f3f4f6;padding:2px 8px;border-radius:12px;">${s}</span>`).join('')}
           </div>
@@ -190,7 +190,7 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
       <div id="hospital-map-container" style={{ height: '100%', width: '100%' }} />
 
       {/* Controls overlay */}
-      <div className="absolute top-4 left-4 z-[1000] space-y-2">
+      <div className="absolute top-4 left-4 z-[1000] space-y-2 hidden sm:block">
         {/* Radius control */}
         <div className="bg-white rounded-xl shadow-lg p-3">
           <p className="text-xs font-semibold text-gray-700 mb-2">Search Radius</p>
@@ -228,8 +228,8 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-lg p-3">
-        <p className="text-xs font-bold mb-2">Legend</p>
+      <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 hidden sm:block">
+        <p className="text-xs font-bold mb-2 text-slate-800">Legend</p>
         <div className="space-y-1.5 text-xs">
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow" /> Your Location</p>
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full" /> Low Occupancy (&lt;50%)</p>
@@ -239,9 +239,9 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
       </div>
 
       {/* Stats bar */}
-      <div className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-lg p-3">
-        <p className="text-xs font-bold mb-1">{filteredHospitals.length} Hospitals Nearby</p>
-        <p className="text-xs text-gray-500">
+      <div className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 hidden xs:block text-slate-800">
+        <p className="text-xs font-bold mb-1 text-slate-800">{filteredHospitals.length} Hospitals Nearby</p>
+        <p className="text-xs text-slate-600 font-semibold">
           {filteredHospitals.reduce((a, h) => a + h.beds.available, 0)} beds available
         </p>
         {loading && <p className="text-xs text-blue-600 mt-1 animate-pulse">📡 Getting location...</p>}

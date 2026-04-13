@@ -359,9 +359,9 @@ export default function NearbyHospitalsMap() {
       });
 
       const popup = `
-        <div style="min-width:260px;font-family:Inter,system-ui,sans-serif;padding:2px;">
+        <div style="min-width:260px;font-family:Inter,system-ui,sans-serif;padding:2px;color:#0f172a;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-            <h3 style="font-weight:700;font-size:14px;margin:0;color:#0f172a;flex:1;padding-right:8px;">${hospital.name}</h3>
+            <h3 style="font-weight:900;font-size:15px;margin:0;color:#1e293b;flex:1;padding-right:8px;">${hospital.name}</h3>
             ${hospital.source === 'mock' ? '' : `<span style="background:${isGovt ? '#d1fae5' : isKaggle ? '#dbeafe' : '#ede9fe'};color:${isGovt ? '#059669' : isKaggle ? '#2563eb' : '#7c3aed'};font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">✔️ ${hospital.source.toUpperCase()}</span>`}
           </div>
           <p style="color:#64748b;font-size:11px;margin:0 0 8px;">📍 ${hospital.city || hospital.address || 'Nearby'} · ${hospital.distance?.toFixed(1) || '?'} km away</p>
@@ -467,7 +467,7 @@ export default function NearbyHospitalsMap() {
       <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
 
       {/* ---- Controls: Top Left ---- */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-[1000] hidden sm:flex flex-col gap-2">
         {/* Radius adjuster */}
         <div
           className="rounded-2xl p-3 shadow-2xl"
@@ -521,7 +521,7 @@ export default function NearbyHospitalsMap() {
       </div>
 
       {/* ---- Stats: Top Right ---- */}
-      <div className="absolute top-4 right-4 z-[1000]">
+      <div className="absolute top-4 right-4 z-[1000] hidden sm:block">
         <div
           className="rounded-2xl p-3 shadow-2xl min-w-[170px]"
           style={{ background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' }}
@@ -576,7 +576,7 @@ export default function NearbyHospitalsMap() {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="absolute top-36 right-4 z-[1000] w-60 max-h-72 overflow-y-auto rounded-2xl shadow-2xl"
+          className="absolute top-36 right-4 z-[1000] w-60 max-h-72 overflow-y-auto rounded-2xl shadow-2xl hidden md:block"
           style={{ background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)' }}
           role="list"
           aria-label="Nearby hospitals list"
@@ -626,7 +626,7 @@ export default function NearbyHospitalsMap() {
       </AnimatePresence>
 
       {/* ---- Legend: Bottom Left ---- */}
-      <div className="absolute bottom-4 left-4 z-[1000]">
+      <div className="absolute bottom-4 left-4 z-[1000] hidden md:block">
         <div
           className="rounded-xl p-2.5 text-xs flex flex-col gap-1"
           style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)' }}
