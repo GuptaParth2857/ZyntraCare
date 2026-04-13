@@ -1,0 +1,27 @@
+{
+  "name": "ZyntraCare - Healthcare Platform",
+  "short_name": "ZyntraCare",
+  "description": "Find the best hospitals, specialists, and healthcare services across India",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/images/publiczyntracare-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/publiczyntracare-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["health", "medical", "lifestyle"],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,4 @@
+﻿
+> healthcare-platform@1.0.0 lint
+> next lint
+

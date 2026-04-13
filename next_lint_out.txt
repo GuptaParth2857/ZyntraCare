@@ -1,0 +1,1 @@
+Invalid project directory provided, no such directory: C:\Users\Parth Gupta\OneDrive\Desktop\healthcare-platform\lint

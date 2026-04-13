@@ -1,0 +1,267 @@
+// Prisma Schema — ZyntraCare
+// SQLite for local development, PostgreSQL for production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Local development (SQLite)
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// For production PostgreSQL (Neon/Supabase), use:
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+// }
+
+// ─── USER & AUTH ───────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phone         String?   @unique
+  passwordHash  String?
+  avatar        String?
+  city          String?
+  age           Int?
+  bloodGroup    String?
+  conditions    String?   // comma-separated medical conditions
+  role          String    @default("patient") // patient | admin | doctor
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  subscription    Subscription?
+  appointments    Appointment[]
+  healthRecords   HealthRecord[]
+  prescriptions   Prescription[]
+  otpTokens       OtpToken[]
+  sessions        UserSession[]
+  healthMetrics   HealthMetric[]
+  favorites       FavoriteHospital[]
+  notifications   Notification[]
+  ambulanceBookings AmbulanceBooking[]
+}
+
+model OtpToken {
+  id        String   @id @default(cuid())
+  userId    String?
+  phone     String
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  device    String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── SUBSCRIPTIONS ─────────────────────────────────────────
+
+model Subscription {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  plan       String    @default("free")   // free | premium_monthly | premium_yearly
+  status     String    @default("active") // active | cancelled | expired
+  startDate  DateTime  @default(now())
+  endDate    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── HOSPITALS ─────────────────────────────────────────────
+
+model Hospital {
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  city         String
+  state        String
+  pincode      String   @default("")
+  phone        String
+  email        String   @default("")
+  website      String   @default("")
+  specialties  String   // JSON array stored as string
+  beds         String   // JSON: { total, available, icu, icuAvailable }
+  emergency    Boolean  @default(false)
+  lat          Float
+  lng          Float
+  rating       Float    @default(0)
+  image        String   @default("")
+  workingHours String   @default("24/7")
+  doctors      Int      @default(0)
+  verified     Boolean  @default(false)
+  source       String   @default("manual") // manual | osm | google
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  appointments  Appointment[]
+  favorites     FavoriteHospital[]
+}
+
+model FavoriteHospital {
+  id         String @id @default(cuid())
+  userId     String
+  hospitalId String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hospitalId])
+}
+
+// ─── APPOINTMENTS ──────────────────────────────────────────
+
+model Appointment {
+  id           String   @id @default(cuid())
+  userId       String
+  hospitalId   String?
+  doctorName   String
+  specialty    String
+  date         String
+  time         String
+  status       String   @default("pending") // pending | confirmed | completed | cancelled
+  notes        String   @default("")
+  fee          Float    @default(0)
+  isOnline     Boolean  @default(false)
+  meetingLink  String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospital Hospital? @relation(fields: [hospitalId], references: [id])
+}
+
+// ─── HEALTH RECORDS ────────────────────────────────────────
+
+model HealthRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String
+  type       String   // report | prescription | scan | vaccination
+  fileUrl    String   @default("")
+  notes      String   @default("")
+  date       String
+  hospital   String   @default("")
+  doctor     String   @default("")
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Prescription {
+  id           String   @id @default(cuid())
+  userId       String
+  doctorName   String
+  medicines    String   // JSON array
+  instructions String   @default("")
+  date         String
+  validUntil   String   @default("")
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── HEALTH METRICS ────────────────────────────────────────
+
+model HealthMetric {
+  id            String   @id @default(cuid())
+  userId        String
+  date          String
+  bloodPressure String   @default("")  // "120/80"
+  heartRate     Int?
+  bloodSugar    Float?
+  weight        Float?
+  height        Float?
+  temperature   Float?
+  oxygenLevel   Float?
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")   // info | warning | success | emergency
+  read      Boolean  @default(false)
+  link      String   @default("")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── AMBULANCE SYSTEM ──────────────────────────────────────
+
+model Ambulance {
+  id              String   @id @default(cuid())
+  driverName      String?
+  vehicleNumber   String   @unique
+  phone           String   @unique
+  lat             Float?
+  lng             Float?
+  isAvailable     Boolean  @default(true)
+  type            String   @default("basic") // basic | acls | neonatal
+  hospitalId      String?  
+  email           String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bookings        AmbulanceBooking[]
+  locationUpdates AmbulanceLocationUpdate[]
+}
+
+model AmbulanceBooking {
+  id            String   @id @default(cuid())
+  userId        String?
+  ambulanceId   String?
+  patientName   String
+  patientPhone  String
+  pickupLat     Float
+  pickupLng     Float
+  pickupAddress String
+  dropLat       Float?
+  dropLng       Float?
+  dropAddress   String?
+  status        String   @default("pending") // pending | assigned | en_route | completed | cancelled
+  assignedAt    DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ambulance     Ambulance? @relation(fields: [ambulanceId], references: [id], onDelete: SetNull)
+}
+
+model AmbulanceLocationUpdate {
+  id            String   @id @default(cuid())
+  ambulanceId   String
+  lat           Float
+  lng           Float
+  timestamp     DateTime @default(now())
+
+  ambulance     Ambulance @relation(fields: [ambulanceId], references: [id], onDelete: Cascade)
+}

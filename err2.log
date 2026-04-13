@@ -1,0 +1,22 @@
+   ▲ Next.js 14.1.0
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+Failed to compile.
+
+./my-app/src/app/page.tsx:7:10
+Type error: 'Image' cannot be used as a JSX component.
+  Its type 'ForwardRefExoticComponent<Omit<DetailedHTMLProps<ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement>, "height" | ... 5 more ... | "srcSet"> & { ...; } & RefAttributes<...>>' is not a valid JSX element type.
+    Type 'ForwardRefExoticComponent<Omit<DetailedHTMLProps<ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement>, "height" | ... 5 more ... | "srcSet"> & { ...; } & RefAttributes<...>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'import("C:/Users/Parth Gupta/OneDrive/Desktop/healthcare-platform/my-app/node_modules/@types/react/index").ReactNode' is not assignable to type 'React.ReactNode'.
+        Type 'bigint' is not assignable to type 'ReactNode'.
+
+[0m [90m  5 |[39m     [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black"[39m[33m>[39m[0m
+[0m [90m  6 |[39m       [33m<[39m[33mmain[39m className[33m=[39m[32m"flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start"[39m[33m>[39m[0m
+[0m[31m[1m>[22m[39m[90m  7 |[39m         [33m<[39m[33mImage[39m[0m
+[0m [90m    |[39m          [31m[1m^[22m[39m[0m
+[0m [90m  8 |[39m           className[33m=[39m[32m"dark:invert"[39m[0m
+[0m [90m  9 |[39m           src[33m=[39m[32m"/next.svg"[39m[0m
+[0m [90m 10 |[39m           alt[33m=[39m[32m"Next.js logo"[39m[0m

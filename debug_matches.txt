@@ -1,0 +1,6 @@
+18: import InteractiveDnaModel from '@/components/DnaModel';
+19: import Medical3DShapes from '@/components/Medical3DShapes';
+20: import FloatingMedicalParticles from '@/components/FloatingMedicalParticles';
+472: <ClientOnly><InteractiveDnaModel /></ClientOnly>
+475: <FloatingMedicalParticles />
+861: <InteractiveDnaModel />

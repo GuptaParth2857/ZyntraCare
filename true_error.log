@@ -1,0 +1,40 @@
+▲ Next.js 16.2.1 (Turbopack)
+- Environments: .env.local, .env
+
+  Creating an optimized production build ...
+\nWarning: Custom Cache-Control headers detected for the following routes:
+  - /_next/static/(.*)
+  - /_next/image(.*)
+
+Setting a custom Cache-Control header can break Next.js development behavior.
+
+> Build error occurred
+Error: Turbopack build failed with 2 errors:
+./src/app/layout.tsx:6:28
+`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component.
+  [90m4 |[0m ...[33mViewport[0m } [36mfrom[0m [32m'next'[0m;
+  [90m5 |[0m ...
+[31m[1m>[0m [90m6 |[0m ...[33mursor[0m = dynamic(() => [36mimport[0m([32m'@/components/ActiveTheoryCursor'[0m), { ssr: [36mfalse[0m });
+  [90m  |[0m            [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m7 |[0m ... = dynamic(() => [36mimport[0m([32m'@/components/FeedbackModal'[0m), { ssr: [36mfalse[0m });
+  [90m8 |[0m ...
+  [90m9 |[0m ...rt: [33mViewport[0m = {
+
+Ecmascript file had an error
+
+
+./src/app/layout.tsx:7:23
+`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component.
+  [90m 5 |[0m ...
+  [90m 6 |[0m ...[33mTheoryCursor[0m = dynamic(() => [36mimport[0m([32m'@/components/ActiveTheoryCursor'[0m), { ssr: [36mfalse[0m });
+[31m[1m>[0m [90m 7 |[0m ...[33mckModal[0m = dynamic(() => [36mimport[0m([32m'@/components/FeedbackModal'[0m), { ssr: [36mfalse[0m });
+  [90m   |[0m              [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 8 |[0m ...
+  [90m 9 |[0m ... viewport: [33mViewport[0m = {
+  [90m10 |[0m ...[32mvice-width'[0m,
+
+Ecmascript file had an error
+
+
+    at <unknown> (./src/app/layout.tsx:6:28)
+    at <unknown> (./src/app/layout.tsx:7:23)
