@@ -131,7 +131,8 @@ export default function SymptomChecker() {
 
   return (
     <>
-      {/* Symptom Checker Button - 4th on LEFT */}
+      {/* Symptom Checker Button - hidden on mobile */}
+      <div className="hidden md:block">
       <motion.button
         initial={{ scale: 1, transform: 'none' }}
         onClick={() => setIsOpen(true)}
@@ -147,6 +148,7 @@ export default function SymptomChecker() {
         </div>
         <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-teal-500/80 px-2 py-1 rounded-full">Symptoms</span>
       </motion.button>
+      </div>
 
       {/* Symptom Checker Modal */}
       <AnimatePresence>

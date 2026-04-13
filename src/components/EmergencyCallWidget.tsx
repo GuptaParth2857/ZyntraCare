@@ -197,7 +197,8 @@ export default function EmergencyCallWidget() {
 
   return (
     <>
-      {/* Floating Emergency Button - TOP on LEFT */}
+      {/* Floating Emergency Button - HIDDEN on mobile, visible md+ */}
+      <div className="hidden md:block">
       <motion.button
         initial={{ scale: 1, transform: 'none' }}
         onClick={handleEmergencyCall}
@@ -223,6 +224,7 @@ export default function EmergencyCallWidget() {
         </div>
         <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-red-500/80 px-2 py-1 rounded-full">SOS</span>
       </motion.button>
+      </div>
 
       {/* Emergency Modal */}
       <AnimatePresence>

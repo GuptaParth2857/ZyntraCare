@@ -112,7 +112,8 @@ export default function MedicalIDWidget() {
 
   return (
     <>
-      {/* Medical ID Button - 2nd on LEFT */}
+      {/* Medical ID Button - hidden on mobile */}
+      <div className="hidden md:block">
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -132,6 +133,7 @@ export default function MedicalIDWidget() {
         </div>
         <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-pink-500/80 px-2 py-1 rounded-full">Medical ID</span>
       </motion.button>
+      </div>
 
       {/* Medical ID Modal */}
       <AnimatePresence>

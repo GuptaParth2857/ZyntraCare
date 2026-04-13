@@ -304,17 +304,10 @@ export default function CampsPage() {
           <h1 className="text-5xl font-black mb-4 tracking-tight">
             Upcoming <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500">Health Camps</span>
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-8">
+          <p className="text-gray-400 max-w-2xl mx-auto mb-2">
             Free medical checkups and health camps organized across India.
+            <span className="block text-sm text-gray-500 mt-1">Want to list your camp? Visit the footer or <button onClick={() => setShowListModal(true)} className="text-emerald-400 underline hover:text-emerald-300 transition">click here</button></span>
           </p>
-          {/* "List Your Camp" CTA */}
-          <motion.button
-            whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}
-            onClick={() => setShowListModal(true)}
-            className="inline-flex items-center gap-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white px-8 py-3.5 rounded-2xl font-bold transition shadow-[0_0_25px_rgba(20,184,166,0.35)]">
-            <FiPlus size={18} /> List Your Health Camp
-          </motion.button>
-          <p className="text-gray-500 text-sm mt-2">Free listing • Published within 24 hours</p>
         </div>
       </motion.div>
 

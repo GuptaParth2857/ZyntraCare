@@ -200,11 +200,10 @@ export default function Navbar() {
                 >
                   <FiUser size={14} aria-hidden="true" />
                   <span>{t('signIn')}</span>
-                  </motion.button>
-                )}
-
-                <NotificationBell />
-              </div>
+                </motion.button>
+              )}
+              <NotificationBell />
+            </div>
 
               {/* Mobile hamburger */}
             <button
