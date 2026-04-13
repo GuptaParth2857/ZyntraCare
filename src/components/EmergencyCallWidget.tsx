@@ -2,26 +2,23 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPhone, FiMapPin, FiNavigation, FiAlertCircle, FiCheck, FiX, FiPhoneCall, FiRefreshCw, FiTarget } from 'react-icons/fi';
+import { FiPhone, FiMapPin, FiNavigation, FiAlertCircle, FiCheck, FiX, FiPhoneCall, FiRefreshCw, FiTarget, FiExternalLink } from 'react-icons/fi';
 import { FaAmbulance, FaHospital } from 'react-icons/fa';
-import { hospitals as allHospitals } from '@/data/mockData';
 
-interface Hospital {
+interface NearbyHospital {
   id: string;
   name: string;
-  address: string;
-  city: string;
-  state: string;
   phone: string;
-  specialties: string[];
-  beds: { total: number; occupied: number; available: number; icu: number; icuAvailable: number };
-  emergency: boolean;
-  location: { lat: number; lng: number };
-  rating: number;
-  distance?: number;
+  address: string;
+  distance: number;
+  lat: number;
+  lng: number;
+  source: 'osm' | 'fallback';
+  bedsAvail?: number;
+  icuAvail?: number;
 }
 
-type EmergencyStage = 'idle' | 'locating' | 'tracking' | 'calling' | 'connected' | 'error';
+type EmergencyStage = 'idle' | 'locating' | 'fetching' | 'tracking' | 'calling' | 'error';
 
 function calcDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
@@ -31,507 +28,420 @@ function calcDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function findNearestHospitals(lat: number, lng: number, limit: number = 5) {
-  const withDistance = allHospitals.map(h => ({
-    ...h,
-    distance: calcDistance(lat, lng, h.location.lat, h.location.lng),
-  }));
-  
-  return withDistance
-    .filter(h => h.emergency && h.beds.available > 0)
-    .sort((a, b) => (a.distance || 0) - (b.distance || 0))
-    .slice(0, limit);
+// Real hospital fetch via OpenStreetMap Overpass API
+async function fetchRealNearbyHospitals(lat: number, lng: number): Promise<NearbyHospital[]> {
+  try {
+    const radius = 10000; // 10km radius
+    const query = `[out:json][timeout:10];
+      (
+        node["amenity"="hospital"](around:${radius},${lat},${lng});
+        way["amenity"="hospital"](around:${radius},${lat},${lng});
+        node["amenity"="clinic"](around:${radius},${lat},${lng});
+      );
+      out center 10;`;
+
+    const res = await fetch(
+      `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+
+    if (!res.ok) throw new Error('Overpass API failed');
+    const data = await res.json();
+
+    const hospitals: NearbyHospital[] = (data.elements || [])
+      .filter((el: any) => el.tags?.name)
+      .map((el: any) => {
+        const elLat = el.lat ?? el.center?.lat ?? lat;
+        const elLng = el.lon ?? el.center?.lon ?? lng;
+        return {
+          id: String(el.id),
+          name: el.tags.name,
+          phone: el.tags['contact:phone'] || el.tags.phone || el.tags['contact:mobile'] || '',
+          address: [el.tags['addr:full'], el.tags['addr:street'], el.tags['addr:city']]
+            .filter(Boolean).join(', ') || 'See on Maps',
+          distance: calcDistance(lat, lng, elLat, elLng),
+          lat: elLat,
+          lng: elLng,
+          source: 'osm' as const,
+        };
+      })
+      .sort((a: NearbyHospital, b: NearbyHospital) => a.distance - b.distance)
+      .slice(0, 6);
+
+    return hospitals;
+  } catch {
+    return [];
+  }
 }
 
 export default function EmergencyCallWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [stage, setStage] = useState<EmergencyStage>('idle');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [nearestHospitals, setNearestHospitals] = useState<Hospital[]>([]);
+  const [nearestHospitals, setNearestHospitals] = useState<NearbyHospital[]>([]);
   const [locationError, setLocationError] = useState('');
   const [callDuration, setCallDuration] = useState(0);
-  const [showInstructions, setShowInstructions] = useState(false);
-  const [trackingActive, setTrackingActive] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  
+  const [addressLabel, setAddressLabel] = useState('');
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
-  const selectedHospitalRef = useRef<Hospital | null>(null);
+  const selectedHospRef = useRef<NearbyHospital | null>(null);
 
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    setTrackingActive(false);
+  }, []);
+
+  // Reverse geocode user location to address
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      const addr = data.address;
+      const label = [addr?.neighbourhood || addr?.suburb, addr?.city || addr?.town, addr?.state]
+        .filter(Boolean).join(', ');
+      setAddressLabel(label || 'Your location');
+    } catch {
+      setAddressLabel('Your location');
+    }
+  };
+
+  const loadHospitals = useCallback(async (lat: number, lng: number) => {
+    setStage('fetching');
+    const results = await fetchRealNearbyHospitals(lat, lng);
+    if (results.length > 0) {
+      setNearestHospitals(results);
+      selectedHospRef.current = results[0];
+      setStage('tracking');
+    } else {
+      setLocationError('No hospitals found nearby. Try increasing search area.');
+      setStage('error');
+    }
+    setLastUpdate(new Date());
   }, []);
 
   const startTracking = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported');
+      setLocationError('Location not supported on this device');
       setStage('error');
       return;
     }
-
     setStage('locating');
     setLocationError('');
+    setNearestHospitals([]);
 
-    // First get initial position
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
-        
-        const nearest = findNearestHospitals(latitude, longitude, 5);
-        if (nearest.length > 0) {
-          setNearestHospitals(nearest);
-          setStage('tracking');
-          setLastUpdate(new Date());
-          setTrackingActive(true);
-        } else {
-          setLocationError('No emergency hospitals found nearby');
-          setStage('error');
-        }
+        reverseGeocode(latitude, longitude);
+        await loadHospitals(latitude, longitude);
+
+        // Watch for position updates
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          async (pos) => {
+            const { latitude: wLat, longitude: wLng } = pos.coords;
+            setUserLocation({ lat: wLat, lng: wLng });
+            setLastUpdate(new Date());
+            // Refresh hospitals every 60s on movement
+            await loadHospitals(wLat, wLng);
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+        );
       },
       (error) => {
-        setLocationError(error.message);
+        setLocationError(
+          error.code === 1
+            ? 'Location access denied. Please enable location in browser settings.'
+            : 'Could not get location. Try again.'
+        );
         setStage('error');
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 12000 }
     );
+  }, [loadHospitals]);
 
-    // Then start continuous tracking
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
-        
-        // Recalculate nearest hospitals as user moves
-        const nearest = findNearestHospitals(latitude, longitude, 5);
-        setNearestHospitals(nearest);
-        setLastUpdate(new Date());
-        
-        // Auto-select nearest hospital
-        if (nearest.length > 0) {
-          selectedHospitalRef.current = nearest[0];
-        }
-      },
-      (error) => {
-        console.warn('Tracking error:', error.message);
-      },
-      { 
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 5000 
-      }
-    );
-  }, []);
-
-  const handleEmergencyCall = () => {
-    setIsOpen(true);
-    setShowInstructions(true);
-    setTimeout(() => {
-      setShowInstructions(false);
-      startTracking();
-    }, 2000);
-  };
-
-  const handleCallHospital = (hospital: Hospital) => {
-    if (hospital?.phone) {
-      setStage('calling');
-      selectedHospitalRef.current = hospital;
-      
-      // Stop tracking when call is made
-      stopTracking();
-      window.location.href = `tel:${hospital.phone}`;
-      
-      timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-    }
-  };
-
-  const handleAutoCallNearest = () => {
-    if (nearestHospitals.length > 0 && nearestHospitals[0]) {
-      handleCallHospital(nearestHospitals[0]);
-    }
-  };
-
-  const handleCallAmbulance = () => {
+  const handleCallHospital = (hospital: NearbyHospital) => {
+    selectedHospRef.current = hospital;
     stopTracking();
-    window.location.href = 'tel:102';
+    if (hospital.phone) {
+      setStage('calling');
+      timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+      window.location.href = `tel:${hospital.phone}`;
+    } else {
+      // Open in Google Maps if no phone
+      window.open(
+        `https://www.google.com/maps/search/hospitals/@${hospital.lat},${hospital.lng},15z`,
+        '_blank'
+      );
+    }
   };
 
   const handleClose = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
     stopTracking();
     setIsOpen(false);
     setStage('idle');
     setCallDuration(0);
     setNearestHospitals([]);
     setUserLocation(null);
-    setShowInstructions(false);
-    setTrackingActive(false);
+    setAddressLabel('');
   };
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
     };
   }, []);
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
+  const formatDuration = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+  const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
     <>
-      {/* Floating Emergency Button - HIDDEN on mobile, visible md+ */}
-      <div className="hidden md:block">
+      {/* Floating SOS Button — compact on mobile, full on desktop */}
       <motion.button
-        initial={{ scale: 1, transform: 'none' }}
-        onClick={handleEmergencyCall}
-        className="fixed bottom-[270px] left-6 z-[9999] flex flex-col items-center"
-        animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+        onClick={() => { setIsOpen(true); setTimeout(() => startTracking(), 300); }}
+        className="fixed bottom-[270px] left-2 md:left-6 z-[9999] flex flex-col items-center group"
+        animate={{ scale: [1, 1.04, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+        whileTap={{ scale: 0.93 }}
+        aria-label="SOS Emergency"
       >
         <div className="relative">
-          <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-60 animate-pulse" />
-          <div className="relative w-[70px] h-[70px] bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-500/50 border-4 border-white">
-            <FiPhoneCall className="text-white text-3xl" />
+          <div className="absolute inset-0 bg-red-500 rounded-full blur-lg opacity-60 animate-pulse" />
+          {/* Mobile: 48px | Desktop: 70px */}
+          <div className="relative w-12 h-12 md:w-[70px] md:h-[70px] bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-500/50 border-2 md:border-4 border-white">
+            <FiPhoneCall className="text-white text-lg md:text-3xl" />
           </div>
-          <div className="absolute -top-1 -right-1 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-            <span className="text-white text-[10px] font-black">SOS</span>
+          <div className="absolute -top-1 -right-1 w-5 h-5 md:w-7 md:h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+            <span className="text-white text-[8px] md:text-[10px] font-black">SOS</span>
           </div>
-          {trackingActive && (
-            <div className="absolute -bottom-1 -left-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white animate-ping">
-              <FiTarget className="text-white text-[8px]" />
-            </div>
-          )}
         </div>
-        <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-red-500/80 px-2 py-1 rounded-full">SOS</span>
+        <span className="text-[8px] md:text-[9px] font-bold text-white mt-1 drop-shadow-lg bg-red-500/80 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">SOS</span>
       </motion.button>
-      </div>
 
       {/* Emergency Modal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-            onClick={(e) => e.target === e.currentTarget && !trackingActive && setIsOpen(false)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && handleClose()}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-slate-900 rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
+              initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 25 }}
+              className="w-full md:max-w-md bg-slate-900 rounded-t-3xl md:rounded-3xl overflow-hidden border border-white/10 shadow-2xl max-h-[90vh] flex flex-col"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5 relative">
-                <button
-                  onClick={handleClose}
-                  className="absolute top-3 right-3 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white"
-                  aria-label="Close emergency widget"
-                >
-                  <FiX size={16} aria-hidden="true" />
+              <div className="bg-gradient-to-r from-red-600 to-rose-600 p-4 relative flex-shrink-0">
+                {/* Drag handle on mobile */}
+                <div className="w-10 h-1 bg-white/40 rounded-full mx-auto mb-3 md:hidden" />
+                <button onClick={handleClose}
+                  className="absolute top-3 right-3 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white">
+                  <FiX size={16} />
                 </button>
-                
                 <div className="flex items-center gap-3">
                   <motion.div
-                    animate={stage === 'locating' || trackingActive ? { rotate: 360 } : {}}
-                    transition={stage === 'locating' ? { duration: 2, repeat: Infinity, ease: 'linear' } : {}}
-                    className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center"
-                  >
-                    {stage === 'idle' || showInstructions ? (
-                      <FiPhoneCall className="text-white text-xl" />
-                    ) : stage === 'locating' ? (
-                      <FiNavigation className="text-white text-xl animate-pulse" />
-                    ) : stage === 'tracking' ? (
-                      <FiTarget className="text-white text-xl" />
-                    ) : stage === 'calling' ? (
-                      <FiPhone className="text-white text-xl animate-pulse" />
-                    ) : stage === 'connected' ? (
-                      <FiCheck className="text-white text-xl" />
-                    ) : (
-                      <FiAlertCircle className="text-white text-xl" />
-                    )}
+                    animate={stage === 'locating' || stage === 'fetching' ? { rotate: 360 } : {}}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                    className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    {stage === 'locating' ? <FiNavigation className="text-white text-xl" /> :
+                     stage === 'fetching' ? <FaHospital className="text-white text-xl" /> :
+                     stage === 'tracking' ? <FiTarget className="text-white text-xl" /> :
+                     stage === 'calling' ? <FiPhone className="text-white text-xl animate-pulse" /> :
+                     stage === 'error' ? <FiAlertCircle className="text-white text-xl" /> :
+                     <FiPhoneCall className="text-white text-xl" />}
                   </motion.div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">
-                      {stage === 'idle' && showInstructions ? 'Emergency Help' :
-                       stage === 'locating' ? 'Finding You...' :
-                       stage === 'tracking' ? 'Live Tracking' :
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-bold text-white">
+                      {stage === 'locating' ? 'Getting Your Location...' :
+                       stage === 'fetching' ? 'Finding Real Hospitals...' :
+                       stage === 'tracking' ? '🏥 Nearby Hospitals' :
                        stage === 'calling' ? 'Calling...' :
-                       stage === 'connected' ? 'Connected!' :
-                       'Error'}
+                       stage === 'error' ? 'Error' : 'Emergency Help'}
                     </h2>
-                    <p className="text-red-100 text-sm flex items-center gap-1">
-                      {trackingActive && <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
-                      {stage === 'tracking' && userLocation ? (
-                        <>
-                          Tracking: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
-                        </>
-                      ) : stage === 'locating' ? (
-                        'Finding your location...'
-                      ) : locationError}
-                    </p>
+                    {(stage === 'tracking' || stage === 'locating') && userLocation && (
+                      <p className="text-red-100 text-xs truncate flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block" />
+                        {addressLabel || `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`}
+                      </p>
+                    )}
+                    {stage === 'error' && <p className="text-red-200 text-xs">{locationError}</p>}
                   </div>
                 </div>
               </div>
 
-              <div className="p-5 space-y-4">
-                {/* Instructions */}
-                {showInstructions && stage === 'idle' && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-3"
-                  >
-                    <div className="flex items-center gap-3 bg-blue-500/10 rounded-xl p-3">
-                      <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                        <FiMapPin className="text-blue-400" size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white text-sm">1. Real-Time Tracking</p>
-                        <p className="text-xs text-gray-400">GPS tracks you continuously</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-green-500/10 rounded-xl p-3">
-                      <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                        <FaHospital className="text-green-400" size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white text-sm">2. Auto-Updating Hospitals</p>
-                        <p className="text-xs text-gray-400">Nearest hospital updates as you move</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-red-500/10 rounded-xl p-3">
-                      <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-                        <FiPhoneCall className="text-red-400" size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white text-sm">3. One-Tap Call</p>
-                        <p className="text-xs text-gray-400">Direct call to nearest hospital</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Locating */}
-                {stage === 'locating' && (
-                  <div className="text-center py-8">
-                    <motion.div
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4"
-                    >
-                      <FiNavigation className="text-blue-400 text-3xl" />
+              <div className="flex-1 overflow-y-auto">
+                {/* Locating / Fetching */}
+                {(stage === 'locating' || stage === 'fetching') && (
+                  <div className="text-center py-12 px-6">
+                    <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
+                      className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      {stage === 'locating' ? <FiNavigation className="text-blue-400 text-4xl" /> : <FaHospital className="text-blue-400 text-3xl" />}
                     </motion.div>
-                    <p className="text-white font-semibold">Getting your location...</p>
-                    <p className="text-gray-400 text-sm mt-1">Please enable location access</p>
+                    <p className="text-white font-semibold">
+                      {stage === 'locating' ? 'Detecting your GPS location...' : 'Searching real hospitals near you...'}
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      {stage === 'locating' ? 'Please allow location access' : 'Using OpenStreetMap data'}
+                    </p>
                   </div>
                 )}
 
-                {/* Live Tracking Mode */}
+                {/* Tracking — Real Nearby Hospitals */}
                 {stage === 'tracking' && (
-                  <div className="space-y-4">
-                    {/* Live Location Card */}
-                    <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20 rounded-2xl p-4">
-                      <div className="flex items-center justify-between mb-3">
+                  <div className="p-4 space-y-3">
+                    {/* Location info */}
+                    {userLocation && (
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                          <span className="text-green-400 font-bold text-sm">LIVE TRACKING ACTIVE</span>
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                          <span className="text-green-400 text-xs font-bold">LIVE GPS ACTIVE</span>
                         </div>
                         {lastUpdate && (
-                          <span className="text-gray-500 text-xs">
-                            Updated: {formatTime(lastUpdate)}
-                          </span>
+                          <span className="text-gray-500 text-[10px]">Updated: {formatTime(lastUpdate)}</span>
                         )}
                       </div>
-                      
-                      {userLocation && (
-                        <div className="bg-white/5 rounded-lg p-2 mb-3">
-                          <p className="text-gray-400 text-xs">Your Location</p>
-                          <p className="text-white text-sm font-mono">
-                            {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
-                          </p>
-                        </div>
-                      )}
+                    )}
 
-                      {/* Auto-Call Nearest Hospital */}
-                      {nearestHospitals.length > 0 && (
-                        <motion.button
-                          initial={{ scale: 0.9 }}
-                          animate={{ scale: [0.9, 1, 0.9] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                          onClick={handleAutoCallNearest}
-                          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-green-500/30 transition-all animate-pulse"
-                        >
-                          <FiPhoneCall size={24} />
-                          <span className="text-lg">📞 Call Nearest: {nearestHospitals[0]?.name}</span>
-                        </motion.button>
-                      )}
-                    </div>
+                    {/* Call nearest button */}
+                    {nearestHospitals[0] && (
+                      <motion.button
+                        animate={{ scale: [1, 1.02, 1] }} transition={{ duration: 1.5, repeat: Infinity }}
+                        onClick={() => handleCallHospital(nearestHospitals[0])}
+                        className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-green-500/30"
+                      >
+                        <FiPhoneCall size={22} />
+                        <div className="text-left">
+                          <p className="text-sm leading-tight">📞 Call Nearest Hospital</p>
+                          <p className="text-xs text-green-100 font-normal truncate max-w-[200px]">{nearestHospitals[0].name}</p>
+                        </div>
+                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full ml-auto">{nearestHospitals[0].distance.toFixed(1)} km</span>
+                      </motion.button>
+                    )}
 
                     {/* Hospital List */}
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                      Real Hospitals Near You ({nearestHospitals.length} found)
+                    </p>
                     <div className="space-y-2">
-                      <p className="text-gray-400 text-xs font-semibold">🏥 Nearest Hospitals (Auto-Updated)</p>
-                      <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                        {nearestHospitals.map((hospital, index) => (
-                          <motion.div
-                            key={hospital.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className={`bg-white/5 border rounded-xl p-3 transition-all ${
-                              index === 0 ? 'border-green-500/50 bg-green-500/10' : 'border-white/10'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                                    index === 0 ? 'bg-green-500 text-white' : 'bg-white/10 text-gray-400'
-                                  }`}>
-                                    {index + 1}
-                                  </span>
-                                  <h3 className={`font-bold text-sm ${index === 0 ? 'text-green-400' : 'text-white'}`}>
-                                    {hospital.name}
-                                  </h3>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 mt-2">
-                                  <div className="text-center">
-                                    <p className="text-[9px] text-gray-500">{hospital.distance?.toFixed(1)} km</p>
-                                    {index === 0 && <p className="text-[8px] text-green-500 font-semibold">NEAREST</p>}
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-[9px] text-green-400 font-semibold">{hospital.beds.available} beds</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-[9px] text-blue-400 font-semibold">{hospital.beds.icuAvailable} ICU</p>
-                                  </div>
-                                </div>
+                      {nearestHospitals.map((h, i) => (
+                        <motion.div key={h.id}
+                          initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className={`border rounded-xl p-3 ${i === 0 ? 'border-green-500/40 bg-green-500/8' : 'border-white/10 bg-white/5'}`}>
+                          <div className="flex items-start gap-3">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${i === 0 ? 'bg-green-500 text-white' : 'bg-white/10 text-gray-400'}`}>
+                              {i + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-bold text-sm truncate ${i === 0 ? 'text-green-400' : 'text-white'}`}>{h.name}</p>
+                              {h.address && h.address !== 'See on Maps' && (
+                                <p className="text-gray-500 text-[10px] truncate">{h.address}</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-xs font-semibold ${h.distance < 2 ? 'text-green-400' : h.distance < 5 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                                  📍 {h.distance.toFixed(1)} km
+                                </span>
+                                {!h.phone && (
+                                  <span className="text-[10px] text-gray-500">No phone — Maps link</span>
+                                )}
                               </div>
-                              <button
-                                onClick={() => handleCallHospital(hospital)}
-                                className={`px-3 py-2 text-xs font-bold rounded-lg flex items-center gap-1 transition-all active:scale-95 ${
-                                  index === 0 
-                                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg' 
-                                    : 'bg-white/10 text-white hover:bg-white/20'
-                                }`}
-                              >
-                                <FiPhoneCall size={12} />
-                                Call
-                              </button>
                             </div>
-                          </motion.div>
-                        ))}
-                      </div>
+                            <div className="flex flex-col gap-1 flex-shrink-0">
+                              <button onClick={() => handleCallHospital(h)}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1 transition ${i === 0 ? 'bg-green-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                                {h.phone ? <><FiPhoneCall size={11} /> Call</> : <><FiExternalLink size={11} /> Maps</>}
+                              </button>
+                              <a href={`https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="px-3 py-1.5 text-[10px] font-bold rounded-lg bg-blue-500/20 text-blue-400 flex items-center gap-1 hover:bg-blue-500/30 transition text-center justify-center">
+                                <FiMapPin size={10} /> Route
+                              </a>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
                     </div>
 
-                    {/* Ambulance Button */}
-                    <button
-                      onClick={handleCallAmbulance}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-red-500/20 to-rose-500/20 hover:from-red-500/30 hover:to-rose-500/30 border border-red-500/30 text-red-400 font-semibold rounded-xl flex items-center justify-center gap-3 transition-all"
-                    >
-                      <FaAmbulance size={20} />
-                      <span>Call Ambulance (102)</span>
+                    {/* Ambulance */}
+                    <button onClick={() => { stopTracking(); window.location.href = 'tel:102'; }}
+                      className="w-full py-3 bg-red-500/15 border border-red-500/30 text-red-400 font-bold rounded-xl flex items-center justify-center gap-3 hover:bg-red-500/25 transition">
+                      <FaAmbulance size={18} /> Call Ambulance 102
+                    </button>
+
+                    {/* Refresh */}
+                    <button onClick={() => userLocation && loadHospitals(userLocation.lat, userLocation.lng)}
+                      className="w-full py-2.5 bg-white/5 border border-white/10 text-gray-400 text-sm rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition">
+                      <FiRefreshCw size={14} /> Refresh Nearby Hospitals
                     </button>
                   </div>
                 )}
 
                 {/* Calling */}
                 {stage === 'calling' && (
-                  <div className="text-center py-8">
+                  <div className="text-center py-10 px-6">
                     <div className="relative w-20 h-20 mx-auto mb-4">
-                      <div className="absolute inset-0 bg-red-500/20 rounded-full animate-ping" />
+                      <div className="absolute inset-0 bg-red-500/30 rounded-full animate-ping" />
                       <div className="relative w-full h-full bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center">
                         <FiPhoneCall className="text-white text-3xl animate-pulse" />
                       </div>
                     </div>
-                    <p className="text-white font-semibold mb-1">Calling {selectedHospitalRef.current?.name}...</p>
-                    <p className="text-gray-400 text-sm mb-4">{selectedHospitalRef.current?.phone}</p>
-                    <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
+                    <p className="text-white font-bold text-lg">{selectedHospRef.current?.name}</p>
+                    {selectedHospRef.current?.phone && (
+                      <p className="text-gray-400 text-sm mb-4">{selectedHospRef.current.phone}</p>
+                    )}
+                    <div className="inline-flex items-center gap-2 bg-white/10 px-5 py-2 rounded-full">
                       <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <span className="text-green-400 font-mono">{formatDuration(callDuration)}</span>
+                      <span className="text-green-400 font-mono text-lg">{formatDuration(callDuration)}</span>
                     </div>
-                  </div>
-                )}
-
-                {/* Connected */}
-                {stage === 'connected' && (
-                  <div className="text-center py-8">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4"
-                    >
-                      <FiCheck className="text-white text-3xl" />
-                    </motion.div>
-                    <h3 className="text-white font-bold text-lg mb-2">Call Connected!</h3>
-                    <p className="text-gray-400 text-sm mb-2">{selectedHospitalRef.current?.name}</p>
-                    <p className="text-green-400 font-mono text-xl">{formatDuration(callDuration)}</p>
                   </div>
                 )}
 
                 {/* Error */}
                 {stage === 'error' && (
-                  <div className="text-center py-6 space-y-4">
+                  <div className="text-center py-8 px-6 space-y-4">
                     <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
                       <FiAlertCircle className="text-red-400 text-3xl" />
                     </div>
-                    <h3 className="text-white font-bold">Unable to Track</h3>
-                    <p className="text-gray-400 text-sm">{locationError || 'Please enable location access'}</p>
-                    
-                    <div className="space-y-2">
-                      <button
-                        onClick={startTracking}
-                        className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2"
-                      >
-                        <FiRefreshCw size={16} /> Try Again
-                      </button>
-                      <button
-                        onClick={handleCallAmbulance}
-                        className="w-full py-3 px-4 bg-gradient-to-r from-red-500 to-rose-500 text-white font-bold rounded-xl flex items-center justify-center gap-2"
-                      >
-                        <FaAmbulance size={16} /> Call Ambulance (102)
-                      </button>
-                    </div>
+                    <p className="text-gray-300 text-sm">{locationError}</p>
+                    <button onClick={startTracking}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                      <FiRefreshCw size={16} /> Try Again
+                    </button>
+                    <button onClick={() => window.location.href = 'tel:102'}
+                      className="w-full py-3 bg-red-500 hover:bg-red-400 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                      <FaAmbulance size={16} /> Call Ambulance 102
+                    </button>
                   </div>
                 )}
 
-                {/* Quick Actions - Initial State */}
-                {stage === 'idle' && !showInstructions && (
-                  <div className="space-y-2">
-                    <button
-                      onClick={startTracking}
-                      className="w-full py-4 px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold rounded-xl flex items-center justify-center gap-3 shadow-lg transition-all active:scale-[0.98]"
-                    >
-                      <FiTarget size={20} />
-                      <span>Start Real-Time Tracking</span>
+                {/* Idle */}
+                {stage === 'idle' && (
+                  <div className="p-4 space-y-3">
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-sm text-gray-300 space-y-2">
+                      <p className="font-bold text-white">How it works:</p>
+                      <p>📍 Detects your real GPS location</p>
+                      <p>🏥 Finds actual hospitals from OpenStreetMap within 10km</p>
+                      <p>📞 One-tap call + Google Maps route</p>
+                    </div>
+                    <button onClick={startTracking}
+                      className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                      <FiTarget size={20} /> Find Hospitals Near Me
                     </button>
-                    <button
-                      onClick={handleCallAmbulance}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-400 hover:to-rose-400 text-white font-bold rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
-                    >
-                      <FaAmbulance size={20} />
-                      <span>Call Ambulance (102)</span>
+                    <button onClick={() => window.location.href = 'tel:102'}
+                      className="w-full py-3 bg-red-500/20 border border-red-500/30 text-red-400 font-bold rounded-xl flex items-center justify-center gap-2">
+                      <FaAmbulance size={16} /> Direct Ambulance (102)
                     </button>
                   </div>
                 )}

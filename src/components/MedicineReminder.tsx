@@ -99,29 +99,27 @@ export default function MedicineReminder() {
 
   return (
     <>
-      {/* Medicine Reminder Button - hidden on mobile */}
-      <div className="hidden md:block">
+      {/* Medicine Reminder Button — compact on mobile */}
       <motion.button
         initial={{ scale: 1, transform: 'none' }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-[110px] left-6 z-[9998]"
+        className="fixed bottom-[110px] left-2 md:left-6 z-[9998] flex flex-col items-center"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur-lg opacity-50" />
-          <div className="relative w-[70px] h-[70px] bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center shadow-xl border-4 border-white">
-            <FiGrid className="text-white text-3xl" />
+          <div className="relative w-12 h-12 md:w-[70px] md:h-[70px] bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center shadow-xl border-2 md:border-4 border-white">
+            <FiGrid className="text-white text-lg md:text-3xl" />
           </div>
           {dueReminders.length > 0 && (
-            <div className="absolute -top-1 -right-1 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-              <span className="text-white text-[11px] font-black">{dueReminders.length}</span>
+            <div className="absolute -top-1 -right-1 w-5 h-5 md:w-7 md:h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+              <span className="text-white text-[9px] md:text-[11px] font-black">{dueReminders.length}</span>
             </div>
           )}
         </div>
-        <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-purple-500/80 px-2 py-1 rounded-full">Medicines</span>
+        <span className="text-[8px] md:text-[9px] font-bold text-white mt-1 drop-shadow-lg bg-purple-500/80 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">Meds</span>
       </motion.button>
-      </div>
 
       {/* Due Reminder Alert */}
       <AnimatePresence>

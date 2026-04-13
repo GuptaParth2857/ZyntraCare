@@ -131,24 +131,22 @@ export default function SymptomChecker() {
 
   return (
     <>
-      {/* Symptom Checker Button - hidden on mobile */}
-      <div className="hidden md:block">
+      {/* Symptom Checker Button — compact on mobile */}
       <motion.button
         initial={{ scale: 1, transform: 'none' }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-[30px] left-6 z-[9997]"
+        className="fixed bottom-[30px] left-2 md:left-6 z-[9997] flex flex-col items-center"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full blur-lg opacity-50" />
-          <div className="relative w-[70px] h-[70px] bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center shadow-xl border-4 border-white">
-            <FiActivity className="text-white text-3xl" />
+          <div className="relative w-12 h-12 md:w-[70px] md:h-[70px] bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center shadow-xl border-2 md:border-4 border-white">
+            <FiActivity className="text-white text-lg md:text-3xl" />
           </div>
         </div>
-        <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-teal-500/80 px-2 py-1 rounded-full">Symptoms</span>
+        <span className="text-[8px] md:text-[9px] font-bold text-white mt-1 drop-shadow-lg bg-teal-500/80 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">Check</span>
       </motion.button>
-      </div>
 
       {/* Symptom Checker Modal */}
       <AnimatePresence>

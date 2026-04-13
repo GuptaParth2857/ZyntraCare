@@ -112,28 +112,26 @@ export default function MedicalIDWidget() {
 
   return (
     <>
-      {/* Medical ID Button - hidden on mobile */}
-      <div className="hidden md:block">
+      {/* Medical ID Button — compact on mobile */}
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-[190px] left-6 z-[9998] group"
+        className="fixed bottom-[190px] left-2 md:left-6 z-[9998] group flex flex-col items-center"
       >
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-red-500 rounded-full blur-lg opacity-50" />
-          <div className="relative w-[70px] h-[70px] bg-gradient-to-br from-pink-500 to-red-600 rounded-full flex items-center justify-center shadow-xl border-4 border-white">
-            <FiHeart className="text-white text-3xl" />
+          <div className="relative w-12 h-12 md:w-[70px] md:h-[70px] bg-gradient-to-br from-pink-500 to-red-600 rounded-full flex items-center justify-center shadow-xl border-2 md:border-4 border-white">
+            <FiHeart className="text-white text-lg md:text-3xl" />
           </div>
           {isComplete && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-              <span className="text-white text-[9px] font-black">ID</span>
+            <div className="absolute -top-1 -right-1 w-5 h-5 md:w-6 md:h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+              <span className="text-white text-[8px] md:text-[9px] font-black">ID</span>
             </div>
           )}
         </div>
-        <span className="text-[9px] font-bold text-white mt-2 drop-shadow-lg bg-pink-500/80 px-2 py-1 rounded-full">Medical ID</span>
+        <span className="text-[8px] md:text-[9px] font-bold text-white mt-1 drop-shadow-lg bg-pink-500/80 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">Medical ID</span>
       </motion.button>
-      </div>
 
       {/* Medical ID Modal */}
       <AnimatePresence>
