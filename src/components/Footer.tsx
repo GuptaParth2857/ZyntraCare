@@ -75,9 +75,10 @@ export default function Footer() {
                 { href: '/hospitals', label: t('findHospitals') },
                 { href: '/specialists', label: 'Find Doctors' },
                 { href: '/camps', label: t('healthCamps') },
+                { href: '/booking', label: 'Book Appointment' },
                 { href: '/emergency', label: t('emergency') },
                 { href: '/dashboard', label: t('myHealth') },
-                { href: '/hospital-dashboard', label: 'Staff Portal' },
+                { href: '/doctors/register', label: '🩺 Register as Doctor' },
                 { href: '/feedback', label: 'Feedback' },
                 { href: '/sponsor', label: 'Partner With Us' },
               ].map((link) => (
@@ -157,8 +158,13 @@ export default function Footer() {
           className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4"
         >
           <p className="text-gray-400 text-sm">
-            © 2026 ZyntraCare. All rights reserved.
+            © 2026 ZyntraCare. All rights reserved. Made with ❤️ in India.
           </p>
+          <div className="flex gap-4 text-xs text-gray-600">
+            <Link href="/legal" className="hover:text-gray-400 transition">Privacy</Link>
+            <Link href="/legal/terms" className="hover:text-gray-400 transition">Terms</Link>
+            <Link href="/contact" className="hover:text-gray-400 transition">Contact</Link>
+          </div>
         </motion.div>
       </div>
     </footer>

@@ -5,8 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { FiShield, FiFileText, FiLock, FiEye, FiAlertTriangle, FiCheckCircle, FiChevronDown, FiChevronUp, FiExternalLink } from 'react-icons/fi';
 import { useLanguage } from '@/context/LanguageContext';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+
 
 export default function LegalPage() {
   const { t, lang } = useLanguage();
@@ -65,11 +64,8 @@ export default function LegalPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Navbar />
-      
-      <main className="pt-24 pb-16">
-        <div className="max-w-4xl mx-auto px-4">
+    <main className="min-h-screen bg-slate-950 pt-24 pb-16">
+      <div className="max-w-4xl mx-auto px-4">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -189,10 +185,7 @@ export default function LegalPage() {
               ? 'अंतिम बार अपडेट किया गया: अप्रैल 2026'
               : 'Last updated: April 2026'}
           </p>
-        </div>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </main>
   );
 }

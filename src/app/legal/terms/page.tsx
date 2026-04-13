@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiFileText, FiCheckCircle, FiAlertTriangle, FiUsers, FiCreditCard, FiShield } from 'react-icons/fi';
 import { useLanguage } from '@/context/LanguageContext';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+
 
 export default function TermsPage() {
   const { t, lang } = useLanguage();
@@ -67,10 +66,7 @@ export default function TermsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Navbar />
-      
-      <main className="pt-24 pb-16">
+    <main className="min-h-screen bg-slate-950 pt-24 pb-16">
         <div className="max-w-4xl mx-auto px-4">
           {/* Header */}
           <motion.div
@@ -164,9 +160,6 @@ export default function TermsPage() {
             </a>
           </motion.div>
         </div>
-      </main>
-
-      <Footer />
-    </div>
+    </main>
   );
 }
