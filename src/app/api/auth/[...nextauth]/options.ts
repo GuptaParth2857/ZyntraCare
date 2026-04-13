@@ -51,6 +51,23 @@ export const authOptions: NextAuthOptions = {
                 include: { subscription: true }
               });
 
+              // Send email notification to Admin
+              import('@/lib/email').then(({ sendEmail }) => {
+                sendEmail({
+                  to: process.env.EMAIL_USER || 'admin@zyntracare.com', // Admin's email
+                  subject: '🎉 New User Registration - ZyntraCare',
+                  html: `
+                    <div style="font-family: sans-serif; padding: 20px;">
+                      <h2 style="color: #0ea5e9;">New User Signed Up!</h2>
+                      <p><strong>Email:</strong> ${newUser.email}</p>
+                      <p><strong>Name:</strong> ${newUser.name}</p>
+                      <p><strong>Role:</strong> ${newUser.role}</p>
+                      <p>Login to admin dashboard to view more details.</p>
+                    </div>
+                  `
+                }).catch(e => console.error('Admin email error:', e));
+              });
+
               return {
                 id: newUser.id,
                 name: newUser.name,
@@ -115,6 +132,21 @@ export const authOptions: NextAuthOptions = {
                   role: 'patient',
                 },
                 include: { subscription: true }
+              });
+
+              // Send email notification to Admin
+              import('@/lib/email').then(({ sendEmail }) => {
+                sendEmail({
+                  to: process.env.EMAIL_USER || 'admin@zyntracare.com', // Admin's email
+                  subject: '🎉 New User Registration (Phone) - ZyntraCare',
+                  html: `
+                    <div style="font-family: sans-serif; padding: 20px;">
+                      <h2 style="color: #0ea5e9;">New Phone User Signed Up!</h2>
+                      <p><strong>Phone:</strong> ${user.phone}</p>
+                      <p>Login to admin dashboard to view more details.</p>
+                    </div>
+                  `
+                }).catch(e => console.error('Admin email error:', e));
               });
             }
 
