@@ -10,22 +10,22 @@ import dynamic from 'next/dynamic';
 import { useActiveUserHeartbeat } from '@/hooks/useActiveUserHeartbeat';
 import ClientOnly from './ClientOnly';
 
-// Normal imports for components that use browser APIs
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import Chatbot from '@/components/Chatbot';
-import EmergencyBanner from '@/components/EmergencyBanner';
-import EmergencyScrollMonitor from '@/components/EmergencyScrollMonitor';
-import CanvasBackground from '@/components/CanvasBackground';
-import ActiveTheoryCursor from '@/components/ActiveTheoryCursor';
-import FeedbackModal from '@/components/FeedbackModal';
-import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
-import EmergencyCallWidget from '@/components/EmergencyCallWidget';
-import MedicalIDWidget from '@/components/MedicalIDWidget';
-import MedicineReminder from '@/components/MedicineReminder';
-import SymptomChecker from '@/components/SymptomChecker';
-import CookieConsent from '@/components/CookieConsent';
-import Analytics from '@/components/Analytics';
+const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
+const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
+const Chatbot = dynamic(() => import('@/components/Chatbot'), { ssr: false });
+const EmergencyBanner = dynamic(() => import('@/components/EmergencyBanner'), { ssr: false });
+const EmergencyScrollMonitor = dynamic(() => import('@/components/EmergencyScrollMonitor'), { ssr: false });
+const CanvasBackground = dynamic(() => import('@/components/CanvasBackground'), { ssr: false });
+const ActiveTheoryCursor = dynamic(() => import('@/components/ActiveTheoryCursor'), { ssr: false });
+const FeedbackModal = dynamic(() => import('@/components/FeedbackModal'), { ssr: false });
+const ServiceWorkerRegistration = dynamic(() => import('@/components/ServiceWorkerRegistration'), { ssr: false });
+const EmergencyCallWidget = dynamic(() => import('@/components/EmergencyCallWidget'), { ssr: false });
+const MedicalIDWidget = dynamic(() => import('@/components/MedicalIDWidget'), { ssr: false });
+const MedicineReminder = dynamic(() => import('@/components/MedicineReminder'), { ssr: false });
+const SymptomChecker = dynamic(() => import('@/components/SymptomChecker'), { ssr: false });
+const CookieConsent = dynamic(() => import('@/components/CookieConsent'), { ssr: false });
+const Analytics = dynamic(() => import('@/components/Analytics'), { ssr: false });
+
 import { NotificationProvider } from '@/components/Notifications';
 
 /** Inner component — needs session context for the heartbeat hook */

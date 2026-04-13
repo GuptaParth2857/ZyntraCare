@@ -5,6 +5,8 @@ const nextConfig = {
 
   output: 'standalone',
 
+  compress: true,
+
   // Image optimization
   images: {
     remotePatterns: [
@@ -59,7 +61,12 @@ const nextConfig = {
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(self)' },
-          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+      {
+        source: '/(.*)\\.(js|css|woff|woff2|ttf|eot|svg|ico|jpg|jpeg|png|webp|avif|gif|mp4|webm)$',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
     ];

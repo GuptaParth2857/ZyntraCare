@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { FiArrowRight, FiShield, FiHeart, FiMapPin, FiPhone, FiActivity, FiUsers, FiAward, FiZap, FiCpu, FiStar, FiTrendingUp, FiCheckCircle, FiBookOpen, FiCalendar, FiClock, FiEye, FiLock, FiPlay, FiMessageCircle, FiSend, FiCode } from 'react-icons/fi';
 import { FaHeartbeat, FaBrain, FaBone, FaBaby, FaSpa, FaEye, FaTooth, FaStethoscope, FaLungs, FaRibbon, FaHeart, FaDna, FaUserMd } from 'react-icons/fa';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { hospitals, doctors, specialties, blogPosts, videoMasterclasses } from '@/data/mockData';
 import type { BlogPost, VideoMasterclass } from '@/data/mockData';
 import { useLanguage } from '@/context/LanguageContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 
 import { AnimatedGradientText, MorphingBlob, FloatingIcon, PulseRing } from '@/components/PremiumAnimations';
@@ -18,14 +18,48 @@ const SearchBar = dynamic(() => import('@/components/SearchBar'), { ssr: false, 
 const HospitalCard = dynamic(() => import('@/components/HospitalCard'), { ssr: false });
 const DoctorCard = dynamic(() => import('@/components/DoctorCard'), { ssr: false });
 const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap'), { ssr: false, loading: () => <div className="h-full bg-slate-900 animate-pulse rounded-2xl" /> });
-const Real3DScene = dynamic(() => import('@/components/Real3DScene'), { ssr: false });
-const DNARotate3D = dynamic(() => import('@/components/DNARotate3D'), { ssr: false });
-const Hero3DParticles = dynamic(() => import('@/components/Hero3DParticles'), { ssr: false });
-const AIBrain3D = dynamic(() => import('@/components/AIBrain3D'), { ssr: false });
-const HolographicHeart = dynamic(() => import('@/components/HolographicHeart'), { ssr: false });
-const DNAHelix3DPro = dynamic(() => import('@/components/DNAHelix3DPro'), { ssr: false });
-const Globe3D = dynamic(() => import('@/components/Globe3D'), { ssr: false });
-const MedicalCore3D = dynamic(() => import('@/components/MedicalCore3D'), { ssr: false });
+const Real3DScene = dynamic(() => import('@/components/Real3DScene'), { ssr: false, loading: () => null });
+const DNARotate3D = dynamic(() => import('@/components/DNARotate3D'), { ssr: false, loading: () => null });
+const Hero3DParticles = dynamic(() => import('@/components/Hero3DParticles'), { ssr: false, loading: () => null });
+const AIBrain3D = dynamic(() => import('@/components/AIBrain3D'), { ssr: false, loading: () => null });
+const HolographicHeart = dynamic(() => import('@/components/HolographicHeart'), { ssr: false, loading: () => null });
+const DNAHelix3DPro = dynamic(() => import('@/components/DNAHelix3DPro'), { ssr: false, loading: () => null });
+const Globe3D = dynamic(() => import('@/components/Globe3D'), { ssr: false, loading: () => null });
+const MedicalCore3D = dynamic(() => import('@/components/MedicalCore3D'), { ssr: false, loading: () => null });
+
+function usePerformanceMode() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(true);
+  const [isMobile, setIsMobile] = useState(true);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mq.matches);
+    mq.addEventListener('change', e => setPrefersReducedMotion(e.matches));
+
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    const conn = (navigator as any).connection;
+    if (conn) {
+      setIsSlowConnection(conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g');
+    }
+
+    return () => {
+      mq.removeEventListener('change', () => {});
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
+  const shouldUse3D = useMemo(() => {
+    if (prefersReducedMotion) return false;
+    if (isSlowConnection) return false;
+    return true;
+  }, [prefersReducedMotion, isSlowConnection]);
+
+  return { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D };
+}
 
 const getSpecialtyIcon = (specialty: string) => {
   const s = specialty.toLowerCase();
@@ -94,6 +128,7 @@ const chatMessages = [
 function AIChatSection() {
   const [visibleCount, setVisibleCount] = useState(2);
   const [inputVal, setInputVal] = useState('');
+  const { shouldUse3D } = usePerformanceMode();
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -119,7 +154,7 @@ function AIChatSection() {
             <div className="p-10 md:p-14 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/5 relative overflow-hidden">
               {/* 3D Neural network brain animation background */}
               <div className="absolute inset-0 pointer-events-none opacity-30">
-                <AIBrain3D />
+                {shouldUse3D && <AIBrain3D />}
               </div>
               <div className="inline-flex items-center gap-2 bg-purple-500/15 border border-purple-500/25 text-purple-300 px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase mb-8 w-fit">
                 <FiCpu size={13} className="animate-pulse" /> Powered by Gemini AI
@@ -178,7 +213,7 @@ function AIChatSection() {
               {/* 3D AI Brain visual — compact */}
               <div className="relative h-24 mb-4 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-950/50 to-indigo-950/50 border border-purple-500/15 flex items-center justify-center">
                 <div className="absolute inset-0 pointer-events-none">
-                  <AIBrain3D />
+                  {shouldUse3D && <AIBrain3D />}
                 </div>
                 <div className="relative z-10 flex items-center gap-2.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-purple-500/20">
                   <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
@@ -446,10 +481,11 @@ function VideoSection({ videos }: { videos: VideoMasterclass[] }) {
 
 export default function Home() {
   const { t } = useLanguage();
+  const { shouldUse3D } = usePerformanceMode();
 
   return (
     <div className="min-h-screen text-white overflow-hidden">
-      <Real3DScene />
+      {shouldUse3D && <Real3DScene />}
 
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute inset-0 bg-slate-950" />
@@ -486,7 +522,7 @@ export default function Home() {
         {/* 3D floating particles layer */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <ClientOnly>
-            <Hero3DParticles />
+            {shouldUse3D && <Hero3DParticles />}
           </ClientOnly>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-24 overflow-hidden pointer-events-none opacity-10">
@@ -867,7 +903,7 @@ export default function Home() {
           >
             {/* Holographic DNA */}
             <div className="absolute inset-0 drop-shadow-[0_0_50px_rgba(20,184,166,0.3)]">
-              <DNAHelix3DPro />
+              {shouldUse3D && <DNAHelix3DPro />}
             </div>
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl border border-teal-500/20 rounded-full px-6 py-2 flex items-center gap-3">
               <span className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(20,184,166,0.8)]" />
@@ -1099,7 +1135,7 @@ export default function Home() {
           >
             {/* 3D Globe background animation */}
             <div className="absolute inset-0 pointer-events-none opacity-65">
-              <Globe3D />
+              {shouldUse3D && <Globe3D />}
             </div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-sky-600/5 blur-[100px] rounded-full pointer-events-none" />
             <div className="relative z-10">
