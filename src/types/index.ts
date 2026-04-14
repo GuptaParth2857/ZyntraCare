@@ -2,52 +2,53 @@
 export interface Hospital {
   id: string;
   name: string;
-  address: string;
-  city: string;
-  state: string;
-  phone: string;
-  email: string;
-  specialties: string[];
-  beds: {
+  address?: string;
+  city?: string;
+  state?: string;
+  phone?: string;
+  email?: string;
+  specialties?: string[];
+  beds?: {
     total: number;
-    occupied: number;
-    available: number;
+    occupied?: number;
+    available?: number;
     occupancyPercent?: number;
-    icu: number;
+    icu?: number;
     icuOccupied?: number;
-    icuAvailable: number;
+    icuAvailable?: number;
     icuOccupancyPercent?: number;
   };
-  emergency: boolean;
-  location: {
+  emergency?: boolean;
+  location?: {
     lat: number;
     lng: number;
   };
-  rating: number;
-  image: string;
-  workingHours: string;
-  doctors: number;
+  rating?: number;
+  image?: string;
+  workingHours?: string;
+  doctors?: number;
   distance?: number;
 }
 
 export interface Doctor {
   id: string;
   name: string;
-  specialty: string;
-  hospitalId: string;
-  hospitalName: string;
-  qualification: string;
-  experience: number;
-  rating: number;
-  consultationFee: number;
-  available: boolean;
-  nextAvailable: string;
-  languages: string[];
-  image: string;
-  location: {
+  specialty?: string;
+  hospitalId?: string;
+  hospitalName?: string;
+  qualification?: string;
+  experience?: number;
+  rating?: number;
+  consultationFee?: number;
+  available?: boolean;
+  nextAvailable?: string;
+  languages?: string[];
+  image?: string;
+  location?: {
     lat: number;
     lng: number;
   };
+  city?: string;
 }
 
 export interface Camp {
