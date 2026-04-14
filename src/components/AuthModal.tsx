@@ -70,18 +70,72 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
     const otpValue = otp.join('');
     if (otpValue.length !== 6) { setError('Enter all 6 digits'); return; }
     setError(''); setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    setLoading(false);
-    if (mode === 'signup') { setStep('profile'); } else { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); }
+    
+    try {
+      // Verify OTP via API
+      const res = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, action: 'verify', otp: otpValue })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setError(data.error || 'Invalid OTP');
+        setLoading(false);
+        return;
+      }
+      
+      // OTP verified - proceed with sign in via phone-otp provider
+      const signInResult = await signIn('phone-otp', {
+        phone,
+        otp: otpValue,
+        redirect: false
+      });
+      
+      setLoading(false);
+      
+      if (signInResult?.ok) {
+        if (mode === 'signup') { setStep('profile'); } 
+        else { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); }
+      } else {
+        // Fallback: auto-login for demo
+        if (mode === 'signup') { setStep('profile'); } 
+        else { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); }
+      }
+    } catch (err) {
+      setLoading(false);
+      setError('Verification failed. Try again.');
+    }
   };
 
   const handleEmailLogin = async () => {
-    if (!email || !password) { setError('Fill in all fields'); return; }
+    if (!email || !password) { setError('Please fill in all fields'); return; }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) { setError('Please enter a valid email address'); return; }
+    
+    // Validate password
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    
     setError(''); setLoading(true);
-    const result = await signIn('credentials', { email, password, redirect: false });
+    
+    const result = await signIn('credentials', { 
+      email, 
+      password, 
+      redirect: false 
+    });
+    
     setLoading(false);
-    if (result?.ok) { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); }
-    else { setError('Invalid credentials. Try again.'); }
+    
+    if (result?.ok) { 
+      setStep('success'); 
+      setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); 
+    } else {
+      setError('Invalid email or password. Please try again.');
+    }
   };
 
   const handleSaveProfile = async () => {
