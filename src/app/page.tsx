@@ -314,6 +314,16 @@ const catColors: Record<string, string> = {
   'Mental Health': 'text-pink-400', 'Innovation': 'text-sky-400',
 };
 
+interface BlogPost {
+  id: string | number;
+  title: string;
+  category: string;
+  readTime: string;
+  date: string;
+  image: string;
+  tag: string;
+}
+
 function BlogSection({ posts }: { posts: BlogPost[] }) {
   return (
     <section className="py-24 relative z-10">
