@@ -56,8 +56,8 @@ function usePerformanceMode() {
   const shouldUse3D = useMemo(() => {
     if (prefersReducedMotion) return false;
     if (isSlowConnection) return false;
-    if (isMobile) return false; // Skip heavy 3D on mobile for smoothness
-    return true;
+    if (isMobile) return 'light'; // Lightweight animations on mobile
+    return 'full'; // Full 3D on desktop
   }, [prefersReducedMotion, isSlowConnection, isMobile]);
 
   return { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D };
@@ -136,8 +136,10 @@ function AIChatSection() {
       })
       .catch(() => {});
   }, []);
-  const { shouldUse3D } = usePerformanceMode();
-
+  const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
+  const hasFull3D = shouldUse3D === 'full';
+  const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
+  
   useEffect(() => {
     const id = setInterval(() => {
       setVisibleCount(c => {
@@ -162,7 +164,7 @@ function AIChatSection() {
             <div className="p-10 md:p-14 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/5 relative overflow-hidden">
               {/* 3D Neural network brain animation background */}
               <div className="absolute inset-0 pointer-events-none opacity-30">
-                {shouldUse3D && <AIBrain3D />}
+                {hasAnimations && <AIBrain3D />}
               </div>
               <div className="inline-flex items-center gap-2 bg-purple-500/15 border border-purple-500/25 text-purple-300 px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase mb-8 w-fit">
                 <FiCpu size={13} className="animate-pulse" /> Powered by Gemini AI
@@ -221,7 +223,7 @@ function AIChatSection() {
               {/* 3D AI Brain visual — compact */}
               <div className="relative h-24 mb-4 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-950/50 to-indigo-950/50 border border-purple-500/15 flex items-center justify-center">
                 <div className="absolute inset-0 pointer-events-none">
-                  {shouldUse3D && <AIBrain3D />}
+                  {hasAnimations && <AIBrain3D />}
                 </div>
                 <div className="relative z-10 flex items-center gap-2.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-purple-500/20">
                   <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
@@ -547,11 +549,13 @@ function VideoSection({ videos }: { videos: VideoMasterclass[] }) {
 
 export default function Home() {
   const { t } = useLanguage();
-  const { shouldUse3D } = usePerformanceMode();
+  const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
+  const hasFull3D = shouldUse3D === 'full';
+  const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
 
   return (
     <div className="min-h-screen text-white overflow-hidden">
-      {shouldUse3D && <Real3DScene />}
+      {hasFull3D && <Real3DScene />}
 
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute inset-0 bg-slate-950" />
@@ -582,7 +586,7 @@ export default function Home() {
         {/* 3D floating particles layer */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <ClientOnly>
-            {shouldUse3D && <Hero3DParticles />}
+            {hasAnimations && <Hero3DParticles />}
           </ClientOnly>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-24 overflow-hidden pointer-events-none opacity-10">
@@ -959,7 +963,7 @@ export default function Home() {
           >
             {/* Holographic DNA */}
             <div className="absolute inset-0 drop-shadow-[0_0_50px_rgba(20,184,166,0.3)]">
-              {shouldUse3D && <DNAHelix3DPro />}
+              {hasAnimations && <DNAHelix3DPro />}
             </div>
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl border border-teal-500/20 rounded-full px-6 py-2 flex items-center gap-3">
               <span className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(20,184,166,0.8)]" />
@@ -1179,7 +1183,7 @@ export default function Home() {
           >
             {/* 3D Globe background animation */}
             <div className="absolute inset-0 pointer-events-none opacity-65">
-              {shouldUse3D && <Globe3D />}
+              {hasFull3D && <Globe3D />}
             </div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-sky-600/5 blur-[100px] rounded-full pointer-events-none" />
             <div className="relative z-10">
