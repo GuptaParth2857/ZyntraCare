@@ -1,5 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+function calculateHaversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function fetchRealHospitalsFromOSM(lat: number, lng: number, radius: number = 30000) {
+  const query = `[out:json][timeout:15];
+    (
+      node["amenity"="hospital"](around:${radius},${lat},${lng});
+      way["amenity"="hospital"](around:${radius},${lat},${lng});
+      node["amenity"="clinic"](around:${radius},${lat},${lng});
+    );
+    out center 30;`;
+
+  try {
+    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`, {
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.elements || [])
+      .filter((el: any) => el.tags?.name)
+      .map((el: any) => {
+        const hLat = el.lat ?? el.center?.lat;
+        const hLng = el.lon ?? el.center?.lon;
+        return {
+          id: `OSM_${el.id}`,
+          name: el.tags.name,
+          city: el.tags['addr:city'] || 'Nearby',
+          state: el.tags['addr:state'] || 'India',
+          location: { lat: hLat, lng: hLng },
+          type: el.tags.amenity === 'hospital' ? 'Hospital' : 'Clinic',
+          rating: 0,
+          beds: { total: 0, available: 0, icu: 0, icuAvailable: 0 },
+          specialties: [],
+          phone: el.tags['contact:phone'] || el.tags.phone || '',
+          emergency: el.tags.emergency === 'yes',
+          ambulance: el.tags['emergency:ambulance'] === 'yes',
+          verified: false,
+          waitTime: 'N/A',
+          established: 0,
+          distance: calculateHaversine(lat, lng, hLat, hLng),
+        };
+      })
+      .sort((a: any, b: any) => a.distance - b.distance)
+      .slice(0, 20);
+  } catch (e) {
+    console.error('OSM fetch error:', e);
+    return null;
+  }
+}
 function generateHospital(
   id: number,
   name: string,
@@ -244,6 +298,22 @@ export async function GET(req: NextRequest) {
 
   let results = [...HOSPITALS_DB];
 
+  // If nearby with valid coordinates, fetch REAL hospitals from OSM
+  if (nearby && lat && lng) {
+    const realHospitals = await fetchRealHospitalsFromOSM(lat, lng, 30000);
+    if (realHospitals && realHospitals.length > 0) {
+      results = realHospitals;
+    } else {
+      // Fallback to mock data sorted by distance
+      results = results
+        .map(h => ({
+          ...h,
+          distance: calculateHaversine(lat, lng, h.location.lat, h.location.lng)
+        }))
+        .sort((a: any, b: any) => a.distance - b.distance);
+    }
+  }
+
   if (city) results = results.filter(h => h.city.toLowerCase().includes(city.toLowerCase()));
   if (state) results = results.filter(h => h.state.toLowerCase().includes(state.toLowerCase()));
   if (type) results = results.filter(h => h.type.toLowerCase() === type.toLowerCase());
@@ -253,15 +323,6 @@ export async function GET(req: NextRequest) {
     h.city.toLowerCase().includes(search.toLowerCase()) ||
     h.specialties.some(s => s.toLowerCase().includes(search.toLowerCase()))
   );
-
-  if (nearby && lat && lng) {
-    results = results
-      .map(h => ({
-        ...h,
-        distance: Math.sqrt(Math.pow(h.location.lat - lat, 2) + Math.pow(h.location.lng - lng, 2))
-      }))
-      .sort((a: any, b: any) => a.distance - b.distance);
-  }
 
   const total = results.length;
   const paginated = results.slice((page - 1) * limit, page * limit);

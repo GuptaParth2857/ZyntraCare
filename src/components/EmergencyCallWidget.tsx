@@ -3,10 +3,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiPlus, FiX, FiPhone, FiNavigation,
-  FiActivity, FiGrid, FiHeart, FiMapPin, FiClock, FiShield
+  FiPlus, FiX, FiPhone, FiNavigation, FiMapPin, FiCrosshair,
+  FiActivity, FiGrid, FiHeart, FiClock, FiShield, FiAlertCircle
 } from 'react-icons/fi';
-import { FaAmbulance, FaUserMd, FaHospital } from 'react-icons/fa';
+import { FaAmbulance, FaHospital, FaUserMd, FaBed } from 'react-icons/fa';
 
 interface Hospital {
   id: string;
@@ -14,43 +14,67 @@ interface Hospital {
   phone: string;
   address: string;
   city: string;
-  state: string;
-  type: string;
-  beds: { total: number; available: number };
-  emergency: boolean;
   distance?: number;
+  beds?: { total: number; available: number };
+  emergency?: boolean;
   location: { lat: number; lng: number };
+  type?: string;
 }
 
-type EmergencyStage = 'idle' | 'locating' | 'ready' | 'error';
+type EmergencyStage = 'idle' | 'locating' | 'fetching' | 'ready' | 'error';
 
-const INDIAN_HOSPITALS: Hospital[] = [
-  { id: 'h1', name: 'AIIMS New Delhi', phone: '+91-11-2659-3308', address: 'Sri Aurobindo Marg, Ansari Nagar', city: 'New Delhi', state: 'Delhi', type: 'Government', beds: { total: 2478, available: 277 }, emergency: true, location: { lat: 28.5672, lng: 77.2100 } },
-  { id: 'h2', name: 'Fortis Escorts Heart Institute', phone: '+91-11-4713-5000', address: 'Okhla Road, New Friends Colony', city: 'New Delhi', state: 'Delhi', type: 'Private', beds: { total: 340, available: 42 }, emergency: true, location: { lat: 28.5662, lng: 77.2831 } },
-  { id: 'h3', name: 'Apollo Hospital Delhi', phone: '+91-11-2659-2829', address: 'Sarita Vihar', city: 'New Delhi', state: 'Delhi', type: 'Private', beds: { total: 710, available: 130 }, emergency: true, location: { lat: 28.5983, lng: 77.2256 } },
-  { id: 'h4', name: 'Max Super Speciality Hospital', phone: '+91-11-2651-5050', address: 'Press Enclave Road, Saket', city: 'New Delhi', state: 'Delhi', type: 'Private', beds: { total: 500, available: 85 }, emergency: true, location: { lat: 28.5264, lng: 77.2138 } },
-  { id: 'h5', name: 'Medanta The Medicity', phone: '+91-124-4141-414', address: 'Sector 38, DLF City', city: 'Gurgaon', state: 'Haryana', type: 'Private', beds: { total: 1250, available: 270 }, emergency: true, location: { lat: 28.4551, lng: 77.0442 } },
-  { id: 'h6', name: 'KEM Hospital Mumbai', phone: '+91-22-2410-7000', address: 'Acharya Donde Marg, Parel', city: 'Mumbai', state: 'Maharashtra', type: 'Government', beds: { total: 1800, available: 180 }, emergency: true, location: { lat: 18.9956, lng: 72.8361 } },
-  { id: 'h7', name: 'Tata Memorial Hospital', phone: '+91-22-2417-7000', address: 'Dr Ernest Borges Road, Parel', city: 'Mumbai', state: 'Maharashtra', type: 'Government', beds: { total: 629, available: 63 }, emergency: true, location: { lat: 18.9987, lng: 72.8129 } },
-  { id: 'h8', name: 'Apollo Hospitals Chennai', phone: '+91-44-2829-3333', address: '21 Greams Lane, Off Greams Road', city: 'Chennai', state: 'Tamil Nadu', type: 'Private', beds: { total: 560, available: 112 }, emergency: true, location: { lat: 13.0601, lng: 80.2487 } },
-  { id: 'h9', name: 'Manipal Hospitals Bangalore', phone: '+91-80-2222-1133', address: 'HAL 3rd Stage, New Thippasandra', city: 'Bangalore', state: 'Karnataka', type: 'Private', beds: { total: 600, available: 90 }, emergency: true, location: { lat: 12.9457, lng: 77.6015 } },
-  { id: 'h10', name: 'Narayana Health City', phone: '+91-80-7121-2222', address: 'Bommasandra Industrial Area', city: 'Bangalore', state: 'Karnataka', type: 'Private', beds: { total: 2000, available: 300 }, emergency: true, location: { lat: 12.8387, lng: 77.6815 } },
-  { id: 'h11', name: 'Fortis Hospital Bannerghatta', phone: '+91-80-6621-4444', address: 'Bannerghatta Road', city: 'Bangalore', state: 'Karnataka', type: 'Private', beds: { total: 280, available: 42 }, emergency: true, location: { lat: 12.8707, lng: 77.5966 } },
-  { id: 'h12', name: 'PGIMER Chandigarh', phone: '+91-172-2756-002', address: 'Sector 12', city: 'Chandigarh', state: 'Punjab', type: 'Government', beds: { total: 2073, available: 207 }, emergency: true, location: { lat: 30.7648, lng: 76.7745 } },
-  { id: 'h13', name: 'SGPGI Lucknow', phone: '+91-522-2660-014', address: 'Raibareli Road', city: 'Lucknow', state: 'Uttar Pradesh', type: 'Government', beds: { total: 1500, available: 150 }, emergency: true, location: { lat: 26.8451, lng: 80.9996 } },
-  { id: 'h14', name: 'KGMU Lucknow', phone: '+91-522-2256-600', address: 'Chowk', city: 'Lucknow', state: 'Uttar Pradesh', type: 'Government', beds: { total: 3500, available: 350 }, emergency: true, location: { lat: 26.8499, lng: 80.9485 } },
-  { id: 'h15', name: 'Civil Hospital Ahmedabad', phone: '+91-79-2268-3700', address: 'Asarwa', city: 'Ahmedabad', state: 'Gujarat', type: 'Government', beds: { total: 2200, available: 220 }, emergency: true, location: { lat: 23.0583, lng: 72.5866 } },
-  { id: 'h16', name: 'Sterling Hospital Ahmedabad', phone: '+91-79-4001-4001', address: 'Memnagar', city: 'Ahmedabad', state: 'Gujarat', type: 'Private', beds: { total: 570, available: 85 }, emergency: true, location: { lat: 23.0401, lng: 72.5500 } },
-  { id: 'h17', name: 'Ruby Hall Clinic Pune', phone: '+91-20-6645-5500', address: 'Sassoon Road', city: 'Pune', state: 'Maharashtra', type: 'Private', beds: { total: 450, available: 67 }, emergency: true, location: { lat: 18.5362, lng: 73.8795 } },
-  { id: 'h18', name: 'Jehangir Hospital Pune', phone: '+91-20-6680-7999', address: 'Jahangir Hospital Avenue', city: 'Pune', state: 'Maharashtra', type: 'Private', beds: { total: 350, available: 52 }, emergency: true, location: { lat: 18.5309, lng: 73.8770 } },
-];
-
-function calcDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function calculateHaversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function fetchRealNearbyHospitals(lat: number, lng: number): Promise<Hospital[]> {
+  const radius = 30000; // 30km radius
+  const query = `[out:json][timeout:15];
+    (
+      node["amenity"="hospital"](around:${radius},${lat},${lng});
+      way["amenity"="hospital"](around:${radius},${lat},${lng});
+      node["amenity"="clinic"](around:${radius},${lat},${lng});
+    );
+    out center 20;`;
+
+  try {
+    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`, {
+      signal: AbortSignal.timeout(15000)
+    });
+    
+    if (!res.ok) throw new Error('API failed');
+    
+    const data = await res.json();
+    const hospitals: Hospital[] = (data.elements || [])
+      .filter((el: any) => el.tags?.name && (el.tags.amenity === 'hospital' || el.tags.amenity === 'clinic'))
+      .map((el: any) => {
+        const hLat = el.lat ?? el.center?.lat;
+        const hLng = el.lon ?? el.center?.lon;
+        return {
+          id: String(el.id),
+          name: el.tags.name,
+          phone: el.tags['contact:phone'] || el.tags.phone || '',
+          address: [el.tags['addr:street'], el.tags['addr:city'], el.tags['addr:state']].filter(Boolean).join(', '),
+          city: el.tags['addr:city'] || 'Nearby',
+          distance: calculateHaversine(lat, lng, hLat, hLng),
+          location: { lat: hLat, lng: hLng },
+          emergency: el.tags.emergency === 'yes' || el.tags['emergency:ward'] === 'yes',
+          beds: { total: 0, available: 0 },
+          type: el.tags.amenity === 'hospital' ? 'Hospital' : 'Clinic',
+        };
+      })
+      .sort((a: Hospital, b: Hospital) => (a.distance || 0) - (b.distance || 0))
+      .slice(0, 15);
+    
+    return hospitals;
+  } catch (error) {
+    console.error('Hospital fetch error:', error);
+    return [];
+  }
 }
 
 export default function EmergencyCallWidget() {
@@ -60,15 +84,15 @@ export default function EmergencyCallWidget() {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
-  const [selectedCity, setSelectedCity] = useState<string>('all');
-
-  const cities = [...new Set(INDIAN_HOSPITALS.map(h => h.city))].sort();
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
 
   const startSOS = useCallback(() => {
     setIsSOSOpen(true);
     setIsMenuOpen(false);
     setStage('locating');
     setLocationError('');
+    setHospitals([]);
+    setSelectedHospital(null);
 
     if (!navigator.geolocation) {
       setLocationError('Geolocation not supported');
@@ -77,24 +101,30 @@ export default function EmergencyCallWidget() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
         setUserLocation({ lat, lng });
+        setStage('fetching');
         
-        const nearby = INDIAN_HOSPITALS.map(h => ({
-          ...h,
-          distance: calcDistance(lat, lng, h.location.lat, h.location.lng)
-        })).sort((a, b) => (a.distance || 0) - (b.distance || 0)).slice(0, 10);
+        const results = await fetchRealNearbyHospitals(lat, lng);
         
-        setHospitals(nearby);
-        setStage('ready');
+        if (results.length > 0) {
+          setHospitals(results);
+          setStage('ready');
+        } else {
+          setLocationError('No hospitals found in 30km radius');
+          setStage('error');
+        }
       },
       (err) => {
-        setLocationError('Location access denied - showing all major hospitals');
-        setHospitals(INDIAN_HOSPITALS.slice(0, 10));
-        setStage('ready');
+        let msg = 'Location access denied';
+        if (err.code === 1) msg = 'Please enable location access';
+        else if (err.code === 2) msg = 'Location unavailable';
+        else if (err.code === 3) msg = 'Location timeout';
+        setLocationError(msg);
+        setStage('error');
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   }, []);
 
@@ -103,11 +133,8 @@ export default function EmergencyCallWidget() {
     setStage('idle');
     setHospitals([]);
     setLocationError('');
+    setSelectedHospital(null);
   }, []);
-
-  const filteredHospitals = selectedCity === 'all' 
-    ? hospitals 
-    : hospitals.filter(h => h.city === selectedCity);
 
   const MENU_ITEMS = [
     { label: 'Symptom Check', icon: <FiActivity size={18} />, color: 'from-teal-500 to-cyan-600', action: () => window.location.href = '/symptoms' },
@@ -118,7 +145,7 @@ export default function EmergencyCallWidget() {
 
   return (
     <>
-      {/* LEFT — Plus Hub Button + Menu */}
+      {/* LEFT — Plus Hub Button */}
       <div className="fixed bottom-6 left-6 z-[9990] flex flex-col items-start">
         <AnimatePresence>
           {isMenuOpen && (
@@ -167,7 +194,7 @@ export default function EmergencyCallWidget() {
         </button>
       </div>
 
-      {/* RIGHT — Standalone SOS button */}
+      {/* RIGHT — SOS Button */}
       <div className="fixed bottom-6 right-6 z-[9990]">
         <button
           onClick={startSOS}
@@ -212,7 +239,10 @@ export default function EmergencyCallWidget() {
                   <div>
                     <h2 className="text-white font-black text-lg">Emergency Center</h2>
                     <p className="text-red-200 text-xs mt-0.5">
-                      {stage === 'locating' ? 'Getting your location...' : stage === 'ready' ? `${filteredHospitals.length} hospitals available` : 'Tap to find hospitals'}
+                      {stage === 'locating' && 'Getting your location...'}
+                      {stage === 'fetching' && 'Finding nearby hospitals...'}
+                      {stage === 'ready' && `${hospitals.length} hospitals found near you`}
+                      {stage === 'error' && 'Location issue'}
                     </p>
                   </div>
                 </div>
@@ -232,51 +262,57 @@ export default function EmergencyCallWidget() {
                   </a>
                 </div>
 
-                {/* City Filter */}
-                {stage === 'ready' && cities.length > 0 && (
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                    <button onClick={() => setSelectedCity('all')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${selectedCity === 'all' ? 'bg-sky-500 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}>
-                      All Cities
-                    </button>
-                    {cities.slice(0, 6).map(city => (
-                      <button key={city} onClick={() => setSelectedCity(city)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${selectedCity === city ? 'bg-sky-500 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}>
-                        {city}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Status */}
+                {/* Status Indicators */}
                 {stage === 'locating' && (
                   <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl">
                     <div className="w-8 h-8 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
                     <div>
-                      <p className="text-white font-semibold text-sm">Getting your location...</p>
+                      <p className="text-white font-semibold text-sm">Getting your live location...</p>
                       <p className="text-blue-400 text-xs">Please allow location access</p>
                     </div>
                   </div>
                 )}
 
-                {stage === 'error' && (
-                  <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-2xl">
-                    <p className="text-orange-400 font-semibold text-sm">{locationError}</p>
+                {stage === 'fetching' && (
+                  <div className="flex items-center gap-3 bg-teal-500/10 border border-teal-500/20 p-4 rounded-2xl">
+                    <div className="w-8 h-8 rounded-full border-2 border-teal-400 border-t-transparent animate-spin" />
+                    <div>
+                      <p className="text-white font-semibold text-sm">Searching hospitals near you...</p>
+                      <p className="text-teal-400 text-xs">Using GPS: {userLocation?.lat.toFixed(4)}, {userLocation?.lng.toFixed(4)}</p>
+                    </div>
                   </div>
                 )}
 
-                {/* Hospital List */}
-                {stage === 'ready' && filteredHospitals.length > 0 && (
+                {stage === 'error' && (
+                  <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      <FiAlertCircle className="text-red-400" size={24} />
+                      <div>
+                        <p className="text-red-400 font-semibold">{locationError}</p>
+                        <p className="text-red-300/60 text-xs mt-1">Please enable location services and try again</p>
+                      </div>
+                    </div>
+                    <button onClick={startSOS} className="mt-3 w-full py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-xl font-semibold text-sm">
+                      Try Again
+                    </button>
+                  </div>
+                )}
+
+                {/* Hospital List - Sorted by Distance */}
+                {stage === 'ready' && hospitals.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-3 py-2 rounded-xl">
-                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-green-400 text-xs font-bold">{filteredHospitals.length} hospitals found</span>
-                      {userLocation && <span className="text-green-400/60 text-xs">(GPS Active)</span>}
+                      <FiCrosshair className="text-green-400" size={14} />
+                      <span className="text-green-400 text-xs font-bold">Live GPS Active</span>
+                      <span className="text-green-400/60 text-xs">• Nearest hospitals</span>
                     </div>
                     
-                    {filteredHospitals.map(h => (
+                    {hospitals.map((h, i) => (
                       <motion.div
                         key={h.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
                         className="p-4 rounded-2xl border border-white/8" style={{ background: 'rgba(255,255,255,0.03)' }}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -284,30 +320,35 @@ export default function EmergencyCallWidget() {
                             <div className="flex items-center gap-2">
                               <h3 className="text-white font-bold text-sm truncate">{h.name}</h3>
                               {h.emergency && <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">24/7</span>}
+                              <span className="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded">{h.type}</span>
                             </div>
-                            <p className="text-gray-400 text-xs mt-1">{h.address}, {h.city}</p>
-                            <div className="flex items-center gap-4 mt-2 text-xs">
-                              <span className="flex items-center gap-1 text-gray-500">
-                                <FiMapPin size={12} /> {h.distance ? `${h.distance.toFixed(1)} km` : 'N/A'}
+                            <p className="text-gray-400 text-xs mt-1">{h.address || h.city}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                              <span className="flex items-center gap-1 text-xs text-sky-400">
+                                <FiMapPin size={12} />
+                                {h.distance ? `${h.distance.toFixed(1)} km` : 'N/A'}
                               </span>
-                              <span className="flex items-center gap-1 text-gray-500">
-                                <FaUserMd size={12} /> {h.beds.available} beds free
-                              </span>
-                              <span className={`flex items-center gap-1 ${h.type === 'Government' ? 'text-blue-400' : 'text-purple-400'}`}>
-                                {h.type}
-                              </span>
+                              {i === 0 && (
+                                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                  NEAREST
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
                         
                         <div className="flex gap-2 mt-3">
-                          {/* Direct Call */}
-                          <a href={`tel:${h.phone}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition">
-                            <FiPhone size={14} /> Call Now
-                          </a>
-                          {/* Directions */}
-                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition">
-                            <FiNavigation size={14} />
+                          {h.phone ? (
+                            <a href={`tel:${h.phone}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition">
+                              <FiPhone size={14} /> Call
+                            </a>
+                          ) : (
+                            <a href={`https://www.google.com/search?q=${encodeURIComponent(h.name + ' hospital phone')}`} target="_blank" rel="noopener" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm bg-slate-600 text-white transition">
+                              <FiPhone size={14} /> Find Phone
+                            </a>
+                          )}
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`} target="_blank" rel="noopener" className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition">
+                            <FiNavigation size={16} />
                           </a>
                         </div>
                       </motion.div>
@@ -320,13 +361,12 @@ export default function EmergencyCallWidget() {
                   <p className="text-white/30 text-xs font-semibold mb-2 uppercase tracking-widest">National Emergency</p>
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      { label: 'Police', num: '100', icon: '👮' },
-                      { label: 'Fire', num: '101', icon: '🔥' },
-                      { label: 'Ambulance', num: '102', icon: '🚑' },
-                      { label: 'Emergency', num: '112', icon: '🚨' },
+                      { label: 'Police', num: '100' },
+                      { label: 'Fire', num: '101' },
+                      { label: 'Ambulance', num: '102' },
+                      { label: 'Emergency', num: '112' },
                     ].map(h => (
                       <a key={h.num} href={`tel:${h.num}`} className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl border border-white/8 text-white hover:bg-white/5 transition">
-                        <span className="text-lg">{h.icon}</span>
                         <span className="font-bold text-white">{h.num}</span>
                         <span className="text-[10px] text-gray-500">{h.label}</span>
                       </a>
