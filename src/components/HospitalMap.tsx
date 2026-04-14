@@ -196,11 +196,11 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
         <div className="bg-white rounded-xl shadow-lg p-3">
           <p className="text-xs font-semibold text-gray-700 mb-2">Search Radius</p>
           <div className="flex items-center gap-2">
-            <button onClick={() => setRadius(Math.max(5, radius - 10))} className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition">
+            <button onClick={() => setRadius(Math.max(5, radius - 10))} className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition text-slate-800">
               <FiMinus size={14} />
             </button>
-            <span className="text-sm font-bold w-14 text-center">{radius} km</span>
-            <button onClick={() => setRadius(Math.min(100, radius + 10))} className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition">
+            <span className="text-sm font-bold w-14 text-center text-slate-800">{radius} km</span>
+            <button onClick={() => setRadius(Math.min(100, radius + 10))} className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition text-slate-800">
               <FiPlus size={14} />
             </button>
           </div>
@@ -215,7 +215,7 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
           className="bg-white rounded-xl shadow-lg p-3 flex items-center gap-2 hover:bg-gray-50 transition w-full"
         >
           <FiNavigation className="text-blue-600" size={16} />
-          <span className="text-xs font-semibold">My Location</span>
+          <span className="text-xs font-semibold text-slate-800">My Location</span>
         </button>
 
         {/* Refresh */}
@@ -224,14 +224,14 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
           className="bg-white rounded-xl shadow-lg p-3 flex items-center gap-2 hover:bg-gray-50 transition w-full"
         >
           <FiRefreshCw className="text-gray-600" size={16} />
-          <span className="text-xs font-semibold">Refresh</span>
+          <span className="text-xs font-semibold text-slate-800">Refresh</span>
         </button>
       </div>
 
       {/* Legend */}
       <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 hidden sm:block">
         <p className="text-xs font-bold mb-2 text-slate-800">Legend</p>
-        <div className="space-y-1.5 text-xs">
+        <div className="space-y-1.5 text-xs text-slate-800">
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow" /> Your Location</p>
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full" /> Low Occupancy (&lt;50%)</p>
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-500 rounded-full" /> Medium (50-80%)</p>
