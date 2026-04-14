@@ -23,18 +23,49 @@ export default function HospitalsPage() {
   const [sortBy, setSortBy] = useState('rating');
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState('');
 
   useEffect(() => {
     const fetchHospitals = async () => {
       setLoading(true);
+      
+      // Get user's real GPS location first
+      const getUserLocation = () => {
+        return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error('Geolocation not supported'));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (err) => reject(err),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+          );
+        });
+      };
+
       try {
+        // Try to get user's location
+        const location = await getUserLocation();
+        setUserLocation(location);
+        
+        // Fetch hospitals near user's location
+        const res = await fetch(`/api/hospitals/nearby?lat=${location.lat}&lng=${location.lng}&radius=50000`);
+        const data = await res.json();
+        if (data.hospitals && data.hospitals.length > 0) {
+          setHospitals(data.hospitals);
+        }
+      } catch (err: any) {
+        console.log('Using default location, error:', err.message);
+        setLocationError('Using default location');
+        
+        // Fallback to Delhi if location not available
         const res = await fetch('/api/hospitals/nearby?lat=28.6139&lng=77.2090&radius=50000');
         const data = await res.json();
         if (data.hospitals && data.hospitals.length > 0) {
           setHospitals(data.hospitals);
         }
-      } catch (err) {
-        console.error('Failed to fetch hospitals:', err);
       }
       setLoading(false);
     };
@@ -316,7 +347,13 @@ export default function HospitalsPage() {
         {loading ? (
           <div className="text-center py-24">
             <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-gray-400 mt-4">Loading hospitals...</p>
+            <p className="text-gray-400 mt-4">
+              {userLocation 
+                ? `Loading hospitals near you...` 
+                : locationError 
+                  ? 'Getting your location...'
+                  : 'Loading hospitals...'}
+            </p>
           </div>
         ) : viewMode === 'grid' ? (
           filteredHospitals.length === 0 ? (
