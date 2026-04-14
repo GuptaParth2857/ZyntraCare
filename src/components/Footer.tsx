@@ -49,13 +49,12 @@ export default function Footer() {
               {[
                 { href: '/hospitals', label: t('findHospitals') },
                 { href: '/specialists', label: 'Find Doctors' },
+                { href: '/pharmacies', label: '💊 Pharmacies' },
+                { href: '/labs', label: '🧪 Diagnostic Labs' },
                 { href: '/camps', label: t('healthCamps') },
                 { href: '/booking', label: 'Book Appointment' },
                 { href: '/emergency', label: t('emergency') },
                 { href: '/dashboard', label: t('myHealth') },
-                { href: '/doctors/register', label: '🩺 Register as Doctor' },
-                { href: '/feedback', label: 'Feedback' },
-                { href: '/sponsor', label: 'Partner With Us' },
                 { href: '/admin', label: '⚙️ Admin Login' },
               ].map((link) => (
                 <li key={link.href}>
