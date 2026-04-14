@@ -35,19 +35,24 @@ function SpecialistsContent() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState('');
 
   useEffect(() => {
     const getUserLocation = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => {},
+          (pos) => {
+            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          },
+          (err) => setLocationError('Using default location'),
           { enableHighAccuracy: true, timeout: 10000 }
         );
       }
     };
     getUserLocation();
+  }, []);
 
+  useEffect(() => {
     const fetchDoctors = async () => {
       setLoading(true);
       try {
@@ -55,6 +60,10 @@ function SpecialistsContent() {
         if (selectedSpecialty) params.set('specialty', selectedSpecialty);
         if (selectedLocation) params.set('city', selectedLocation);
         if (showAvailableOnly) params.set('available', 'true');
+        if (userLocation) {
+          params.set('lat', userLocation.lat.toString());
+          params.set('lng', userLocation.lng.toString());
+        }
         
         const res = await fetch(`/api/doctors?${params}`);
         const data = await res.json();
@@ -65,7 +74,7 @@ function SpecialistsContent() {
       setLoading(false);
     };
     fetchDoctors();
-  }, [selectedSpecialty, selectedLocation, showAvailableOnly]);
+  }, [selectedSpecialty, selectedLocation, showAvailableOnly, userLocation]);
 
   const featuredSpecialties = ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Pediatrics', 'Gynecology'];
 

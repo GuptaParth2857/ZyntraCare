@@ -245,8 +245,16 @@ export default function CampsPage() {
       }
     };
     getUserLocation();
+  }, []);
 
-    fetch('/api/camps')
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (userLocation) {
+      params.set('lat', userLocation.lat.toString());
+      params.set('lng', userLocation.lng.toString());
+    }
+    
+    fetch(`/api/camps?${params}`)
       .then(r => r.json())
       .then(data => {
         setCamps(data.camps || []);
@@ -254,7 +262,7 @@ export default function CampsPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [userLocation]);
 
   const filteredCamps = useMemo(() => {
     return camps.filter(camp => {
