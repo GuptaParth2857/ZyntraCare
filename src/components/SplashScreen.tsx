@@ -28,6 +28,7 @@ export default function SplashScreen() {
   return (
     <AnimatePresence>
       <motion.div
+        key="splash-screen"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0, scale: 1.02, filter: 'blur(8px)' }}
@@ -122,23 +123,23 @@ export default function SplashScreen() {
         >
           {progress < 30 ? 'Loading...' : progress < 70 ? 'Connecting...' : 'Almost ready...'}
         </motion.p>
-      </motion.div>
 
-      {/* Bottom Badge */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="absolute bottom-10 flex items-center gap-2 bg-slate-900/70 backdrop-blur-sm border border-white/10 px-4 py-1.5 rounded-full"
-      >
-        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-        <span className="text-slate-400 text-xs">Powered by AI</span>
-      </motion.div>
+        {/* Bottom Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="absolute bottom-10 flex items-center gap-2 bg-slate-900/70 backdrop-blur-sm border border-white/10 px-4 py-1.5 rounded-full"
+        >
+          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+          <span className="text-slate-400 text-xs">Powered by AI</span>
+        </motion.div>
 
-      {/* Version */}
-      <div className="absolute bottom-4 text-slate-600 text-[10px]">
-        v1.0.0 • Made with ❤️ in India
-      </div>
+        {/* Version */}
+        <div className="absolute bottom-4 text-slate-600 text-[10px]">
+          v1.0.0 • Made with ❤️ in India
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 }
