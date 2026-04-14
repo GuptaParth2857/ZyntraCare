@@ -730,3 +730,52 @@ img[data-nimg] {
   50%       { opacity: 1; }
 }
 .team-text-pulse { animation: team-text-pulse 4s ease-in-out infinite; }
+
+/* ============================================================
+   AUTH MODAL — Netflix/JioHotstar style keyframes
+   ============================================================ */
+
+/* Particle field float animation */
+@keyframes auth-float {
+  0%          { transform: translateY(0px) translateX(0px); opacity: 0.2; }
+  25%         { transform: translateY(-20px) translateX(10px); opacity: 0.5; }
+  50%         { transform: translateY(-35px) translateX(-8px); opacity: 0.3; }
+  75%         { transform: translateY(-18px) translateX(12px); opacity: 0.6; }
+  100%        { transform: translateY(0px) translateX(0px); opacity: 0.2; }
+}
+
+/* Logo icon ring pulse */
+@keyframes logo-ring-pulse {
+  0%, 100%    { box-shadow: 0 0 20px rgba(14,165,233,0.4), 0 0 40px rgba(14,165,233,0.1); }
+  50%         { box-shadow: 0 0 40px rgba(14,165,233,0.8), 0 0 80px rgba(14,165,233,0.3); }
+}
+
+/* Success ripple rings */
+@keyframes success-ripple {
+  0%          { transform: scale(0.8); opacity: 0.8; }
+  100%        { transform: scale(2.2); opacity: 0; }
+}
+
+/* ============================================================
+   SOS FLOATING BUTTON — Emergency pulse ring
+   ============================================================ */
+@keyframes sos-ring-expand {
+  0%    { transform: scale(1); opacity: 0.7; }
+  100%  { transform: scale(2.4); opacity: 0; }
+}
+.sos-ring {
+  animation: sos-ring-expand 1.8s ease-out infinite;
+}
+.sos-ring-2 {
+  animation: sos-ring-expand 1.8s ease-out infinite 0.6s;
+}
+.sos-ring-3 {
+  animation: sos-ring-expand 1.8s ease-out infinite 1.2s;
+}
+
+/* Plus hub button gentle pulse */
+@keyframes hub-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.25), 0 8px 32px rgba(0,0,0,0.4); }
+  50%      { box-shadow: 0 0 40px rgba(59,130,246,0.5), 0 8px 40px rgba(0,0,0,0.5); }
+}
+.hub-pulse { animation: hub-pulse 2.5s ease-in-out infinite; }

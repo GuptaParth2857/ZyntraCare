@@ -36,10 +36,6 @@ const FeedbackModal         = dynamic(() => import('@/components/FeedbackModal')
 const EmergencyCallWidget   = dynamic(() => import('@/components/EmergencyCallWidget'),   { ssr: false });
 const ActiveTheoryCursor    = dynamic(() => import('@/components/ActiveTheoryCursor'),    { ssr: false });
 
-// ── TIER 3: Defer 3s (floating widgets — user won't need immediately)
-const MedicalIDWidget   = dynamic(() => import('@/components/MedicalIDWidget'),   { ssr: false });
-const MedicineReminder  = dynamic(() => import('@/components/MedicineReminder'),  { ssr: false });
-const SymptomChecker    = dynamic(() => import('@/components/SymptomChecker'),    { ssr: false });
 
 /** Staged loading hook — returns which tier is ready */
 function useStagedLoad() {
@@ -92,14 +88,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </ClientOnly>
       )}
 
-      {/* Tier 3: Floating widgets — load after 3s */}
-      {loadTier >= 2 && (
-        <>
-          <MedicalIDWidget />
-          <MedicineReminder />
-          <SymptomChecker />
-        </>
-      )}
+
     </>
   );
 }
