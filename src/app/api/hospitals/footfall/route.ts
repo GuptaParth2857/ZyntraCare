@@ -89,32 +89,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }
-    
-    const validLevels = ['low', 'medium', 'high', 'very_high'];
-    if (!validLevels.includes(level)) {
-      return NextResponse.json({ error: 'Invalid level' }, { status: 400 });
-    }
-    
-    const report: FootfallReport = {
-      hospitalId: body.hospitalId,
-      hospitalName: body.hospitalName || '',
-      level: body.level,
-      timestamp: Date.now()
-    };
-    
-    if (!footfallStore.has(hospitalId)) {
-      footfallStore.set(hospitalId, []);
-    }
-    
-    const reports = footfallStore.get(hospitalId)!;
-    reports.push(report);
-    
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const recentReports = reports.filter(r => r.timestamp > oneDayAgo);
-    footfallStore.set(hospitalId, recentReports);
-    
-    return NextResponse.json({ success: true, report });
-  } catch {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  }
-}
