@@ -14,7 +14,7 @@ import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiPlus, FiX, FiPhoneCall, FiNavigation,
-  FiActivity, FiGrid, FiHeart
+  FiActivity, FiGrid, FiHeart, FiInfo
 } from 'react-icons/fi';
 import { FaAmbulance } from 'react-icons/fa';
 
@@ -278,15 +278,22 @@ export default function GlobalActionHub() {
                           <p className="text-gray-400 text-xs mt-0.5">{h.distance.toFixed(1)} km away</p>
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
-                          {h.phone && (
-                            <a href={`tel:${h.phone}`} aria-label={`Call ${h.name}`}
-                              className="w-9 h-9 bg-green-600 hover:bg-green-500 rounded-xl flex items-center justify-center text-white transition">
-                              <FiPhoneCall size={14} />
-                            </a>
-                          )}
+                          {/* CALL BUTTON: Direct dial if phone exists, else Google Search for phone number */}
+                          <a href={h.phone ? `tel:${h.phone}` : `https://www.google.com/search?q=${encodeURIComponent(h.name + ' hospital phone number')}`} 
+                            target={h.phone ? '_self' : '_blank'} rel="noopener noreferrer" aria-label={`Call ${h.name}`}
+                            className="w-9 h-9 bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center justify-center text-white transition shadow-sm shadow-emerald-500/30">
+                            <FiPhoneCall size={14} />
+                          </a>
+                          {/* INFO BUTTON: Google Search for hospital details */}
+                          <a href={`https://www.google.com/search?q=${encodeURIComponent(h.name + ' hospital near me')}`} 
+                            target="_blank" rel="noopener noreferrer" aria-label={`Info about ${h.name}`}
+                            className="w-9 h-9 bg-indigo-500 hover:bg-indigo-400 rounded-xl flex items-center justify-center text-white transition shadow-sm shadow-indigo-500/30">
+                            <FiInfo size={14} />
+                          </a>
+                          {/* DIRECTIONS BUTTON: Google Maps routing */}
                           <a href={`https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}`}
                             target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${h.name}`}
-                            className="w-9 h-9 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition">
+                            className="w-9 h-9 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition shadow-sm shadow-blue-500/30">
                             <FiNavigation size={14} />
                           </a>
                         </div>
