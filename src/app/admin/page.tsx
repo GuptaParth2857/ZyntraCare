@@ -6,7 +6,7 @@ import RoleGuard from '@/components/RoleGuard';
 import {
   FiUsers, FiActivity, FiServer, FiShield,
   FiAlertTriangle, FiCheckCircle, FiRefreshCw,
-  FiMapPin, FiUser
+  FiMapPin, FiUser, FiList
 } from 'react-icons/fi';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -155,6 +155,13 @@ export default function AdminDashboard() {
               <FiRefreshCw size={14} />
               Refresh
             </button>
+            <a
+              href="/admin/users"
+              className="flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition px-3 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30"
+            >
+              <FiList size={14} />
+              View All Users
+            </a>
             <span className="flex items-center gap-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-4 py-2 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]">
               <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" aria-hidden="true" />
               SYSTEM OPERATIONAL

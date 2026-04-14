@@ -73,10 +73,13 @@ export const authOptions: NextAuthOptions = {
             };
           }
 
-          // User doesn't exist - create new user (signup flow)
-          // But ONLY allow this in signup mode (when no user exists)
-          // For login, this would be a security issue, so we check via a flag
-          // For demo purposes, auto-create
+          // User doesn't exist - for security, DON'T auto-create on login
+          // User must sign up first
+          console.log('[Auth] Login denied - user not found:', credentials.email);
+          return null;
+          
+          // Previous auto-create code removed for security
+          /*
           const hashedPassword = await bcrypt.hash(credentials.password, 12);
           const newUser = await prisma.user.upsert({
             where: { email: credentials.email.toLowerCase() },
@@ -96,6 +99,7 @@ export const authOptions: NextAuthOptions = {
             email: newUser.email,
             role: newUser.role,
           };
+          */
         } catch (error) {
           console.error('[Auth] Database error:', error);
           // Fallback: allow login for demo

@@ -113,28 +113,52 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
   const handleEmailLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields'); return; }
     
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) { setError('Please enter a valid email address'); return; }
     
-    // Validate password
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     
     setError(''); setLoading(true);
     
-    const result = await signIn('credentials', { 
-      email, 
-      password, 
-      redirect: false 
-    });
-    
-    setLoading(false);
-    
-    if (result?.ok) { 
-      setStep('success'); 
-      setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); 
-    } else {
-      setError('Invalid email or password. Please try again.');
+    try {
+      // For signup mode - create new user
+      if (mode === 'signup') {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name: name || email.split('@')[0] })
+        });
+        
+        const data = await res.json();
+        
+        setLoading(false);
+        
+        if (res.ok) {
+          // Auto-login after signup
+          const result = await signIn('credentials', { email, password, redirect: false });
+          if (result?.ok) {
+            setStep('success');
+            setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200);
+          }
+        } else {
+          setError(data.error || 'Registration failed. Try again.');
+        }
+      } else {
+        // Login mode
+        const result = await signIn('credentials', { email, password, redirect: false });
+        
+        setLoading(false);
+        
+        if (result?.ok) { 
+          setStep('success'); 
+          setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); 
+        } else {
+          setError('Invalid email or password. Please try again.');
+        }
+      }
+    } catch (err) {
+      setLoading(false);
+      setError('Something went wrong. Try again.');
     }
   };
 
