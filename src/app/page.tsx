@@ -322,7 +322,54 @@ interface BlogPost {
   date: string;
   image: string;
   tag: string;
+  excerpt: string;
+  author: string;
 }
+
+interface VideoMasterclass {
+  id: string | number;
+  title: string;
+  category: string;
+  thumbnail: string;
+  isLive?: boolean;
+  scheduledDate?: string;
+  isPremium?: boolean;
+  duration?: string;
+  viewCount?: string;
+  description: string;
+  host: string;
+  hostRole: string;
+}
+
+const blogPosts: BlogPost[] = [
+  {
+    id: 1,
+    title: 'The Future of Robotic Surgery in India',
+    category: 'Technology',
+    readTime: '5 min read',
+    date: 'Apr 10, 2026',
+    image: '/images/publiczyntracare-logo.png',
+    tag: 'Trending',
+    excerpt: 'How AI and robotics are transforming complex surgeries into minimally invasive procedures.',
+    author: 'Dr. Amit Sharma'
+  }
+];
+
+const videoMasterclasses: VideoMasterclass[] = [
+  {
+    id: 1,
+    title: 'Understanding Heart Health',
+    category: 'Cardiology',
+    thumbnail: '/images/publiczyntracare-logo.png',
+    isLive: false,
+    isPremium: true,
+    duration: '45 mins',
+    viewCount: '12k',
+    description: 'A deep dive into arrhythmias.',
+    host: 'Dr. Rajeev Gupta',
+    hostRole: 'Senior Cardiologist'
+  }
+];
 
 function BlogSection({ posts }: { posts: BlogPost[] }) {
   return (
