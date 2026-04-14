@@ -15,14 +15,7 @@ export default function EmergencyBanner() {
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const dismissed = window.localStorage.getItem('hh_emergency_banner_dismissed');
-      if (dismissed !== '1') {
-        setVisible(true);
-      }
-    } catch {
-      setVisible(true);
-    }
+    setVisible(true);
   }, []);
 
   useEffect(() => {
@@ -35,11 +28,6 @@ export default function EmergencyBanner() {
 
   const handleDismiss = () => {
     setVisible(false);
-    try {
-      window.localStorage.setItem('hh_emergency_banner_dismissed', '1');
-    } catch {
-      // ignore
-    }
   };
 
   if (!mounted) return null;
@@ -55,7 +43,7 @@ export default function EmergencyBanner() {
           role="alert"
           aria-live="polite"
           aria-label="Emergency contact information"
-          className="relative overflow-hidden bg-gradient-to-r from-red-700 via-red-600 to-rose-700 text-white py-2 px-4"
+          className="relative overflow-hidden bg-gradient-to-r from-red-700 via-red-600 to-rose-700 text-white py-2 px-4 z-[60]"
           style={{ boxShadow: '0 2px 20px rgba(220,38,38,0.4)' }}
         >
           {/* Animated scan line */}

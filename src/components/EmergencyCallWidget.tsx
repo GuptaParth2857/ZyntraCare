@@ -213,8 +213,8 @@ export default function EmergencyCallWidget() {
         </button>
       </div>
 
-      {/* RIGHT — SOS Button */}
-      <div className="fixed bottom-6 right-6 z-[9990]">
+      {/* SOS Button moved to left above plus menu */}
+      <div className="fixed bottom-[110px] left-6 z-[9990]">
         <button
           onClick={startSOS}
           aria-label="Emergency SOS"

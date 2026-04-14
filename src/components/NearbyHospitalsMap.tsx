@@ -139,13 +139,14 @@ export default function NearbyHospitalsMap() {
         website: '',
         directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`,
         googleMapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(h.name)}`,
+        address: h.address || '',
       }))
       .sort((a, b) => a.distance - b.distance);
-    setAllHospitals(withDist);
+    setAllHospitals(withDist as any);
     setIsRealData(false);
     
     // Cache for offline use
-    saveHospitalsToCache(withDist);
+    saveHospitalsToCache(withDist as any);
   }, []);
 
   const fetchRealHospitals = useCallback(async (lat: number, lng: number, radiusKm: number) => {
