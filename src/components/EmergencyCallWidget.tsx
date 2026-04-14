@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiPlus, FiX, FiPhone, FiNavigation, FiMapPin, FiCrosshair,
-  FiActivity, FiGrid, FiHeart, FiClock, FiShield, FiAlertCircle
+  FiActivity, FiGrid, FiHeart, FiClock, FiShield, FiAlertCircle, FiUsers
 } from 'react-icons/fi';
 import { FaAmbulance, FaHospital, FaUserMd, FaBed } from 'react-icons/fa';
 
@@ -19,6 +19,13 @@ interface Hospital {
   emergency?: boolean;
   location: { lat: number; lng: number };
   type?: string;
+}
+
+interface FootfallData {
+  level: string;
+  label: string;
+  color: string;
+  count: number;
 }
 
 type EmergencyStage = 'idle' | 'locating' | 'fetching' | 'ready' | 'error';
@@ -85,6 +92,8 @@ export default function EmergencyCallWidget() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  const [footfallData, setFootfallData] = useState<Record<string, FootfallData>>({});
+  const [reportingId, setReportingId] = useState<string | null>(null);
 
   const startSOS = useCallback(() => {
     setIsSOSOpen(true);
@@ -111,6 +120,16 @@ export default function EmergencyCallWidget() {
         if (results.length > 0) {
           setHospitals(results);
           setStage('ready');
+          
+          // Fetch footfall data for nearby hospitals
+          const ids = results.map(h => h.id).join(',');
+          try {
+            const ffRes = await fetch(`/api/hospitals/footfall?ids=${ids}`);
+            const ffData = await ffRes.json();
+            if (ffData.footfall) {
+              setFootfallData(ffData.footfall);
+            }
+          } catch {}
         } else {
           setLocationError('No hospitals found in 30km radius');
           setStage('error');
@@ -305,6 +324,11 @@ export default function EmergencyCallWidget() {
                       <FiCrosshair className="text-green-400" size={14} />
                       <span className="text-green-400 text-xs font-bold">Live GPS Active</span>
                       <span className="text-green-400/60 text-xs">• Nearest hospitals</span>
+                      {Object.keys(footfallData).length > 0 && (
+                        <span className="ml-auto flex items-center gap-1 text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
+                          <FiUsers size={10} /> Real-time crowd
+                        </span>
+                      )}
                     </div>
                     
                     {hospitals.map((h, i) => (
@@ -328,6 +352,17 @@ export default function EmergencyCallWidget() {
                                 <FiMapPin size={12} />
                                 {h.distance ? `${h.distance.toFixed(1)} km` : 'N/A'}
                               </span>
+                              {footfallData[h.id] && (
+                                <span 
+                                  className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                                  style={{ 
+                                    backgroundColor: footfallData[h.id].color + '20',
+                                    color: footfallData[h.id].color
+                                  }}
+                                >
+                                  {footfallData[h.id].label}
+                                </span>
+                              )}
                               {i === 0 && (
                                 <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
                                   NEAREST
@@ -350,6 +385,13 @@ export default function EmergencyCallWidget() {
                           <a href={`https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`} target="_blank" rel="noopener" className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition">
                             <FiNavigation size={16} />
                           </a>
+                          <button 
+                            onClick={() => setReportingId(h.id)}
+                            className="w-12 h-12 bg-purple-600 hover:bg-purple-500 rounded-xl flex items-center justify-center text-white transition"
+                            title="Report crowd level"
+                          >
+                            <FiUsers size={16} />
+                          </button>
                         </div>
                       </motion.div>
                     ))}
@@ -374,6 +416,68 @@ export default function EmergencyCallWidget() {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Crowd Reporting Modal */}
+      <AnimatePresence>
+        {reportingId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={(e) => e.target === e.currentTarget && setReportingId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-sm"
+            >
+              <h3 className="text-white font-bold text-lg mb-4">How crowded is this hospital?</h3>
+              <div className="space-y-2">
+                {[
+                  { level: 'low', label: 'Quiet / Empty', color: '#22c55e' },
+                  { level: 'medium', label: 'Moderate crowd', color: '#eab308' },
+                  { level: 'high', label: 'Crowded', color: '#f97316' },
+                  { level: 'very_high', label: 'Very Busy', color: '#ef4444' },
+                ].map(opt => (
+                  <button
+                    key={opt.level}
+                    onClick={async () => {
+                      const hospital = hospitals.find(h => h.id === reportingId);
+                      await fetch('/api/hospitals/footfall', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          hospitalId: reportingId,
+                          hospitalName: hospital?.name,
+                          level: opt.level
+                        })
+                      });
+                      setReportingId(null);
+                      const ids = hospitals.map(h => h.id).join(',');
+                      const ffRes = await fetch(`/api/hospitals/footfall?ids=${ids}`);
+                      const ffData = await ffRes.json();
+                      if (ffData.footfall) setFootfallData(ffData.footfall);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl font-semibold text-white flex items-center gap-3 transition"
+                    style={{ backgroundColor: opt.color + '20', border: `1px solid ${opt.color}40` }}
+                  >
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: opt.color }} />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setReportingId(null)}
+                className="w-full mt-4 py-3 rounded-xl text-white/50 hover:text-white font-semibold"
+              >
+                Cancel
+              </button>
             </motion.div>
           </motion.div>
         )}
