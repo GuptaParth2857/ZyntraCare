@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { FiShield, FiCheckCircle, FiAlertCircle, FiSearch, FiBox, FiDatabase } from 'react-icons/fi';
+import { FiShield, FiCheckCircle, FiAlertCircle, FiSearch, FiBox, FiDatabase, FiLink } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { FaPills, FaBlockchain, FaLock } from 'react-icons/fa';
+import { FaPills, FaLock, FaShieldAlt } from 'react-icons/fa';
 
 interface VerificationResult {
   code: string;
@@ -218,7 +218,7 @@ export default function MedicineVerifyPage() {
           className="grid md:grid-cols-3 gap-6"
         >
           <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 text-center">
-            <FaBlockchain size={40} className="text-purple-400 mx-auto mb-4" />
+            <FaShieldAlt size={40} className="text-purple-400 mx-auto mb-4" />
             <h3 className="font-bold mb-2">Blockchain Tracking</h3>
             <p className="text-gray-400 text-sm">Every transaction is recorded on immutable blockchain</p>
           </div>

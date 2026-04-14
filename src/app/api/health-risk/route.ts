@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
     if (bloodSugar >= 100) recommendations.push('Limit sugar intake, increase physical activity');
     if (cholesterol >= 200) recommendations.push('Reduce fatty foods, increase fiber intake');
     if (smoking === 'yes') recommendations.push('Consider smoking cessation programs');
-    if (exercise === 'never' recommendations.push('Start with 30 min daily walking or moderate exercise');
+    if (exercise === 'never') recommendations.push('Start with 30 min daily walking or moderate exercise');
     if (sleep < 6) recommendations.push('Prioritize 7-8 hours of sleep for recovery');
     if (stress === 'high') recommendations.push('Practice stress management techniques');
 
