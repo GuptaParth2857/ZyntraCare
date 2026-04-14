@@ -32,7 +32,7 @@ function RegisterModal({ camp, onClose }: { camp: Camp; onClose: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true);
-    await new Promise(r => setTimeout(r, 1200)); 
+    await new Promise(r => setTimeout(r, 400)); 
     setLoading(false); setSubmitted(true);
   };
 
@@ -118,7 +118,7 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 400));
     setLoading(false); setSubmitted(true);
   };
 

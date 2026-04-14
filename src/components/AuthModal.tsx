@@ -70,9 +70,9 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
     const otpValue = otp.join('');
     if (otpValue.length !== 6) { setError('Enter all 6 digits'); return; }
     setError(''); setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 400));
     setLoading(false);
-    if (mode === 'signup') { setStep('profile'); } else { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 2200); }
+    if (mode === 'signup') { setStep('profile'); } else { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); }
   };
 
   const handleEmailLogin = async () => {
@@ -80,16 +80,16 @@ export default function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) 
     setError(''); setLoading(true);
     const result = await signIn('credentials', { email, password, redirect: false });
     setLoading(false);
-    if (result?.ok) { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 2200); }
+    if (result?.ok) { setStep('success'); setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200); }
     else { setError('Invalid credentials. Try again.'); }
   };
 
   const handleSaveProfile = async () => {
     setLoading(true);
     localStorage.setItem('healthhub_user_profile', JSON.stringify({ name, phone, city, age, bloodGroup, conditions, createdAt: new Date().toISOString() }));
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 400));
     setLoading(false); setStep('success');
-    setTimeout(() => { onLogin(); onClose(); resetForm(); }, 2200);
+    setTimeout(() => { onLogin(); onClose(); resetForm(); }, 1200);
   };
 
   const resetForm = () => {
