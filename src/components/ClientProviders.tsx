@@ -9,6 +9,7 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import dynamic from 'next/dynamic';
 import { useActiveUserHeartbeat } from '@/hooks/useActiveUserHeartbeat';
 import ClientOnly from './ClientOnly';
+import SplashScreen from './SplashScreen';
 
 const Navbar = dynamic(() => import('@/components/Navbar'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -35,6 +36,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <SplashScreen />
       <ServiceWorkerRegistration />
       <ClientOnly>
         <CanvasBackground />
