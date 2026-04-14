@@ -1,19 +1,48 @@
 // src/app/hospitals/page.tsx
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FiFilter, FiMapPin, FiGrid, FiSearch, FiActivity, FiTrendingUp, FiAward, FiUsers, FiHeart } from 'react-icons/fi';
 import { MdLocalHospital } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import HospitalCard from '@/components/HospitalCard';
 import HospitalMap from '@/components/HospitalMap';
-import { hospitals as baseHospitals, states } from '@/data/mockData';
+import { states } from '@/data/mockData';
 import { Hospital } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
 
-// Extended hospital data — real Indian hospitals with real information
-const allHospitals: Hospital[] = [
-  ...baseHospitals,
+const INDIAN_STATES = ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Telangana', 'West Bengal', 'Gujarat', 'Rajasthan', 'Uttar Pradesh', 'Madhya Pradesh', 'Punjab', 'Haryana', 'Kerala', 'Bihar', 'Jharkhand'];
+
+export default function HospitalsPage() {
+  const { t } = useLanguage();
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('');
+  const [showEmergencyOnly, setShowEmergencyOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('rating');
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      setLoading(true);
+      try {
+        // Default to Delhi coordinates - in production, get user's location
+        const res = await fetch('/api/hospitals/nearby?lat=28.6139&lng=77.2090&radius=50000');
+        const data = await res.json();
+        if (data.hospitals && data.hospitals.length > 0) {
+          setHospitals(data.hospitals);
+        }
+      } catch (err) {
+        console.error('Failed to fetch hospitals:', err);
+      }
+      setLoading(false);
+    };
+    fetchHospitals();
+  }, []);
+
+  const filteredHospitals = useMemo(() => {
   // Additional major hospitals across India
   {
     id: 'h-ext-1',
@@ -461,14 +490,20 @@ const allHospitals: Hospital[] = [
 
 const SPECIALTIES_LIST = ['Cardiology', 'Oncology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Nephrology', 'Transplant', 'Ophthalmology'];
 
-const PLATFORM_STATS = [
-  { label: 'Partner Hospitals', value: allHospitals.length.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
-  { label: 'Cities Covered', value: `${new Set(allHospitals.map(h => h.city)).size}+`, icon: FiMapPin, color: 'text-blue-400' },
-  { label: 'Beds Available', value: allHospitals.reduce((sum, h) => sum + h.beds.available, 0).toLocaleString(), icon: FiActivity, color: 'text-emerald-400' },
-  { label: 'Avg Rating', value: `${(allHospitals.reduce((sum, h) => sum + h.rating, 0) / allHospitals.length).toFixed(1)}★`, icon: FiHeart, color: 'text-amber-400' },
-];
+  const platformStats = useMemo(() => {
+    const totalBeds = hospitals.reduce((sum, h) => sum + (h.beds?.available || 0), 0);
+    const avgRating = hospitals.length > 0 
+      ? (hospitals.reduce((sum, h) => sum + (h.rating || 4), 0) / hospitals.length).toFixed(1) 
+      : '4.0';
+    return [
+      { label: 'Partner Hospitals', value: hospitals.length.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
+      { label: 'Cities Covered', value: `${new Set(hospitals.map(h => h.city).filter(Boolean)).size}+`, icon: FiMapPin, color: 'text-blue-400' },
+      { label: 'Beds Available', value: totalBeds.toLocaleString(), icon: FiActivity, color: 'text-emerald-400' },
+      { label: 'Avg Rating', value: `${avgRating}★`, icon: FiHeart, color: 'text-amber-400' },
+    ];
+  }, [hospitals]);
 
-export default function HospitalsPage() {
+  useEffect(() => {
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
   const [selectedState, setSelectedState] = useState('');
@@ -478,7 +513,7 @@ export default function HospitalsPage() {
   const [sortBy, setSortBy] = useState('rating');
 
   const filteredHospitals = useMemo(() => {
-    let result = allHospitals.filter(hospital => {
+    let result = hospitals.filter(hospital => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!hospital.name.toLowerCase().includes(q) && !hospital.city.toLowerCase().includes(q)) return false;
@@ -591,7 +626,7 @@ return (
             transition={{ delay: 0.5 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-8"
           >
-            {PLATFORM_STATS.map((stat, idx) => (
+            {platformStats.map((stat, idx) => (
               <motion.div 
                 key={stat.label}
                 initial={{ opacity: 0, y: 30, scale: 0.9 }}

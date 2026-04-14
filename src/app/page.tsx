@@ -5,8 +5,7 @@ import { FiArrowRight, FiShield, FiHeart, FiMapPin, FiPhone, FiActivity, FiUsers
 import { FaHeartbeat, FaBrain, FaBone, FaBaby, FaSpa, FaEye, FaTooth, FaStethoscope, FaLungs, FaRibbon, FaHeart, FaDna, FaUserMd } from 'react-icons/fa';
 import { motion, useReducedMotion } from 'framer-motion';
 import dynamic from 'next/dynamic';
-import { hospitals, doctors, specialties, blogPosts, videoMasterclasses } from '@/data/mockData';
-import type { BlogPost, VideoMasterclass } from '@/data/mockData';
+import { hospitals, doctors, specialties } from '@/data/mockData';
 import { useLanguage } from '@/context/LanguageContext';
 import { useState, useEffect, useMemo, memo } from 'react';
 import Image from 'next/image';
@@ -125,6 +124,18 @@ const chatMessages = [
 function AIChatSection() {
   const [visibleCount, setVisibleCount] = useState(2);
   const [inputVal, setInputVal] = useState('');
+  const [blogPosts, setBlogPosts] = useState<any[]>([]);
+  const [videoMasterclasses, setVideoMasterclasses] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/content')
+      .then(r => r.json())
+      .then(data => {
+        setBlogPosts(data.blogs || []);
+        setVideoMasterclasses(data.videos || []);
+      })
+      .catch(() => {});
+  }, []);
   const { shouldUse3D } = usePerformanceMode();
 
   useEffect(() => {

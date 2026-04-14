@@ -7,25 +7,8 @@ import { FiFilter, FiActivity, FiSearch, FiAward, FiUsers, FiStar, FiTrendingUp,
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import SearchBar from '@/components/SearchBar';
 import DoctorCard from '@/components/DoctorCard';
-import { doctors as baseDoctors, specialties, states } from '@/data/mockData';
+import { specialties, states } from '@/data/mockData';
 import { Doctor } from '@/types';
-
-// Expanded real-data doctors (India's top doctors based on real information)
-const extendedDoctors: Doctor[] = [
-  ...baseDoctors,
-  { id: 'd9', name: 'Dr. Naresh Trehan', specialty: 'Cardiology', hospitalId: 'h2', hospitalName: 'Medanta - The Medicity', qualification: 'MBBS, FRCS, FACC', experience: 40, rating: 4.9, consultationFee: 3500, available: true, nextAvailable: 'Today, 11:00 AM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400', location: { lat: 28.4595, lng: 77.0282 } },
-  { id: 'd10', name: 'Dr. Devi Prasad Shetty', specialty: 'Cardiology', hospitalId: 'h4', hospitalName: 'Narayana Health', qualification: 'MBBS, MS, MCh (Cardiac Surgery)', experience: 35, rating: 4.9, consultationFee: 3000, available: true, nextAvailable: 'Tomorrow, 9:00 AM', languages: ['English', 'Hindi', 'Kannada'], image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400', location: { lat: 12.9176, lng: 77.5966 } },
-  { id: 'd11', name: 'Dr. Randeep Guleria', specialty: 'Pulmonology', hospitalId: 'h1', hospitalName: 'AIIMS Delhi', qualification: 'MBBS, MD (Pulmonology)', experience: 30, rating: 4.8, consultationFee: 2000, available: false, nextAvailable: 'Next Monday', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400', location: { lat: 28.5662, lng: 77.1747 } },
-  { id: 'd12', name: 'Dr. Ashok Seth', specialty: 'Cardiology', hospitalId: 'h2', hospitalName: 'Fortis Escorts Heart Institute', qualification: 'MBBS, MD, DM (Cardiology)', experience: 38, rating: 5.0, consultationFee: 5000, available: true, nextAvailable: 'Today, 3:00 PM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400', location: { lat: 28.5662, lng: 77.2831 } },
-  { id: 'd13', name: 'Dr. Shyam Aggarwal', specialty: 'Oncology', hospitalId: 'h1', hospitalName: 'Sir Ganga Ram Hospital', qualification: 'MD, DM (Oncology)', experience: 25, rating: 4.7, consultationFee: 2500, available: true, nextAvailable: 'Tomorrow, 2:00 PM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400', location: { lat: 28.6457, lng: 77.1816 } },
-  { id: 'd14', name: 'Dr. Sandeep Vaishya', specialty: 'Neurology', hospitalId: 'h2', hospitalName: 'Fortis Memorial Hospital', qualification: 'MBBS, MS, MCh (Neurosurgery)', experience: 22, rating: 4.8, consultationFee: 3500, available: true, nextAvailable: 'Today, 4:00 PM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400', location: { lat: 28.4595, lng: 77.0282 } },
-  { id: 'd15', name: 'Dr. Shobha Broor', specialty: 'Gynecology', hospitalId: 'h3', hospitalName: 'Max Super Speciality Hospital', qualification: 'MBBS, DGO, MD', experience: 28, rating: 4.6, consultationFee: 1800, available: false, nextAvailable: 'Wednesday, 10:00 AM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400', location: { lat: 28.6000, lng: 77.2000 } },
-  { id: 'd16', name: 'Dr. S. K. Wangnoo', specialty: 'General Medicine', hospitalId: 'h1', hospitalName: 'Indraprastha Apollo Hospital', qualification: 'MBBS, MD (Endocrinology)', experience: 30, rating: 4.7, consultationFee: 2200, available: true, nextAvailable: 'Today, 6:00 PM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=400', location: { lat: 28.5384, lng: 77.2914 } },
-  { id: 'd17', name: 'Dr. Vivek Vij', specialty: 'Orthopedics', hospitalId: 'h3', hospitalName: 'Fortis Hospital Mulund', qualification: 'MS, DNB (Orthopedics), FRCS', experience: 20, rating: 4.8, consultationFee: 2800, available: true, nextAvailable: 'Tomorrow, 11:00 AM', languages: ['English', 'Hindi', 'Marathi'], image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400', location: { lat: 19.1721, lng: 72.9529 } },
-  { id: 'd18', name: 'Dr. Neeraj Bhalla', specialty: 'Cardiology', hospitalId: 'h2', hospitalName: 'BLK-Max Super Speciality Hospital', qualification: 'MBBS, MD, DM (Cardiology)', experience: 26, rating: 4.7, consultationFee: 3000, available: false, nextAvailable: 'Friday, 9:00 AM', languages: ['English', 'Hindi', 'Punjabi'], image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400', location: { lat: 28.6567, lng: 77.1672 } },
-  { id: 'd19', name: 'Dr. Harit Chaturvedi', specialty: 'Oncology', hospitalId: 'h1', hospitalName: 'Max Super Speciality Hospital', qualification: 'MBBS, MS, MCh (Onco Surgery)', experience: 24, rating: 4.8, consultationFee: 3000, available: true, nextAvailable: 'Today, 5:00 PM', languages: ['English', 'Hindi'], image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400', location: { lat: 28.5700, lng: 77.2400 } },
-  { id: 'd20', name: 'Dr. Sunita Arora', specialty: 'Pediatrics', hospitalId: 'h4', hospitalName: 'Rainbow Childrens Hospital', qualification: 'MBBS, MD (Pediatrics), DNB', experience: 18, rating: 4.9, consultationFee: 1500, available: true, nextAvailable: 'Today, 12:00 PM', languages: ['English', 'Hindi', 'Telugu'], image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400', location: { lat: 17.4400, lng: 78.4800 } },
-];
 
 const STATS = [
   { label: 'Trusted Specialists', value: '500+', icon: FiUsers, color: 'text-blue-400' },
@@ -49,11 +32,33 @@ function SpecialistsContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSpecialtyTab, setActiveSpecialtyTab] = useState('');
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (selectedSpecialty) params.set('specialty', selectedSpecialty);
+        if (selectedLocation) params.set('city', selectedLocation);
+        if (showAvailableOnly) params.set('available', 'true');
+        
+        const res = await fetch(`/api/doctors?${params}`);
+        const data = await res.json();
+        setDoctors(data.doctors || []);
+      } catch (err) {
+        console.error('Failed to fetch doctors:', err);
+      }
+      setLoading(false);
+    };
+    fetchDoctors();
+  }, [selectedSpecialty, selectedLocation, showAvailableOnly]);
 
   const featuredSpecialties = ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Pediatrics', 'Gynecology'];
 
   const filteredDoctors = useMemo(() => {
-    let result = [...extendedDoctors];
+    let result = [...doctors];
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
