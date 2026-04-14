@@ -52,9 +52,9 @@ export default function Footer() {
                 { href: '/pharmacies', label: '💊 Pharmacies' },
                 { href: '/labs', label: '🧪 Diagnostic Labs' },
                 { href: '/camps', label: t('healthCamps') },
-                { href: '/booking', label: 'Book Appointment' },
-                { href: '/emergency', label: t('emergency') },
-                { href: '/dashboard', label: t('myHealth') },
+                { href: '/health-risk', label: '❤️ Health Risk' },
+                { href: '/medicine-verify', label: '🔒 Medicine Verify' },
+                { href: '/clinical-ai', label: '🤖 Clinical AI' },
                 { href: '/admin', label: '⚙️ Admin Login' },
               ].map((link) => (
                 <li key={link.href}>
