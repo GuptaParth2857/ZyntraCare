@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
@@ -22,11 +22,15 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close lang menu on outside click
+  const handleScroll = useCallback(() => {
+    setIsScrolled(window.scrollY > 20);
+  }, []);
+
   useEffect(() => {
     if (!showLangMenu) return;
     const close = () => setShowLangMenu(false);
@@ -34,17 +38,18 @@ export default function Navbar() {
     return () => window.removeEventListener('click', close);
   }, [showLangMenu]);
 
-  const navLinks = [
+  const navLinks = useMemo(() => [
     { href: '/', label: t('home') },
     { href: '/hospitals', label: t('hospitals') },
     { href: '/specialists', label: t('specialists') },
     { href: '/booking', label: 'Book Now' },
     { href: '/emergency', label: t('emergency'), isEmergency: true },
     { href: '/camps', label: t('healthCamps') },
+    { href: '/install', label: 'Install App' },
     { href: '/dashboard', label: t('myHealth') },
     { href: '/subscription', label: t('premium'), isPremium: true },
     { href: '/contact', label: 'Contact' },
-  ];
+  ], [t]);
 
   return (
     <>

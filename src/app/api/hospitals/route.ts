@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Comprehensive India hospitals dataset — 1000+ entries generated from real city data
 function generateHospital(
   id: number,
   name: string,
@@ -204,8 +203,34 @@ function generateHospitalDatabase() {
 
 const HOSPITALS_DB = generateHospitalDatabase();
 
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute cache
+
+function getCachedResponse(key: string) {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCachedResponse(key: string, data: any) {
+  cache.set(key, { data, timestamp: Date.now() });
+  if (cache.size > 100) {
+    const firstKey = cache.keys().next().value;
+    cache.delete(firstKey);
+  }
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const cacheKey = req.url;
+
+  const cached = getCachedResponse(cacheKey);
+  if (cached) {
+    return NextResponse.json(cached);
+  }
+
   const city = searchParams.get('city');
   const state = searchParams.get('state');
   const type = searchParams.get('type');
@@ -229,7 +254,6 @@ export async function GET(req: NextRequest) {
     h.specialties.some(s => s.toLowerCase().includes(search.toLowerCase()))
   );
 
-  // Sort by distance if coordinates provided
   if (nearby && lat && lng) {
     results = results
       .map(h => ({
@@ -242,12 +266,16 @@ export async function GET(req: NextRequest) {
   const total = results.length;
   const paginated = results.slice((page - 1) * limit, page * limit);
 
-  return NextResponse.json({
+  const response = {
     hospitals: paginated,
     total,
     page,
     pages: Math.ceil(total / limit),
     cities: [...new Set(HOSPITALS_DB.map(h => h.city))].sort(),
     states: [...new Set(HOSPITALS_DB.map(h => h.state))].sort(),
-  });
+  };
+
+  setCachedResponse(cacheKey, response);
+
+  return NextResponse.json(response);
 }

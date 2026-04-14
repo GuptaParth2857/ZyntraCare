@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 import { hospitals, doctors, specialties, blogPosts, videoMasterclasses } from '@/data/mockData';
 import type { BlogPost, VideoMasterclass } from '@/data/mockData';
 import { useLanguage } from '@/context/LanguageContext';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import Image from 'next/image';
 
 import { AnimatedGradientText, MorphingBlob, FloatingIcon, PulseRing } from '@/components/PremiumAnimations';
@@ -80,15 +80,14 @@ function StatCard({ value, label, icon: Icon, idx }: { value: string; label: str
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
       transition={{ duration: 0.6, delay: 0.7 + idx * 0.1 }}
       whileHover={{ y: -8, scale: 1.05 }}
       className="relative group"
     >
       <motion.div
         className="absolute -inset-1 bg-gradient-to-r from-sky-500/20 via-blue-500/20 to-teal-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        animate={{ scale: [0.95, 1.05, 0.95], opacity: [0, 0.5, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
       />
       <div className="relative overflow-hidden bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-6 text-center hover:border-sky-500/40 transition-all duration-500 hover:bg-white/[0.06] hover:shadow-[0_0_40px_rgba(14,165,233,0.15)]">
         <motion.div
@@ -96,16 +95,9 @@ function StatCard({ value, label, icon: Icon, idx }: { value: string; label: str
           style={{
             background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%)',
           }}
-          animate={{ x: ['-100%', '200%'] }}
-          transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <motion.div
-          animate={{ 
-            rotate: [0, 10, -10, 0],
-            scale: [1, 1.1, 1]
-          }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           className="relative z-10 w-14 h-14 mx-auto bg-gradient-to-br from-sky-500/20 to-teal-500/20 border border-sky-500/30 rounded-2xl flex items-center justify-center mb-4 text-sky-400 group-hover:from-sky-500/40 group-hover:to-teal-500/40 group-hover:text-sky-300 transition-all duration-300 shadow-[0_0_20px_rgba(14,165,233,0.2)]"
         >
           <Icon size={24} />
@@ -116,6 +108,8 @@ function StatCard({ value, label, icon: Icon, idx }: { value: string; label: str
     </motion.div>
   );
 }
+
+const MemoizedStatCard = memo(StatCard);
 
 const chatMessages = [
   { role: 'ai', text: "Hello! I'm your AI Medical Assistant powered by Gemini. Describe your symptoms and I'll help guide you." },
@@ -299,6 +293,7 @@ const tagColors: Record<string, string> = {
   'Awareness': 'bg-pink-500/15 text-pink-400 border-pink-500/25',
   'Behind The Scenes': 'bg-teal-500/15 text-teal-400 border-teal-500/25',
 };
+
 const catColors: Record<string, string> = {
   'Cardiology': 'text-red-400', 'Technology': 'text-purple-400',
   'Public Health': 'text-emerald-400', 'Endocrinology': 'text-amber-400',
@@ -644,7 +639,7 @@ export default function Home() {
               { icon: FiHeart,  label: t('happyPatients'),     value: '1M+', idx: 2 },
               { icon: FiAward,  label: t('yearsService'),      value: '15+', idx: 3 },
             ].map(stat => (
-              <StatCard key={stat.label} {...stat} />
+              <MemoizedStatCard key={stat.label} {...stat} />
             ))}
           </div>
         </div>

@@ -1,7 +1,7 @@
-const CACHE_NAME = 'zyntracare-v1';
-const STATIC_CACHE = 'zyntracare-static-v1';
-const DYNAMIC_CACHE = 'zyntracare-dynamic-v1';
-const MAP_TILE_CACHE = 'zyntracare-map-tiles-v1';
+const CACHE_NAME = 'zyntracare-v2';
+const STATIC_CACHE = 'zyntracare-static-v2';
+const DYNAMIC_CACHE = 'zyntracare-dynamic-v2';
+const MAP_TILE_CACHE = 'zyntracare-map-tiles-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -14,7 +14,6 @@ const EXTERNAL_ASSETS = [
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap'
 ];
 
-// Map tile URLs to cache
 const MAP_TILE_PATTERNS = [
   'basemaps.cartocdn.com',
   'tile.openstreetmap.org',
@@ -51,7 +50,6 @@ self.addEventListener('fetch', (event) => {
 
   if (request.method !== 'GET') return;
 
-  // Handle map tiles - cache aggressively for offline use
   const isMapTile = MAP_TILE_PATTERNS.some(pattern => url.hostname.includes(pattern));
   if (isMapTile) {
     event.respondWith(
@@ -68,31 +66,31 @@ self.addEventListener('fetch', (event) => {
                   }
                   return response;
                 })
-                .catch(() => {
-                  // Return a placeholder or empty tile on failure
-                  return new Response('', { status: 200 });
-                });
+                .catch(() => new Response('', { status: 200 }));
             });
         })
     );
     return;
   }
 
+  // Use StaleWhileRevalidate for faster response
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const responseClone = response.clone();
-          caches.open(DYNAMIC_CACHE)
-            .then((cache) => cache.put(request, responseClone));
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request)
+      caches.open(DYNAMIC_CACHE)
+        .then((cache) => {
+          return cache.match(request)
             .then((cachedResponse) => {
-              if (cachedResponse) return cachedResponse;
-              return caches.match('/offline');
-            });
+              const fetchPromise = fetch(request)
+                .then((response) => {
+                  if (response.ok) {
+                    cache.put(request, response.clone());
+                  }
+                  return response;
+                })
+                .catch(() => caches.match('/offline'));
+              
+              return cachedResponse || fetchPromise;
+            })
         })
     );
     return;
@@ -100,24 +98,25 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin === location.origin) {
     event.respondWith(
-      caches.match(request)
-        .then((cachedResponse) => {
-          if (cachedResponse) {
-            fetch(request)
-              .then((response) => {
-                caches.open(DYNAMIC_CACHE)
-                  .then((cache) => cache.put(request, response.clone()));
-              })
-              .catch(() => {});
-            return cachedResponse;
-          }
-          return fetch(request)
-            .then((response) => {
-              const responseClone = response.clone();
-              caches.open(DYNAMIC_CACHE)
-                .then((cache) => cache.put(request, responseClone));
-              return response;
-            });
+      caches.open(DYNAMIC_CACHE)
+        .then((cache) => {
+          return cache.match(request)
+            .then((cachedResponse) => {
+              if (cachedResponse) {
+                fetch(request)
+                  .then((response) => {
+                    if (response.ok) cache.put(request, response.clone());
+                  })
+                  .catch(() => {});
+                return cachedResponse;
+              }
+              return fetch(request)
+                .then((response) => {
+                  const responseClone = response.clone();
+                  cache.put(request, responseClone);
+                  return response;
+                });
+            })
         })
     );
     return;
