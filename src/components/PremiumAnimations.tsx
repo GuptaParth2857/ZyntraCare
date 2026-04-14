@@ -26,9 +26,9 @@ export default function PremiumParticles() {
     let animationId: number;
     const particles: Particle[] = [];
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const particleCount = isMobile ? 30 : 50;
+    const particleCount = isMobile ? 45 : 80; // Good visual density
     const lastTimeRef = { current: 0 };
-    const FPS_CAP = 25;
+    const FPS_CAP = 30; // Standard 30fps
     const FRAME_MS = 1000 / FPS_CAP;
 
     const resizeCanvas = () => {
