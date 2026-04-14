@@ -24,6 +24,7 @@ import { NotificationProvider } from '@/components/Notifications';
 const Navbar           = dynamic(() => import('@/components/Navbar'),           { ssr: false });
 const Footer           = dynamic(() => import('@/components/Footer'),           { ssr: false });
 const EmergencyBanner  = dynamic(() => import('@/components/EmergencyBanner'),  { ssr: false });
+const EmergencyCallWidget = dynamic(() => import('@/components/EmergencyCallWidget'), { ssr: false });
 const CanvasBackground = dynamic(() => import('@/components/CanvasBackground'), { ssr: false });
 const ServiceWorkerRegistration = dynamic(() => import('@/components/ServiceWorkerRegistration'), { ssr: false });
 const Analytics        = dynamic(() => import('@/components/Analytics'),        { ssr: false });
@@ -33,7 +34,6 @@ const CookieConsent    = dynamic(() => import('@/components/CookieConsent'),    
 const Chatbot               = dynamic(() => import('@/components/Chatbot'),               { ssr: false });
 const EmergencyScrollMonitor= dynamic(() => import('@/components/EmergencyScrollMonitor'),{ ssr: false });
 const FeedbackModal         = dynamic(() => import('@/components/FeedbackModal'),         { ssr: false });
-const EmergencyCallWidget   = dynamic(() => import('@/components/EmergencyCallWidget'),   { ssr: false });
 const ActiveTheoryCursor    = dynamic(() => import('@/components/ActiveTheoryCursor'),    { ssr: false });
 
 
@@ -70,6 +70,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       {/* Tier 1: Always-visible chrome */}
       <EmergencyBanner />
       <Navbar />
+      <EmergencyCallWidget />
       <main id="main-content" className="flex-1 relative z-10" role="main">
         {children}
       </main>
@@ -84,7 +85,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <EmergencyScrollMonitor />
           <ActiveTheoryCursor />
           <FeedbackModal />
-          <EmergencyCallWidget />
         </ClientOnly>
       )}
 
