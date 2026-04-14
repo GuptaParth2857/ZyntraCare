@@ -53,6 +53,8 @@ export default function Footer() {
                 { href: '/labs', label: '🧪 Diagnostic Labs' },
                 { href: '/camps', label: t('healthCamps') },
                 { href: '/health-risk', label: '❤️ Health Risk' },
+                { href: '/symptoms', label: '🤒 Symptom Checker' },
+                { href: '/first-aid', label: '🚑 First Aid' },
                 { href: '/medicine-verify', label: '🔒 Medicine Verify' },
                 { href: '/clinical-ai', label: '🤖 Clinical AI' },
                 { href: '/admin', label: '⚙️ Admin Login' },
