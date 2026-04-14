@@ -1,71 +1,70 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin } from 'react-icons/fi';
-import { FaStethoscope, FaPills, FaNotesMedical } from 'react-icons/fa';
+import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight } from 'react-icons/fi';
+import { FaStethoscope, FaPills, FaNotesMedical, FaHeartbeat } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import PremiumGuard from '@/components/PremiumGuard';
 import ClientOnly from '@/components/ClientOnly';
 import dynamic from 'next/dynamic';
 
-// Dynamic imports — only loaded when the user actually opens that tab
 const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap'), {
   ssr: false,
-  loading: () => <div className="h-[500px] bg-slate-900/50 animate-pulse rounded-2xl flex items-center justify-center"><span className="text-slate-400 text-sm">Loading live map...</span></div>,
+  loading: () => <div className="h-[500px] bg-slate-900/50 animate-pulse rounded-3xl flex items-center justify-center border border-white/5"><span className="text-white/40 text-sm font-bold tracking-widest uppercase">Initializing Live Map...</span></div>,
 });
 
-// LazyLineChart — recharts is ~200KB, only loaded when AI Predictions tab opens
 const LazyLineChart = dynamic(
   () => import('recharts').then(mod => {
-    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = mod;
+    const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = mod;
     return function Chart({ data }: { data: any[] }) {
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" vertical={false} />
-            <XAxis dataKey="hour" stroke="#ffffff50" tickFormatter={(hr: number) => `${hr}:00`} tick={{ fill: '#ffffff50', fontSize: 12 }} />
-            <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff20', borderRadius: '12px', color: '#fff' }} />
-            <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#0f172a', strokeWidth: 2 }} activeDot={{ r: 8 }} />
-          </LineChart>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="hour" stroke="rgba(255,255,255,0.2)" tickFormatter={(hr: number) => `${hr}:00`} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 'bold' }} />
+            <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 'bold' }} />
+            <Tooltip contentStyle={{ backgroundColor: 'rgba(2,6,23,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', backdropFilter: 'blur(12px)' }} />
+            <Area type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" activeDot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} />
+          </AreaChart>
         </ResponsiveContainer>
       );
     };
   }),
-  { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center"><p className="text-slate-400">Loading chart...</p></div> }
+  { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold uppercase tracking-widest text-xs">Loading AI Models...</p></div> }
 );
+
 const TABS = [
-  { id: 'appointments', label: 'Appointments', icon: <FiCalendar /> },
-  { id: 'records', label: 'Medical Records', icon: <FiFileText /> },
-  { id: 'health', label: 'Health Metrics', icon: <FiActivity /> },
-  { id: 'map', label: 'Live Map', icon: <FiMapPin /> },
-  { id: 'predictions', label: 'AI Health Trends', icon: <FiTrendingUp /> },
+  { id: 'appointments', label: 'Appointments', short: 'Visits', icon: <FiCalendar /> },
+  { id: 'records', label: 'Medical Records', short: 'Records', icon: <FiFileText /> },
+  { id: 'health', label: 'Health Metrics', short: 'Vitals', icon: <FaHeartbeat /> },
+  { id: 'map', label: 'Hospital Radar', short: 'Map', icon: <FiMapPin /> },
+  { id: 'predictions', label: 'AI Health Trends', short: 'AI Hub', icon: <FiTrendingUp /> },
 ];
 
 const APPOINTMENTS = [
-  { id: 1, doctor: 'Dr. Amit Kumar', specialty: 'Cardiology', hospital: 'Fortis Memorial Hospital', date: '2026-04-10', time: '10:00 AM', status: 'upcoming' },
-  { id: 2, doctor: 'Dr. Priya Sharma', specialty: 'Oncology', hospital: 'Max Super Speciality', date: '2026-03-20', time: '2:00 PM', status: 'completed' },
+  { id: 1, doctor: 'Dr. Amit Kumar', specialty: 'Cardiology', hospital: 'Fortis Memorial', date: '2026-04-10', time: '10:00 AM', status: 'Upcoming', type: 'Teleconsult' },
+  { id: 2, doctor: 'Dr. Priya Sharma', specialty: 'Oncology', hospital: 'Max Super Speciality', date: '2026-03-20', time: '2:00 PM', status: 'Completed', type: 'In-Person' },
 ];
 
 const RECORDS = [
   { id: 1, title: 'Complete Blood Count', date: '2026-03-15', hospital: 'Apollo Hospital', type: 'report' },
-  { id: 2, title: 'ECG Report', date: '2026-03-10', hospital: 'Fortis Memorial', type: 'report' },
-  { id: 3, title: 'Blood Pressure Medication', date: '2026-03-05', hospital: 'AIIMS', type: 'prescription' },
-];
-
-const ACTIONS = [
-  { icon: <FiCalendar />, label: 'Book', color: 'bg-blue-500 text-white hover:bg-blue-600 border-blue-400/50' },
-  { icon: <FaNotesMedical />, label: 'Upload\nRecords', color: 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30' },
-  { icon: <FiVideo />, label: 'Teleconsult', color: 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border-purple-500/30' },
+  { id: 2, title: 'Electrocardiogram (ECG)', date: '2026-03-10', hospital: 'Fortis Memorial', type: 'report' },
+  { id: 3, title: 'Cardiology Prescription', date: '2026-03-05', hospital: 'AIIMS Delhi', type: 'prescription' },
 ];
 
 const HEALTH_METRICS = [
-  { label: 'Blood Pressure', val: '120/80', unit: 'mmHg', color: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/30' },
-  { label: 'Heart Rate', val: '72', unit: 'bpm', color: 'text-orange-400', bg: 'bg-orange-500/20', border: 'border-orange-500/30' },
-  { label: 'Blood Sugar', val: '95', unit: 'mg/dL', color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500/30' },
-  { label: 'BMI Index', val: '24.2', unit: 'Normal', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30' },
+  { label: 'Blood Pressure', val: '120/80', unit: 'mmHg', color: 'from-rose-500 to-red-600', shadow: 'shadow-rose-500/30' },
+  { label: 'Heart Rate', val: '72', unit: 'BPM', color: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/30' },
+  { label: 'Blood Oxygen', val: '98', unit: '% SpO2', color: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/30' },
+  { label: 'BMI Index', val: '24.2', unit: 'Normal', color: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/30' },
 ];
 
 export default function DashboardPage() {
@@ -74,60 +73,45 @@ export default function DashboardPage() {
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);
 
-  // Stable callback — no re-creation on every render
   const handleTabChange = useCallback((tabId: string) => setActiveTab(tabId), []);
 
   useEffect(() => {
-    // Only fetch predictions data when user visits AI tab
     const controller = new AbortController();
     fetch('/api/predict-flow', { signal: controller.signal })
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setPredictions(data); })
       .catch(() => {});
-
     fetch('/api/beds', { signal: controller.signal })
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setBedStats(data); })
       .catch(() => {});
-
-    // Cleanup: abort fetch if component unmounts (prevents memory leak)
     return () => controller.abort();
   }, []);
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
-        />
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="w-16 h-16 relative">
+          <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+          <div className="absolute inset-0 rounded-full border-4 border-t-sky-500 animate-spin" />
+        </div>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white flex items-center justify-center">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.15, 0.28, 0.15], scale: [1, 1.06, 1] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute -top-40 left-1/4 w-[700px] h-[700px] bg-cyan-600/18 rounded-full blur-[170px]"
-          />
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.1, 0.22, 0.1], scale: [1, 1.1, 1] }}
-            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-            className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[130px]"
-          />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center p-8 bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10">
-          <FiUser size={48} className="mx-auto mb-4 text-blue-400" />
-          <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
-          <p className="text-gray-400 mb-6">Please sign in to view your patient dashboard.</p>
-          <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl transition">Return Home</Link>
+      <div className="min-h-screen bg-[#020617] relative flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTQgMzBoNmY2VjU0SDU0VjMwbS0wIDBiLTZiLTZiNi02aDYiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')] opacity-20" />
+        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-sky-500/20 rounded-full blur-[100px]" />
+        
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center bg-white/[0.02] border border-white/10 p-12 rounded-[2.5rem] backdrop-blur-3xl shadow-2xl max-w-md w-full mx-4">
+          <div className="w-24 h-24 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(14,165,233,0.4)]">
+            <FiUser size={40} className="text-white" />
+          </div>
+          <h2 className="text-3xl font-black text-white mb-2">Access Restricted</h2>
+          <p className="text-white/50 mb-8 font-medium">Please authenticate to view your encrypted medical dashboard.</p>
+          <button onClick={() => window.location.href = '/'} className="w-full bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold py-4 rounded-2xl transition-all">Sign In</button>
         </motion.div>
       </div>
     );
@@ -136,249 +120,262 @@ export default function DashboardPage() {
   const isPremium = session?.user?.subscription?.plan !== 'Free' && session?.user?.subscription?.status === 'active';
 
   return (
-    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.12, 0.25, 0.12], scale: [1, 1.05, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-40 left-1/4 w-[700px] h-[700px] bg-cyan-600/18 rounded-full blur-[165px]"
-        />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.08, 0.18, 0.08], scale: [1, 1.08, 1] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-          className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-blue-600/14 rounded-full blur-[125px]"
-        />
+    <div className="min-h-screen bg-[#020617] relative overflow-x-hidden font-inter pb-32 text-white">
+      
+      {/* ── CINEMATIC BG ── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(14,165,233,0.15) 0%, transparent 60%)' }} />
+        <div className="absolute bottom-0 left-[10%] w-[500px] h-[500px] bg-teal-500/10 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTQgMzBoNmY2VjU0SDU0VjMwbS0wIDBiLTZiLTZiNi02aDYiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')] opacity-20 mask-image-gradient" />
       </div>
 
-      {/* Main Container */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-12">
-        {/* Glassmorphic Header */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 mb-8 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6"
-        >
-          <div className="flex items-center gap-6">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 p-1 rounded-full shadow-lg shadow-blue-500/30"
-            >
-              <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center border-2 border-slate-900">
-                <FiUser size={40} className="text-white" />
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 relative z-10 pt-28">
+        
+        {/* ── HEADER / PROFILE CARD ── */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
+          className="relative bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-6 md:p-10 mb-10 backdrop-blur-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row gap-8 items-center justify-between">
+          
+          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-[60px]" />
+          
+          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8 relative z-10 w-full text-center md:text-left">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full animate-pulse border-2 border-sky-500/30" style={{ animationDuration: '3s' }} />
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-sky-500 to-indigo-600 p-1 rounded-full shadow-[0_0_50px_rgba(14,165,233,0.3)]">
+                <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center border-4 border-[#020617] relative overflow-hidden">
+                  <FiUser size={48} className="text-white/80 z-10" />
+                  <div className="absolute bottom-0 w-full h-1/2 bg-sky-500/20 blur-md" />
+                </div>
               </div>
-            </motion.div>
+            </div>
+            
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tight">Welcome back, {session.user?.name || 'Patient'}</h1>
-              <p className="text-blue-200/70 font-medium">{session.user?.email}</p>
-              <div className="mt-3">
+              <p className="text-sky-400 font-bold tracking-widest uppercase text-xs mb-2">Patient Gateway</p>
+              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-2">
+                Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'},<br />
+                {session.user?.name || 'Patient'}
+              </h1>
+              <p className="text-white/40 font-medium mb-4">{session.user?.email}</p>
+              
+              <div className="flex flex-wrap justify-center md:justify-start gap-3">
                 {isPremium ? (
-                  <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                    <FiStar className="text-amber-400" /> Premium Member
+                  <span className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <FiStar /> Premium Activated
                   </span>
                 ) : (
-                  <Link href="/subscription" className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white px-3 py-1 rounded-full text-xs font-bold transition">
-                    <FiStar /> Upgrade to Premium
+                  <Link href="/subscription" className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest transition-all">
+                    <FiStar /> Upgrade Now
                   </Link>
                 )}
+                <span className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Profile 100%
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-            {ACTIONS.map((action, idx) => (
-              <motion.button
-                key={idx}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border backdrop-blur-md transition whitespace-pre font-bold text-sm ${action.color}`}
-              >
-                {action.icon} <span className="hidden sm:inline">{action.label}</span>
-              </motion.button>
+          <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar relative z-10">
+            {[
+              { icon: <FiVideo />, label: 'Fast Teleconsult', bg: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
+              { icon: <FiCalendar />, label: 'Book Doctor', bg: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
+              { icon: <FaNotesMedical />, label: 'Upload Meds', bg: 'from-purple-500 to-indigo-600', shadow: 'shadow-purple-500/20' },
+            ].map((btn, i) => (
+              <button key={i} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-gradient-to-r ${btn.bg} shadow-lg ${btn.shadow} text-white font-bold text-sm transition-all hover:scale-105 active:scale-95 whitespace-nowrap`}>
+                {btn.icon} {btn.label}
+              </button>
             ))}
           </div>
         </motion.div>
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-3 overflow-x-auto pb-4 hide-scrollbar">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold transition whitespace-nowrap border ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25'
-                  : 'bg-slate-900/40 border-white/5 text-gray-400 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
+        {/* ── TAB NAVIGATION ── */}
+        <div className="flex gap-2 overflow-x-auto pb-6 custom-scrollbar mb-4 relative">
+          <div className="absolute bottom-6 left-0 w-full h-[1px] bg-white/5" />
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => handleTabChange(tab.id)}
+                className={`relative flex items-center gap-2 px-6 py-4 rounded-2xl font-bold transition-all whitespace-nowrap z-10 text-sm ${
+                  isActive ? 'bg-white/[0.08] text-white shadow-2xl' : 'text-white/40 hover:text-white hover:bg-white/[0.04]'
+                }`}>
+                <span className={isActive ? 'text-sky-400' : ''}>{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.short}</span>
+                {isActive && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 rounded-t-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.8)]" />}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Tab Content Areas */}
+        {/* ── TAB CONTENT AREAS ── */}
         <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.3 }}
-            className="mt-6"
-          >
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3, type: 'spring', damping: 25 }}>
             
-            {/* APPOINTMENTS TAB */}
+            {/* 1. APPOINTMENTS */}
             {activeTab === 'appointments' && (
-              <div className="grid md:grid-cols-2 gap-6">
-                {APPOINTMENTS.map((apt, idx) => (
-                  <motion.div key={apt.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.1 }}
-                    className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 hover:border-white/20 transition group">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                          <FaStethoscope className="text-white text-xl" />
+              <div className="grid lg:grid-cols-2 gap-6">
+                {APPOINTMENTS.map((apt, i) => (
+                  <div key={apt.id} className="group bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 md:p-8 hover:bg-white/[0.04] transition-all relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    
+                    <div className="flex justify-between items-start mb-8 relative z-10">
+                      <div className="flex gap-5">
+                        <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl flex items-center justify-center shadow-lg group-hover:border-sky-500/50 transition-colors">
+                          <FaStethoscope className="text-white text-2xl" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-white text-lg">{apt.doctor}</h3>
-                          <p className="text-blue-400 text-sm font-medium">{apt.specialty}</p>
-                          <p className="text-gray-400 text-xs mt-1">{apt.hospital}</p>
+                          <h3 className="font-black text-white text-xl leading-snug">{apt.doctor}</h3>
+                          <p className="text-sky-400 font-bold text-sm tracking-wide">{apt.specialty}</p>
+                          <p className="text-white/40 text-xs mt-1 font-medium">{apt.hospital}</p>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${apt.status === 'upcoming' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'}`}>
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                        apt.status === 'Upcoming' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.2)]' : 'bg-white/5 text-white/40 border-white/10'
+                      }`}>
                         {apt.status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-6 bg-black/20 rounded-2xl p-4 text-sm font-medium text-gray-300 mb-6 border border-white/5">
-                      <div className="flex items-center gap-2"><FiCalendar className="text-blue-400"/> {apt.date}</div>
-                      <div className="flex items-center gap-2"><FiClock className="text-purple-400"/> {apt.time}</div>
+
+                    <div className="grid grid-cols-2 gap-4 bg-[#0f172a] rounded-2xl p-5 border border-white/5 mb-8">
+                      <div>
+                        <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mb-1 pl-1">Date</p>
+                        <p className="text-white font-bold flex items-center gap-2"><FiCalendar className="text-sky-400"/> {apt.date}</p>
+                      </div>
+                      <div>
+                        <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mb-1 pl-1">Time</p>
+                        <p className="text-white font-bold flex items-center gap-2"><FiClock className="text-indigo-400"/> {apt.time}</p>
+                      </div>
                     </div>
-                    {apt.status === 'upcoming' && (
-                      <div className="flex gap-3">
-                        <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25">
-                          <FiVideo /> Join Teleconsult Call
+
+                    {apt.status === 'Upcoming' ? (
+                      <div className="flex gap-4">
+                        <button className="flex-[2] bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                          {apt.type === 'Teleconsult' ? <><FiVideo /> Join Room</> : <><FiMapPin /> Directions</>}
                         </button>
-                        <button className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 text-white transition">
-                          <FiMessageCircle size={20} />
+                        <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
+                          <FiMessageCircle size={18} /> Chat
                         </button>
                       </div>
+                    ) : (
+                      <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all">
+                        View Summary
+                      </button>
                     )}
-                  </motion.div>
-                ))}
-                
-                {/* Add new appointment card */}
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  className="bg-slate-900/30 backdrop-blur-xl border-2 border-dashed border-white/10 hover:border-blue-500/50 hover:bg-blue-500/5 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[250px] transition text-gray-400 hover:text-blue-400 group">
-                  <div className="w-16 h-16 rounded-full bg-white/5 group-hover:bg-blue-500/20 flex items-center justify-center mb-4 transition">
-                    <FiPlus size={28} />
                   </div>
-                  <span className="font-bold text-lg">Book New Appointment</span>
-                </motion.button>
+                ))}
               </div>
             )}
 
-            {/* LIVE MAP TAB (Map integration requested) */}
-            {activeTab === 'map' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative bg-slate-900">
-                <div className="bg-slate-900 border-b border-white/10 p-5 z-[1001]">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2"><FiMapPin className="text-blue-400" /> Live Nearby Hospitals & Real-time Beds</h2>
+            {/* 2. HEALTH METRICS */}
+            {activeTab === 'health' && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {HEALTH_METRICS.map((metric, i) => (
+                  <div key={i} className={`bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 lg:p-8 relative overflow-hidden group hover:bg-white/[0.04] transition-colors`}>
+                    <div className={`absolute -right-10 -top-10 w-32 h-32 bg-gradient-to-br ${metric.color} rounded-full blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity`} />
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${metric.color} mb-6 flex items-center justify-center shadow-lg ${metric.shadow}`}>
+                      <FiActivity className="text-white text-xl" />
+                    </div>
+                    <p className="text-white/40 text-xs font-black uppercase tracking-widest mb-1">{metric.label}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl lg:text-4xl font-black text-white">{metric.val}</span>
+                      <span className="text-white/40 font-bold text-sm tracking-wide">{metric.unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 3. AI PREDICTIONS */}
+            {activeTab === 'predictions' && (
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden">
+                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-2xl flex items-center justify-center border border-sky-500/20"><FiTrendingUp size={24}/></div>
+                      <div>
+                        <h3 className="font-black text-white text-xl">Hospital Visit Forecaster</h3>
+                        <p className="text-white/40 text-xs font-bold tracking-widest uppercase">Live AI Predictions</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-[350px] w-full">
+                    {predictions.length > 0 ? (
+                      <ClientOnly><LazyLineChart data={predictions.map((val, hr) => ({ hour: hr, count: val }))} /></ClientOnly>
+                    ) : <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold">Querying Gemini AI...</p></div>}
+                  </div>
                 </div>
-                {/* Use the already beautiful NearbyHospitalsMap component inside the glowing container */}
-                <div style={{ filter: 'drop-shadow(0 0 40px rgba(59, 130, 246, 0.1))' }}>
+
+                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 md:p-8">
+                  <h3 className="font-black text-white text-xl mb-6 flex items-center gap-3"><FiServer className="text-emerald-400" /> Resource Nodes</h3>
+                  <div className="space-y-4">
+                    {Array.isArray(bedStats) && bedStats.slice(0, 5).map((h, i) => (
+                      <div key={i} className="flex justify-between items-center bg-[#0f172a] p-4 rounded-2xl border border-white/5">
+                        <span className="text-white/80 font-bold text-sm truncate max-w-[120px]">{h?.id.split('_')[0]}...</span>
+                        <div className="flex gap-3 text-xs bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                          <span className="text-white"><span className="text-emerald-400 font-black">{h?.beds?.available ?? 0}</span> Bed</span>
+                          <span className="text-white/20">|</span>
+                          <span className="text-white"><span className="text-sky-400 font-black">{h?.beds?.icuAvailable ?? 0}</span> ICU</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. HOSPITAL RADAR (MAP) */}
+            {activeTab === 'map' && (
+              <div className="rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl relative bg-[#020617] ring-1 ring-sky-500/20">
+                <div className="bg-white/[0.02] border-b border-white/10 p-6 md:p-8 z-10 relative flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-black text-white flex items-center gap-3 mb-1"><FiMapPin className="text-sky-400" /> ZyntraCare Radar</h2>
+                    <p className="text-white/40 text-sm font-bold tracking-widest uppercase">Overpass Global Database Active</p>
+                  </div>
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                </div>
+                <div style={{ height: '600px', filter: 'brightness(0.9) contrast(1.1) saturate(1.2)' }}>
                   <NearbyHospitalsMap />
                 </div>
-              </motion.div>
-            )}
-
-            {/* AI PREDICTIONS TAB */}
-            {activeTab === 'predictions' && (
-              <div className="grid lg:grid-cols-2 gap-6">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 bg-purple-500/20 rounded-xl text-purple-400 border border-purple-500/30"><FiTrendingUp size={24} /></div>
-                    <div>
-                      <h3 className="font-bold text-white text-lg">AI Hospital Footfall Prediction</h3>
-                      <p className="text-xs text-gray-400">Optimize your visit times for today</p>
-                    </div>
-                  </div>
-                <div className="h-[300px] w-full">
-                    {predictions.length > 0 ? (
-                      <ClientOnly>
-                        <LazyLineChart data={predictions.map((val, hr) => ({ hour: hr, count: val }))} />
-                      </ClientOnly>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><p className="text-white">Connecting to AI Models...</p></div>
-                    )}
-                  </div>
-                </motion.div>
-
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                  <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
-                    <h3 className="font-bold text-white text-lg mb-4 flex items-center gap-2"><FiServer className="text-emerald-400" /> Live Resource Summary</h3>
-                    <div className="space-y-3">
-                      {Array.isArray(bedStats) && bedStats.slice(0, 4).map((h, i) => (
-                        <div key={i} className="flex justify-between items-center bg-black/20 p-4 rounded-2xl border border-white/5">
-                          <span className="text-white font-medium">{(h?.id ? h.id.split('_')[0].slice(0, 15) : 'Hospital')}...</span>
-                          <div className="flex gap-4">
-                            <span className="text-sm"><span className="text-emerald-400 font-bold">{h?.beds?.available ?? 0}</span> Free Beds</span>
-                            <span className="text-sm"><span className="text-blue-400 font-bold">{h?.beds?.icuAvailable ?? 0}</span> Free ICU</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
               </div>
             )}
 
-            {/* MEDICAL RECORDS TAB */}
+            {/* 5. MEDICAL RECORDS */}
             {activeTab === 'records' && (
               <PremiumGuard>
-                <div className="grid md:grid-cols-3 gap-6">
-                  {RECORDS.map((record, idx) => (
-                    <motion.div key={record.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.1 }}
-                      className="bg-slate-900/50 backdrop-blur-xl border border-emerald-500/20 rounded-3xl p-6 hover:border-emerald-500/40 transition group relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition" />
-                      <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mb-4 border border-emerald-500/20">
-                        {record.type === 'report' ? <FaNotesMedical size={20} /> : <FaPills size={20} />}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {RECORDS.map((rec, i) => (
+                    <div key={rec.id} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 rounded-[2rem] p-6 md:p-8 group transition-all relative overflow-hidden cursor-pointer hover:bg-white/[0.04]">
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                        {rec.type === 'report' ? <FaNotesMedical size={24} /> : <FaPills size={24} />}
                       </div>
-                      <h3 className="font-bold text-white mb-1">{record.title}</h3>
-                      <p className="text-gray-400 text-sm mb-4">{record.hospital} • {record.date}</p>
-                      <button className="text-emerald-400 text-sm font-bold uppercase tracking-wide group-hover:text-emerald-300 transition flex items-center gap-1">
-                        View Document &rarr;
+                      <h3 className="font-black text-white text-lg mb-2">{rec.title}</h3>
+                      <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-6">{rec.hospital} • {rec.date}</p>
+                      <button className="text-emerald-400 text-sm font-black uppercase tracking-wide flex items-center gap-2 group-hover:text-emerald-300 transition-colors">
+                        View Document <FiChevronRight />
                       </button>
-                    </motion.div>
+                    </div>
                   ))}
-                  <motion.button whileHover={{ scale: 1.02 }} className="bg-slate-900/30 backdrop-blur-xl border-2 border-dashed border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[200px] text-gray-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition">
-                    <FiPlus size={28} className="mb-3" />
-                    <span className="font-bold">Upload New Record</span>
-                  </motion.button>
+                  
+                  <div className="bg-white/[0.01] backdrop-blur-xl border-2 border-dashed border-white/10 hover:border-sky-500/50 rounded-[2rem] p-8 flex flex-col items-center justify-center min-h-[250px] cursor-pointer transition-colors group hover:bg-sky-500/5">
+                    <div className="w-16 h-16 bg-white/5 text-white/50 group-hover:bg-sky-500/20 group-hover:text-sky-400 rounded-full flex items-center justify-center mb-4 transition-colors">
+                      <FiPlus size={32} />
+                    </div>
+                    <span className="font-black text-white/50 group-hover:text-white uppercase tracking-widest text-sm transition-colors">Upload Record</span>
+                  </div>
                 </div>
               </PremiumGuard>
             )}
-
-            {/* HEALTH METRICS TAB */}
-            {activeTab === 'health' && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                {HEALTH_METRICS.map((metric, idx) => (
-                  <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-                    className={`bg-slate-900/50 backdrop-blur-xl border ${metric.border} rounded-3xl p-6 relative overflow-hidden`}>
-                    <div className={`absolute -right-4 -top-4 w-24 h-24 ${metric.bg} rounded-full blur-2xl`} />
-                    <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-2">{metric.label}</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-4xl font-black ${metric.color}`}>{metric.val}</span>
-                      <span className="text-white/50 font-medium text-sm">{metric.unit}</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            
           </motion.div>
         </AnimatePresence>
+        
       </div>
+      
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(14, 165, 233, 0.3); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(14, 165, 233, 0.5); }
+      `}</style>
     </div>
   );
 }
