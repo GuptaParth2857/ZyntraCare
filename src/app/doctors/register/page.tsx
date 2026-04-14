@@ -43,7 +43,7 @@ export default function DoctorRegistrationPage() {
 
   const handleSubmit = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 400));
     setLoading(false);
     setSubmitted(true);
   };
@@ -210,16 +210,16 @@ export default function DoctorRegistrationPage() {
                           <motion.div key="1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                             <h2 className="text-2xl font-black text-white mb-6">Personal details</h2>
                             
-                            <FloatingInput label="Full Name (as per degree) *" value={form.name} onChange={v => updateForm('name', v)} />
+                            <FloatingInput label="Full Name (as per degree) *" value={form.name} onChange={(v: string) => updateForm('name', v)} />
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                              <FloatingInput label="Corporate Email *" type="email" value={form.email} onChange={v => updateForm('email', v)} />
-                              <FloatingInput label="Mobile Number *" type="tel" value={form.phone} onChange={v => updateForm('phone', v.replace(/\D/g, '').slice(0, 10))} />
+                              <FloatingInput label="Corporate Email *" type="email" value={form.email} onChange={(v: string) => updateForm('email', v)} />
+                              <FloatingInput label="Mobile Number *" type="tel" value={form.phone} onChange={(v: string) => updateForm('phone', v.replace(/\D/g, '').slice(0, 10))} />
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                              <FloatingInput label="City *" value={form.city} onChange={v => updateForm('city', v)} />
-                              <FloatingInput label="State *" value={form.state} onChange={v => updateForm('state', v)} />
+                              <FloatingInput label="City *" value={form.city} onChange={(v: string) => updateForm('city', v)} />
+                              <FloatingInput label="State *" value={form.state} onChange={(v: string) => updateForm('state', v)} />
                             </div>
                           </motion.div>
                         )}
@@ -245,14 +245,14 @@ export default function DoctorRegistrationPage() {
                               </div>
                             </div>
                             
-                            <FloatingInput label="Highest Qualification (e.g. MD, MS, DNB) *" value={form.qualification} onChange={v => updateForm('qualification', v)} />
+                            <FloatingInput label="Highest Qualification (e.g. MD, MS, DNB) *" value={form.qualification} onChange={(v: string) => updateForm('qualification', v)} />
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                              <FloatingInput label="Medical Registration No. *" value={form.regNumber} onChange={v => updateForm('regNumber', v)} />
-                              <FloatingInput label="Experience (Years) *" type="number" value={form.experience} onChange={v => updateForm('experience', v)} />
+                              <FloatingInput label="Medical Registration No. *" value={form.regNumber} onChange={(v: string) => updateForm('regNumber', v)} />
+                              <FloatingInput label="Experience (Years) *" type="number" value={form.experience} onChange={(v: string) => updateForm('experience', v)} />
                             </div>
                             
-                            <FloatingInput label="Current Hospital / Clinic Name" value={form.hospital} onChange={v => updateForm('hospital', v)} />
+                            <FloatingInput label="Current Hospital / Clinic Name" value={form.hospital} onChange={(v: string) => updateForm('hospital', v)} />
                           </motion.div>
                         )}
 
@@ -277,7 +277,7 @@ export default function DoctorRegistrationPage() {
                               </div>
                             </div>
 
-                            <FloatingInput label="Consultation Fee (₹)" type="number" value={form.consultationFee} onChange={v => updateForm('consultationFee', v)} />
+                            <FloatingInput label="Consultation Fee (₹)" type="number" value={form.consultationFee} onChange={(v: string) => updateForm('consultationFee', v)} />
 
                             <div>
                               <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-3">Spoken Languages</p>
