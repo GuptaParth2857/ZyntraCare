@@ -1,12 +1,29 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FiCalendar, FiMapPin, FiClock, FiFilter, FiActivity, FiX, FiUser, FiPhone, FiMail, FiCheckCircle, FiPlus, FiArrowRight } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { camps, states } from '@/data/mockData';
-import { Camp } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
+
+interface Camp {
+  id: string;
+  name: string;
+  date: string;
+  time: string;
+  location: string;
+  city: string;
+  state: string;
+  services: string[];
+  hospital: string;
+  registration: string;
+  spotsAvailable?: number;
+  organizedBy?: string;
+  locationCoords?: { lat: number; lng: number };
+}
+
+// Indian states for filters
+const INDIAN_STATES = ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Telangana', 'West Bengal', 'Gujarat', 'Rajasthan', 'Uttar Pradesh', 'Madhya Pradesh', 'Punjab', 'Haryana', 'Kerala', 'Bihar', 'Jharkhand'];
 
 // ── REUSABLE GLASS FLOATING INPUT ──
 function FloatingInput({ label, value, onChange, type = 'text', id = label.replace(/\s+/g, '-').toLowerCase() }: any) {
@@ -166,7 +183,7 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
                     <select required value={form.state} onChange={(e) => setForm(f => ({ ...f, state: e.target.value }))}
                       className="block w-full px-5 py-4 bg-white/[0.02] border border-white/10 rounded-2xl text-white text-sm appearance-none focus:outline-none focus:border-teal-500/50">
                       <option value="" className="bg-slate-900">Select State *</option>
-                      {states.filter(s => s !== 'All India').map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
+                      {INDIAN_STATES.map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
                     </select>
                   </div>
                 </div>
@@ -208,10 +225,24 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
 // ── MAIN PAGE ──
 export default function CampsPage() {
   const { t } = useLanguage();
+  const [camps, setCamps] = useState<Camp[]>([]);
+  const [apiStates, setApiStates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedState, setSelectedState] = useState('');
   const [selectedService, setSelectedService] = useState('');
   const [registeringCamp, setRegisteringCamp] = useState<Camp | null>(null);
   const [showListModal, setShowListModal] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/camps')
+      .then(r => r.json())
+      .then(data => {
+        setCamps(data.camps || []);
+        setApiStates(data.states || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   const filteredCamps = useMemo(() => {
     return camps.filter(camp => {
@@ -263,7 +294,7 @@ export default function CampsPage() {
             <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)}
               className="flex-1 min-w-[200px] px-5 py-4 bg-[#0f172a] border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-sm font-semibold text-white appearance-none">
               <option value="">All States</option>
-              {states.filter(s => s !== 'All India').map(state => <option key={state} value={state}>{state}</option>)}
+              {INDIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}
             </select>
             <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}
               className="flex-1 min-w-[200px] px-5 py-4 bg-[#0f172a] border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-sm font-semibold text-white appearance-none">
