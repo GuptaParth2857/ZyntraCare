@@ -56,6 +56,7 @@ export default function Footer() {
                 { href: '/doctors/register', label: '🩺 Register as Doctor' },
                 { href: '/feedback', label: 'Feedback' },
                 { href: '/sponsor', label: 'Partner With Us' },
+                { href: '/admin', label: '⚙️ Admin Login' },
               ].map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-gray-400 hover:text-sky-400 transition hover:translate-x-1 inline-block">

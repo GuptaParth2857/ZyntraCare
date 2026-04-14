@@ -324,11 +324,9 @@ export default function EmergencyCallWidget() {
                       <FiCrosshair className="text-green-400" size={14} />
                       <span className="text-green-400 text-xs font-bold">Live GPS Active</span>
                       <span className="text-green-400/60 text-xs">• Nearest hospitals</span>
-                      {Object.keys(footfallData).length > 0 && (
-                        <span className="ml-auto flex items-center gap-1 text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
-                          <FiUsers size={10} /> Real-time crowd
-                        </span>
-                      )}
+                      <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <FiUsers size={10} /> {hospitals.length} found
+                      </span>
                     </div>
                     
                     {hospitals.map((h, i) => (
@@ -352,15 +350,19 @@ export default function EmergencyCallWidget() {
                                 <FiMapPin size={12} />
                                 {h.distance ? `${h.distance.toFixed(1)} km` : 'N/A'}
                               </span>
-                              {footfallData[h.id] && (
+                              {footfallData[h.id] ? (
                                 <span 
-                                  className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                                  className="text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"
                                   style={{ 
                                     backgroundColor: footfallData[h.id].color + '20',
                                     color: footfallData[h.id].color
                                   }}
                                 >
-                                  {footfallData[h.id].label}
+                                  <FiUsers size={10} /> {footfallData[h.id].label}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 font-bold">
+                                  No crowd data
                                 </span>
                               )}
                               {i === 0 && (
