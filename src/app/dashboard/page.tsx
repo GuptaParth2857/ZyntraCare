@@ -1,15 +1,41 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin } from 'react-icons/fi';
 import { FaStethoscope, FaPills, FaNotesMedical } from 'react-icons/fa';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import PremiumGuard from '@/components/PremiumGuard';
 import ClientOnly from '@/components/ClientOnly';
-import NearbyHospitalsMap from '@/components/NearbyHospitalsMap';
+import dynamic from 'next/dynamic';
+
+// Dynamic imports — only loaded when the user actually opens that tab
+const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap'), {
+  ssr: false,
+  loading: () => <div className="h-[500px] bg-slate-900/50 animate-pulse rounded-2xl flex items-center justify-center"><span className="text-slate-400 text-sm">Loading live map...</span></div>,
+});
+
+// LazyLineChart — recharts is ~200KB, only loaded when AI Predictions tab opens
+const LazyLineChart = dynamic(
+  () => import('recharts').then(mod => {
+    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = mod;
+    return function Chart({ data }: { data: any[] }) {
+      return (
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" vertical={false} />
+            <XAxis dataKey="hour" stroke="#ffffff50" tickFormatter={(hr: number) => `${hr}:00`} tick={{ fill: '#ffffff50', fontSize: 12 }} />
+            <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} />
+            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff20', borderRadius: '12px', color: '#fff' }} />
+            <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#0f172a', strokeWidth: 2 }} activeDot={{ r: 8 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center"><p className="text-slate-400">Loading chart...</p></div> }
+);
 const TABS = [
   { id: 'appointments', label: 'Appointments', icon: <FiCalendar /> },
   { id: 'records', label: 'Medical Records', icon: <FiFileText /> },
@@ -48,20 +74,24 @@ export default function DashboardPage() {
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetch('/api/predict-flow')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setPredictions(data);
-      })
-      .catch(() => setPredictions([]));
+  // Stable callback — no re-creation on every render
+  const handleTabChange = useCallback((tabId: string) => setActiveTab(tabId), []);
 
-    fetch('/api/beds')
+  useEffect(() => {
+    // Only fetch predictions data when user visits AI tab
+    const controller = new AbortController();
+    fetch('/api/predict-flow', { signal: controller.signal })
       .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setBedStats(data);
-      })
-      .catch(() => setBedStats([]));
+      .then(data => { if (Array.isArray(data)) setPredictions(data); })
+      .catch(() => {});
+
+    fetch('/api/beds', { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setBedStats(data); })
+      .catch(() => {});
+
+    // Cleanup: abort fetch if component unmounts (prevents memory leak)
+    return () => controller.abort();
   }, []);
 
   if (status === 'loading') {
@@ -178,7 +208,7 @@ export default function DashboardPage() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold transition whitespace-nowrap border ${
                 activeTab === tab.id
                   ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25'
@@ -274,18 +304,10 @@ export default function DashboardPage() {
                       <p className="text-xs text-gray-400">Optimize your visit times for today</p>
                     </div>
                   </div>
-                  <div className="h-[300px] w-full">
+                <div className="h-[300px] w-full">
                     {predictions.length > 0 ? (
                       <ClientOnly>
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <LineChart data={predictions.map((val, hr) => ({ hour: hr, count: val }))}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" vertical={false} />
-                            <XAxis dataKey="hour" stroke="#ffffff50" tickFormatter={(hr) => `${hr}:00`} tick={{ fill: '#ffffff50', fontSize: 12 }} />
-                            <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} />
-                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff20', borderRadius: '12px', color: '#fff' }} />
-                            <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#0f172a', strokeWidth: 2 }} activeDot={{ r: 8 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                        <LazyLineChart data={predictions.map((val, hr) => ({ hour: hr, count: val }))} />
                       </ClientOnly>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center"><p className="text-white">Connecting to AI Models...</p></div>

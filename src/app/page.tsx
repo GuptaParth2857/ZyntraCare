@@ -34,12 +34,13 @@ function usePerformanceMode() {
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onMqChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     setPrefersReducedMotion(mq.matches);
-    mq.addEventListener('change', e => setPrefersReducedMotion(e.matches));
+    mq.addEventListener('change', onMqChange);
 
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
-    window.addEventListener('resize', checkMobile);
+    window.addEventListener('resize', checkMobile, { passive: true });
 
     const conn = (navigator as any).connection;
     if (conn) {
@@ -47,7 +48,8 @@ function usePerformanceMode() {
     }
 
     return () => {
-      mq.removeEventListener('change', () => {});
+      // Proper cleanup — removes the exact same function reference (fixes memory leak)
+      mq.removeEventListener('change', onMqChange);
       window.removeEventListener('resize', checkMobile);
     };
   }, []);
@@ -55,8 +57,9 @@ function usePerformanceMode() {
   const shouldUse3D = useMemo(() => {
     if (prefersReducedMotion) return false;
     if (isSlowConnection) return false;
+    if (isMobile) return false; // Skip heavy 3D on mobile for smoothness
     return true;
-  }, [prefersReducedMotion, isSlowConnection]);
+  }, [prefersReducedMotion, isSlowConnection, isMobile]);
 
   return { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D };
 }
@@ -484,24 +487,18 @@ export default function Home() {
 
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute inset-0 bg-slate-950" />
-        
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.1, 0.22, 0.1], scale: [1, 1.08, 1] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        {/* CSS animations — GPU compositor thread, zero JS blocking */}
+        <div
           className="absolute -top-32 left-1/4 w-[750px] h-[750px] bg-sky-600/18 rounded-full blur-[180px]"
+          style={{ animation: 'blob-breathe-1 6s ease-in-out infinite', willChange: 'transform, opacity' }}
         />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.08, 0.18, 0.08], scale: [1, 1.1, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        <div
           className="absolute top-1/3 right-0 w-[550px] h-[550px] bg-teal-600/14 rounded-full blur-[140px]"
+          style={{ animation: 'blob-breathe-2 8s ease-in-out infinite 2s', willChange: 'transform, opacity' }}
         />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.06, 0.14, 0.06], scale: [1, 1.12, 1] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
+        <div
           className="absolute bottom-0 left-1/3 w-[600px] h-[600px] bg-blue-600/12 rounded-full blur-[160px]"
+          style={{ animation: 'blob-breathe-3 10s ease-in-out infinite 4s', willChange: 'transform, opacity' }}
         />
         
         <div
@@ -679,26 +676,22 @@ export default function Home() {
                   className="group flex flex-col items-center justify-center p-6 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[1.8rem] hover:border-teal-500/40 hover:bg-white/[0.06] transition-all duration-500 relative overflow-hidden hover:shadow-[0_0_40px_rgba(20,184,166,0.15)]"
                 >
                   <div className="absolute inset-0 rounded-[1.8rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.15) 0%, transparent 50%, rgba(6,182,212,0.15) 100%)' }} />
-                  <motion.div
-                    className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] rounded-full pointer-events-none opacity-0 group-hover:opacity-30"
-                    style={{ background: 'radial-gradient(circle, rgba(20,184,166,0.4) 0%, transparent 70%)' }}
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+                  {/* CSS spin — only visible on hover (opacity-0 group-hover:opacity-30), runs on GPU */}
+                  <div
+                    className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] rounded-full pointer-events-none opacity-0 group-hover:opacity-30 animate-spin-slow"
+                    style={{ background: 'radial-gradient(circle, rgba(20,184,166,0.4) 0%, transparent 70%)', willChange: 'transform' }}
                   />
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-br from-teal-500/0 to-sky-500/0 rounded-[1.8rem] pointer-events-none"
-                    animate={{ opacity: [0, 0.5, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                  {/* CSS pulse — replaces Framer Motion repeat:Infinity */}
+                  <div
+                    className="absolute inset-0 rounded-[1.8rem] pointer-events-none specialty-pulse"
                   />
-                  
+                  {/* CSS shimmer — replaces Framer Motion translateX repeat:Infinity */}
                   <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[1.8rem]">
-                    <motion.div
-                      className="absolute top-0 left-0 w-full h-full"
+                    <div
+                      className="absolute top-0 left-0 w-full h-full specialty-shimmer"
                       style={{
                         background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%)',
                       }}
-                      animate={{ x: ['-100%', '200%'] }}
-                      transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.5 }}
                     />
                   </div>
                   
@@ -977,24 +970,21 @@ export default function Home() {
             >
               <motion.div
                 className="absolute -inset-1 bg-gradient-to-r from-sky-500/20 via-cyan-500/20 to-teal-500/20 rounded-[3rem] blur-xl"
-                animate={{ scale: [1, 1.02, 1], opacity: [0.5, 0.8, 0.5] }}
-                transition={{ duration: 4, repeat: Infinity }}
+                style={{ animation: 'founder-glow 4s ease-in-out infinite', willChange: 'transform, opacity' }}
               />
               
               <div className="relative bg-slate-900/80 border border-white/10 p-10 md:p-16 rounded-[3rem] backdrop-blur-xl shadow-2xl group overflow-hidden">
-                <motion.div
+                <div
                   className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-teal-500/5"
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ duration: 3, repeat: Infinity }}
+                  style={{ animation: 'founder-inner-glow 3s ease-in-out infinite' }}
                 />
                 
                 <div className="relative flex flex-col items-center gap-10">
                   <div className="flex items-center justify-center gap-6 md:gap-10 flex-wrap">
                     <div className="relative">
-                      <motion.div
+                      <div
                         className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 blur-md"
-                        animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-                        transition={{ duration: 3, repeat: Infinity }}
+                        style={{ animation: 'avatar-glow 3s ease-in-out infinite' }}
                       />
                       <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-purple-500/50 shadow-[0_0_35px_rgba(168,85,247,0.4)]">
                         <Image 
@@ -1010,10 +1000,9 @@ export default function Home() {
                     
                     <FloatingIcon delay={0.3}>
                       <div className="relative">
-                        <motion.div
+                        <div
                           className="absolute inset-0 rounded-full bg-gradient-to-r from-sky-400 to-cyan-400 blur-md"
-                          animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-                          transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
+                          style={{ animation: 'avatar-glow 3s ease-in-out infinite 0.5s' }}
                         />
                         <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-sky-500/50 shadow-[0_0_35px_rgba(56,189,248,0.4)]">
                           <Image 
@@ -1028,10 +1017,9 @@ export default function Home() {
                     </FloatingIcon>
                     
                     <div className="relative">
-                      <motion.div
+                      <div
                         className="absolute inset-0 rounded-full bg-gradient-to-r from-teal-400 to-emerald-400 blur-md"
-                        animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-                        transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+                        style={{ animation: 'avatar-glow 3s ease-in-out infinite 1s' }}
                       />
                       <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-teal-500/50 shadow-[0_0_35px_rgba(20,184,166,0.4)]">
                         <Image 
@@ -1079,19 +1067,14 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  <motion.div
+                  <div
                     className="w-full max-w-2xl h-px rounded-full overflow-hidden"
-                    initial={{ scaleX: 0 }}
-                    whileInView={{ scaleX: 1 }}
-                    viewport={{ once: true }}
                   >
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-purple-500 via-sky-500 to-teal-500"
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-500 via-sky-500 to-teal-500 team-line-scan"
                       style={{ width: '50%' }}
                     />
-                  </motion.div>
+                  </div>
                   
                   <motion.div 
                     className="text-center max-w-3xl space-y-4"
@@ -1100,13 +1083,11 @@ export default function Home() {
                     viewport={{ once: true }}
                     transition={{ delay: 0.3 }}
                   >
-                    <motion.p 
-                      className="text-white text-lg md:text-xl font-medium leading-relaxed"
-                      animate={{ opacity: [0.8, 1, 0.8] }}
-                      transition={{ duration: 4, repeat: Infinity }}
+                    <p
+                      className="text-white text-lg md:text-xl font-medium leading-relaxed team-text-pulse"
                     >
                       "We are Team <span className="text-purple-400 font-bold">Zenvyx</span>."
-                    </motion.p>
+                    </p>
                     <p className="text-slate-300 text-base md:text-lg leading-relaxed italic">
                       "A team that combines calm intelligence with <span className="text-sky-400 font-semibold">futuristic innovation</span>. Zenvyx represents a balance between clarity of thought and advanced innovation, reflecting a team that builds <span className="text-teal-400 font-semibold">smart and impactful solutions</span>."
                     </p>

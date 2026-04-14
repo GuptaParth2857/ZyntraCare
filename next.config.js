@@ -20,15 +20,24 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
-  // Disable static generation for heavy pages in dev for faster builds
   typescript: { ignoreBuildErrors: false },
 
   experimental: {
     optimizeCss: false,
+    // Optimize package imports — avoids importing entire libraries
+    optimizePackageImports: [
+      'framer-motion',
+      'react-icons',
+      'recharts',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-slider',
+      'lucide-react',
+    ],
   },
 
-  // Simplified webpack config
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
+    // Client-side polyfill fallbacks
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -37,10 +46,63 @@ const nextConfig = {
         tls: false,
       };
     }
+
     config.resolve.alias = {
       ...config.resolve.alias,
       'react-is': require.resolve('react-is'),
     };
+
+    // Production-only bundle optimizations
+    if (!dev && !isServer) {
+      // Better chunk splitting strategy
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          maxInitialRequests: 25,
+          minSize: 20000,
+          cacheGroups: {
+            // Separate large 3D libraries into their own chunk (lazy-loaded anyway)
+            three: {
+              test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/,
+              name: 'vendor-three',
+              chunks: 'async', // Only async — they're already dynamically imported
+              priority: 40,
+            },
+            // Separate chart library (heavy, lazy loaded)
+            charts: {
+              test: /[\\/]node_modules[\\/](recharts|d3[-/])[\\/]/,
+              name: 'vendor-charts',
+              chunks: 'async',
+              priority: 35,
+            },
+            // Separate map library
+            maps: {
+              test: /[\\/]node_modules[\\/](leaflet|react-leaflet)[\\/]/,
+              name: 'vendor-maps',
+              chunks: 'async',
+              priority: 35,
+            },
+            // Framer Motion — keep but in own chunk
+            framerMotion: {
+              test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              name: 'vendor-framer',
+              chunks: 'all',
+              priority: 30,
+            },
+            // General vendor chunk (remaining node_modules)
+            vendors: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all',
+              priority: 10,
+              reuseExistingChunk: true,
+            },
+          },
+        },
+      };
+    }
+
     return config;
   },
 
@@ -50,7 +112,7 @@ const nextConfig = {
     },
   },
 
-  // Headers for performance
+  // Security + performance headers
   async headers() {
     return [
       {

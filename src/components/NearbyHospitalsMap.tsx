@@ -1,4 +1,5 @@
 'use client';
+import 'leaflet/dist/leaflet.css'; // Load only when this map component renders, not globally
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

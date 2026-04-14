@@ -2,7 +2,6 @@
    HealthHub Premium CSS — $10,000 Level Design System
    ============================================================ */
 
-@import 'leaflet/dist/leaflet.css';
 
 @tailwind base;
 @tailwind components;
@@ -659,3 +658,75 @@ img[data-nimg] {
   border-color: rgba(14, 165, 233, 0.3);
   box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 30px rgba(14,165,233,0.07);
 }
+
+/* ============================================================
+   PERFORMANCE KEYFRAMES — CSS replacements for Framer Motion
+   repeat:Infinity loops. Runs on GPU compositor = zero TBT.
+   ============================================================ */
+
+/* Real3DScene + page.tsx background orb breathing */
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%       { transform: scale(1.15); opacity: 1; }
+}
+
+/* page.tsx hero fixed background blobs */
+@keyframes blob-breathe-1 {
+  0%, 100% { opacity: 0.10; transform: scale(1); }
+  50%       { opacity: 0.22; transform: scale(1.08); }
+}
+@keyframes blob-breathe-2 {
+  0%, 100% { opacity: 0.08; transform: scale(1); }
+  50%       { opacity: 0.18; transform: scale(1.10); }
+}
+@keyframes blob-breathe-3 {
+  0%, 100% { opacity: 0.06; transform: scale(1); }
+  50%       { opacity: 0.14; transform: scale(1.12); }
+}
+
+/* Specialty cards — CSS shimmer (2.5s move + 1.5s pause = 4s total) */
+@keyframes specialty-shimmer {
+  0%      { transform: translateX(-100%); }
+  62%     { transform: translateX(200%); }
+  62.1%   { transform: translateX(-100%); } /* instant reset */
+  100%    { transform: translateX(-100%); }
+}
+/* Specialty cards — CSS pulse overlay */
+@keyframes specialty-pulse {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 0.5; }
+}
+
+.specialty-shimmer { animation: specialty-shimmer 4s linear infinite; }
+.specialty-pulse   { animation: specialty-pulse 2s ease-in-out infinite; }
+
+/* Founder section card glow */
+@keyframes founder-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 0.8; transform: scale(1.02); }
+}
+/* Founder section inner gradient pulse */
+@keyframes founder-inner-glow {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.6; }
+}
+
+/* Avatar ring glows (used on all 3 team avatars with delay) */
+@keyframes avatar-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.15); }
+}
+
+/* Team line scan (replaces Framer Motion x:-100% to 100% infinity) */
+@keyframes team-line-scan {
+  0%   { transform: translateX(-200%); }
+  100% { transform: translateX(400%); }
+}
+.team-line-scan { animation: team-line-scan 3s linear infinite; }
+
+/* Team paragraph text pulse */
+@keyframes team-text-pulse {
+  0%, 100% { opacity: 0.8; }
+  50%       { opacity: 1; }
+}
+.team-text-pulse { animation: team-text-pulse 4s ease-in-out infinite; }

@@ -1,4 +1,5 @@
 'use client';
+import 'leaflet/dist/leaflet.css'; // Load only when this map component renders, not globally
 
 import { useEffect, useState, useCallback } from 'react';
 import { FiPhone, FiClock, FiStar, FiPlus, FiMinus, FiNavigation, FiRefreshCw } from 'react-icons/fi';
