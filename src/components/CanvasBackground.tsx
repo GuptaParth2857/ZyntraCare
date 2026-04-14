@@ -37,11 +37,11 @@ export default function CanvasBackground() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // ── Responsive particle count (mobile = 60, desktop = 120)
+    // ── Responsive particle count (mobile = 40, desktop = 100)
     const isMobile = window.innerWidth < 768;
-    const STAR_COUNT        = isMobile ? 60  : 120;
-    const CONNECT_DISTANCE  = isMobile ? 0   : 75;  // Skip connections on mobile (O(n²) too heavy)
-    const FPS_CAP           = 30;                    // Background canvas doesn't need 60fps
+    const STAR_COUNT        = isMobile ? 40  : 100;
+    const CONNECT_DISTANCE  = isMobile ? 0   : 60;  // Skip connections on mobile
+    const FPS_CAP           = 25;                    // Reduced for battery saving
     const FRAME_MS          = 1000 / FPS_CAP;
 
     const resize = () => {
@@ -63,11 +63,10 @@ export default function CanvasBackground() {
       pulse:   Math.random() * Math.PI * 2,
     }));
 
-    // Flying energy orbs with trails
-    const orbs: Orb[] = [
+    // Flying energy orbs with trails (desktop only - skip on mobile)
+    const orbs: Orb[] = isMobile ? [] : [
       { angle: 0,   radius: 0.32, speed:  0.006, color: '#38bdf8', trailPoints: [] },
       { angle: 2.1, radius: 0.28, speed: -0.008, color: '#a78bfa', trailPoints: [] },
-      { angle: 4.2, radius: 0.36, speed:  0.005, color: '#34d399', trailPoints: [] },
     ];
 
     // Spinning rings (desktop only — skip on mobile)
@@ -161,7 +160,7 @@ export default function CanvasBackground() {
         const oy = cy + Math.sin(orb.angle * 1.3) * H * 0.18;
 
         orb.trailPoints.push({ x: ox, y: oy });
-        if (orb.trailPoints.length > 20) orb.trailPoints.shift(); // Shorter trail
+        if (orb.trailPoints.length > 12) orb.trailPoints.shift(); // Shorter trail
 
         for (let i = 1; i < orb.trailPoints.length; i++) {
           const a = (i / orb.trailPoints.length) * 0.7;

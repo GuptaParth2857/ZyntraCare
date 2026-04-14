@@ -25,7 +25,11 @@ export default function PremiumParticles() {
 
     let animationId: number;
     const particles: Particle[] = [];
-    const particleCount = 80;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const particleCount = isMobile ? 30 : 50;
+    const lastTimeRef = { current: 0 };
+    const FPS_CAP = 25;
+    const FRAME_MS = 1000 / FPS_CAP;
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
@@ -86,7 +90,14 @@ export default function PremiumParticles() {
       if (p.y < 0 || p.y > canvas.height) p.speedY *= -1;
     };
 
-    const animate = () => {
+    const animate = (now: number) => {
+      // FPS throttle
+      if (now - lastTimeRef.current < FRAME_MS) {
+        animationId = requestAnimationFrame(animate);
+        return;
+      }
+      lastTimeRef.current = now;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach((p) => {
@@ -94,19 +105,32 @@ export default function PremiumParticles() {
         drawParticle(p);
       });
 
-      connectParticles();
+      // Skip particle connections on mobile
+      if (!isMobile) {
+        connectParticles();
+      }
 
       animationId = requestAnimationFrame(animate);
     };
 
     resizeCanvas();
     initParticles();
-    animate();
+    animate(0);
 
     window.addEventListener('resize', resizeCanvas);
 
+    // Page Visibility API - pause when hidden
+    let paused = false;
+    const onVisibility = () => { paused = document.hidden; };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    resizeCanvas();
+    initParticles();
+    animate(0);
+
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      document.removeEventListener('visibilitychange', onVisibility);
       cancelAnimationFrame(animationId);
     };
   }, []);
