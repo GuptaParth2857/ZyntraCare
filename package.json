@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "postbuild": "echo 'Build completed successfully'"
+    "postbuild": "echo 'Build completed successfully'",
+    "db:seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
