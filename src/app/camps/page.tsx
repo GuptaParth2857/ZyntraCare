@@ -232,8 +232,20 @@ export default function CampsPage() {
   const [selectedService, setSelectedService] = useState('');
   const [registeringCamp, setRegisteringCamp] = useState<Camp | null>(null);
   const [showListModal, setShowListModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
+    const getUserLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => {},
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      }
+    };
+    getUserLocation();
+
     fetch('/api/camps')
       .then(r => r.json())
       .then(data => {
