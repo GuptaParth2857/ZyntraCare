@@ -1,273 +1,211 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FiCalendar, FiMapPin, FiClock, FiFilter, FiActivity, FiX, FiUser, FiPhone, FiMail, FiCheckCircle, FiPlus } from 'react-icons/fi';
+import { FiCalendar, FiMapPin, FiClock, FiFilter, FiActivity, FiX, FiUser, FiPhone, FiMail, FiCheckCircle, FiPlus, FiArrowRight } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { camps, states } from '@/data/mockData';
 import { Camp } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 
-// Register Modal
+// ── REUSABLE GLASS FLOATING INPUT ──
+function FloatingInput({ label, value, onChange, type = 'text', id = label.replace(/\s+/g, '-').toLowerCase() }: any) {
+  return (
+    <div className="relative group w-full">
+      <input
+        id={id} type={type} placeholder=" " value={value} onChange={e => onChange(e.target.value)} required
+        className="block w-full px-5 py-4 bg-white/[0.02] border border-white/10 rounded-2xl text-white text-sm appearance-none focus:outline-none focus:ring-0 focus:border-emerald-500/50 focus:bg-white/[0.04] peer transition-all duration-300"
+      />
+      <label htmlFor={id}
+        className="absolute text-white/40 text-sm duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-[#020617] px-2 left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-placeholder-shown:bg-transparent peer-focus:top-2 peer-focus:-translate-y-4 peer-focus:scale-75 peer-focus:bg-[#020617] peer-focus:text-emerald-400 font-medium">
+        {label}
+      </label>
+    </div>
+  );
+}
+
+// ── REGISTER MODAL ──
 function RegisterModal({ camp, onClose }: { camp: Camp; onClose: () => void }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', age: '', city: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1200)); // Simulated API call
-    setLoading(false);
-    setSubmitted(true);
+    e.preventDefault(); setLoading(true);
+    await new Promise(r => setTimeout(r, 1200)); 
+    setLoading(false); setSubmitted(true);
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-[9999] flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-slate-900 border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition">
-          <FiX size={22} />
-        </button>
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <motion.div initial={{ scale: 0.9, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 30 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="bg-slate-900/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative overflow-hidden"
+          style={{ backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%)' }}>
+          
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
+          
+          <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full z-20">
+            <FiX size={20} />
+          </button>
 
-        {submitted ? (
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiCheckCircle size={32} className="text-white" />
+          {submitted ? (
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-6 relative z-10">
+              <div className="relative w-28 h-28 mx-auto mb-6">
+                {[0, 1].map(i => (
+                  <div key={i} className="absolute inset-0 rounded-full border border-emerald-500/40"
+                    style={{ animation: `success-ripple 2.5s ease-out infinite`, animationDelay: `${i * 0.8}s` }} />
+                ))}
+                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_0_40px_rgba(16,185,129,0.5)] flex items-center justify-center">
+                  <FiCheckCircle size={40} className="text-white" />
+                </div>
+              </div>
+              <h3 className="text-3xl font-black text-white mb-2 dropdown-shadow">Registered!</h3>
+              <p className="text-white/50 mb-2 leading-relaxed">You're successfully registered for</p>
+              <p className="text-emerald-400 font-black text-lg mb-6">{camp.name}</p>
+              <button onClick={onClose} className="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white py-4 rounded-2xl font-bold transition-all">Close</button>
+            </motion.div>
+          ) : (
+            <div className="relative z-10">
+              <div className="mb-8 text-center pt-2">
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 inline-block">Camp Registration</span>
+                <h3 className="text-2xl font-black text-white">{camp.name}</h3>
+                <p className="text-white/40 text-xs mt-2 font-medium">{formatDate(camp.date)} • {camp.time} • {camp.city}</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <FloatingInput label="Full Name *" value={form.name} onChange={(v: string) => setForm(f => ({ ...f, name: v }))} />
+                <FloatingInput label="Mobile Number *" type="tel" value={form.phone} onChange={(v: string) => setForm(f => ({ ...f, phone: v.replace(/\D/g,'').slice(0,10) }))} />
+                <FloatingInput label="Email Address" type="email" value={form.email} onChange={(v: string) => setForm(f => ({ ...f, email: v }))} />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FloatingInput label="Age" type="number" value={form.age} onChange={(v: string) => setForm(f => ({ ...f, age: v }))} />
+                  <FloatingInput label="City" value={form.city} onChange={(v: string) => setForm(f => ({ ...f, city: v }))} />
+                </div>
+
+                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 mt-2">
+                  <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Services Covered</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {camp.services.map(s => <span key={s} className="text-[10px] bg-white/10 text-white px-2 py-1 rounded-md">{s}</span>)}
+                  </div>
+                </div>
+
+                <button type="submit" disabled={loading || !form.name || !form.phone}
+                  className="w-full py-4 rounded-2xl font-black text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex justify-center items-center gap-2 mt-4"
+                  style={{ background: 'linear-gradient(135deg, #10b981, #14b8a6)', boxShadow: '0 8px 30px rgba(16,185,129,0.3), inset 0 1px 0 rgba(255,255,255,0.2)' }}>
+                  {loading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>Confirm Form <FiCheckCircle size={16}/></>}
+                </button>
+              </form>
             </div>
-            <h3 className="text-2xl font-black text-white mb-2">Registered!</h3>
-            <p className="text-gray-400 mb-2">You're successfully registered for</p>
-            <p className="text-emerald-400 font-bold mb-4">{camp.name}</p>
-            <p className="text-gray-500 text-sm">A confirmation will be sent to <span className="text-white">{form.email}</span></p>
-            <button onClick={onClose} className="mt-6 w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition">
-              Done
-            </button>
-          </motion.div>
-        ) : (
-          <>
-            <div className="mb-6">
-              <h3 className="text-xl font-black text-white mb-1">Register for Camp</h3>
-              <p className="text-emerald-400 font-semibold text-sm">{camp.name}</p>
-              <p className="text-gray-500 text-xs mt-1">{formatDate(camp.date)} • {camp.time} • {camp.city}</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 flex items-center gap-1"><FiUser size={12}/> Full Name *</label>
-                <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Your full name"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition" />
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 flex items-center gap-1"><FiPhone size={12}/> Phone *</label>
-                <input required value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  placeholder="+91 98765 43210" type="tel"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition" />
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 flex items-center gap-1"><FiMail size={12}/> Email</label>
-                <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="your@email.com" type="email"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Age</label>
-                  <input value={form.age} onChange={e => setForm(f => ({ ...f, age: e.target.value }))}
-                    placeholder="Age" type="number" min="1" max="120"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition" />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">City</label>
-                  <input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                    placeholder="Your city"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition" />
-                </div>
-              </div>
-
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
-                <p className="text-xs font-bold text-emerald-400 mb-1">Services Covered:</p>
-                <div className="flex flex-wrap gap-1">
-                  {camp.services.map(s => (
-                    <span key={s} className="text-xs bg-white/5 text-gray-300 px-2 py-0.5 rounded-full">{s}</span>
-                  ))}
-                </div>
-              </div>
-
-              <button type="submit" disabled={loading || !form.name || !form.phone}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
-                {loading ? (
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-                ) : (<><FiCheckCircle size={16} /> Confirm Registration</>)}
-              </button>
-              <p className="text-gray-600 text-xs text-center">Registration is {camp.registration === 'Free' ? 'completely free' : `₹${camp.registration.replace('₹','')}`}</p>
-            </form>
-          </>
-        )}
+          )}
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </AnimatePresence>
   );
 }
 
-// List Your Camp Modal
+// ── LIST CAMP MODAL ──
 function ListCampModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({
     orgName: '', campName: '', date: '', time: '', city: '', state: '',
-    location: '', services: '', hospital: '', contactEmail: '', contactPhone: '',
-    registration: 'Free', description: ''
+    location: '', services: '', contactEmail: '', contactPhone: '', registration: 'Free'
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault(); setLoading(true);
     await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
-    setSubmitted(true);
+    setLoading(false); setSubmitted(true);
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-slate-900 border border-teal-500/20 rounded-3xl p-8 w-full max-w-2xl shadow-2xl my-8 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><FiX size={22} /></button>
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto"
+        onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <motion.div initial={{ scale: 0.9, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-[#020617]/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-8 w-full max-w-2xl shadow-2xl my-8 relative"
+          style={{ backgroundImage: 'linear-gradient(180deg, rgba(20,184,166,0.05) 0%, rgba(0,0,0,0) 100%)' }}>
+          
+          <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full z-20"><FiX size={20} /></button>
 
-        {submitted ? (
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FiCheckCircle size={40} className="text-white" />
-            </div>
-            <h3 className="text-3xl font-black text-white mb-3">Camp Submitted!</h3>
-            <p className="text-gray-400 mb-2">Thank you for listing your health camp.</p>
-            <p className="text-teal-400 text-sm">Our team will review and publish it within 24 hours.</p>
-            <button onClick={onClose} className="mt-8 px-8 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold transition">Done</button>
-          </motion.div>
-        ) : (
-          <>
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-teal-500/20 rounded-xl flex items-center justify-center">
-                  <FiPlus className="text-teal-400" size={20} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-white">List Your Health Camp</h3>
-                  <p className="text-gray-400 text-sm">Reach thousands of patients across India</p>
-                </div>
+          {submitted ? (
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-10">
+              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center shadow-[0_0_50px_rgba(20,184,166,0.4)]">
+                <FiCheckCircle size={44} className="text-white" />
               </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Organization Name *</label>
-                  <input required value={form.orgName} onChange={e => setForm(f => ({ ...f, orgName: e.target.value }))}
-                    placeholder="Hospital / NGO / Trust name"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
+              <h3 className="text-3xl font-black text-white mb-2">Camp Listed!</h3>
+              <p className="text-white/50 text-sm max-w-sm mx-auto mb-8">Thank you. Our medical team will verify and publish your health camp listing within 24 hours.</p>
+              <button onClick={onClose} className="px-10 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl font-bold transition-all">Back to Camps</button>
+            </motion.div>
+          ) : (
+            <>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-center justify-center">
+                  <FiPlus className="text-teal-400" size={24} />
                 </div>
                 <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Camp Name *</label>
-                  <input required value={form.campName} onChange={e => setForm(f => ({ ...f, campName: e.target.value }))}
-                    placeholder="e.g. Free Eye Camp 2026"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Date *</label>
-                  <input required type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500/50 transition" />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Time *</label>
-                  <input required value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-                    placeholder="e.g. 9:00 AM - 4:00 PM"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">City *</label>
-                  <input required value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                    placeholder="City"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">State *</label>
-                  <select required value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
-                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-teal-500/50 transition">
-                    <option value="">Select State</option>
-                    {states.filter(s => s !== 'All India').map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <h3 className="text-2xl font-black text-white">List Your Camp</h3>
+                  <p className="text-white/40 text-xs mt-1">Reach out to thousands of patients across India</p>
                 </div>
               </div>
 
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 block">Venue / Location *</label>
-                <input required value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                  placeholder="Full address / landmark"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 block">Services Offered (comma separated) *</label>
-                <input required value={form.services} onChange={e => setForm(f => ({ ...f, services: e.target.value }))}
-                  placeholder="e.g. Blood Test, ECG, Eye Checkup, Dental"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Contact Email *</label>
-                  <input required type="email" value={form.contactEmail} onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))}
-                    placeholder="contact@hospital.com"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FloatingInput label="Organization / Trust Name *" value={form.orgName} onChange={(v: string) => setForm(f => ({ ...f, orgName: v }))} />
+                  <FloatingInput label="Camp Name *" value={form.campName} onChange={(v: string) => setForm(f => ({ ...f, campName: v }))} />
+                  <FloatingInput label="Date *" type="date" value={form.date} onChange={(v: string) => setForm(f => ({ ...f, date: v }))} />
+                  <FloatingInput label="Time (e.g. 9am - 4pm) *" value={form.time} onChange={(v: string) => setForm(f => ({ ...f, time: v }))} />
+                  <FloatingInput label="City *" value={form.city} onChange={(v: string) => setForm(f => ({ ...f, city: v }))} />
+                  
+                  <div className="relative group w-full">
+                    <select required value={form.state} onChange={(e) => setForm(f => ({ ...f, state: e.target.value }))}
+                      className="block w-full px-5 py-4 bg-white/[0.02] border border-white/10 rounded-2xl text-white text-sm appearance-none focus:outline-none focus:border-teal-500/50">
+                      <option value="" className="bg-slate-900">Select State *</option>
+                      {states.filter(s => s !== 'All India').map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-gray-400 text-sm font-medium mb-1 block">Contact Phone *</label>
-                  <input required value={form.contactPhone} onChange={e => setForm(f => ({ ...f, contactPhone: e.target.value }))}
-                    placeholder="+91 98765 43210"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition" />
+
+                <FloatingInput label="Full Address / Venue *" value={form.location} onChange={(v: string) => setForm(f => ({ ...f, location: v }))} />
+                <FloatingInput label="Offered Services (Comma separated) *" value={form.services} onChange={(v: string) => setForm(f => ({ ...f, services: v }))} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FloatingInput label="Contact Email *" type="email" value={form.contactEmail} onChange={(v: string) => setForm(f => ({ ...f, contactEmail: v }))} />
+                  <FloatingInput label="Contact Phone *" type="tel" value={form.contactPhone} onChange={(v: string) => setForm(f => ({ ...f, contactPhone: v.replace(/\D/g,'').slice(0,10) }))} />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 block">Registration Fee</label>
-                <div className="flex gap-3">
-                  {['Free', '₹100', '₹200', '₹300', '₹500'].map(fee => (
-                    <button key={fee} type="button" onClick={() => setForm(f => ({ ...f, registration: fee }))}
-                      className={`px-4 py-2 rounded-xl border text-sm font-semibold transition ${form.registration === fee ? 'bg-teal-600 border-teal-500 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                      {fee}
-                    </button>
-                  ))}
+                <div className="pt-2">
+                  <label className="text-white/40 text-xs font-bold uppercase tracking-widest pl-1 mb-3 block">Entry Fee</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Free', '₹50', '₹100', '₹500'].map(fee => (
+                      <button key={fee} type="button" onClick={() => setForm(f => ({ ...f, registration: fee }))}
+                        className={`px-6 py-2.5 rounded-xl border text-sm font-bold transition-all ${form.registration === fee ? 'bg-gradient-to-r from-teal-500 to-sky-500 border-transparent text-white shadow-lg' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
+                        {fee}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="text-gray-400 text-sm font-medium mb-1 block">Additional Description</label>
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3}
-                  placeholder="Any other details about the camp..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-teal-500/50 transition resize-none" />
-              </div>
-
-              <button type="submit" disabled={loading}
-                className="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
-                {loading ? (
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-                ) : (<><FiPlus size={16} /> Submit Camp for Listing</>)}
-              </button>
-              <p className="text-gray-600 text-xs text-center">Our team reviews within 24 hours. Listing is 100% free.</p>
-            </form>
-          </>
-        )}
+                <button type="submit" disabled={loading}
+                  className="w-full mt-6 py-4 rounded-2xl font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #14b8a6, #0ea5e9)', boxShadow: '0 8px 30px rgba(20,184,166,0.3)' }}>
+                  {loading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>Submit Listing Request <FiArrowRight size={16}/></>}
+                </button>
+              </form>
+            </>
+          )}
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </AnimatePresence>
   );
 }
 
+// ── MAIN PAGE ──
 export default function CampsPage() {
   const { t } = useLanguage();
   const [selectedState, setSelectedState] = useState('');
@@ -284,10 +222,14 @@ export default function CampsPage() {
   }, [selectedState, selectedService]);
 
   return (
-    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: [0.12, 0.26, 0.12], scale: [1, 1.05, 1] }}
-          transition={{ duration: 7, repeat: Infinity }} className="absolute -top-40 left-1/4 w-[700px] h-[700px] bg-emerald-600/18 rounded-full blur-[170px]" />
+    <div className="min-h-screen bg-[#020617] relative overflow-x-hidden font-inter pb-24 text-white">
+      
+      {/* ── CINEMATIC BG ── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 0%, rgba(20,184,166,0.1) 0%, transparent 70%)' }} />
+        <div className="absolute top-[10%] left-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '7s' }} />
+        <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '10s' }} />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTQgMzBoNmY2VjU0SDU0VjMwbS0wIDBiLTZiLTZiNi02aDYiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')] opacity-[0.25]" />
       </div>
 
       <AnimatePresence>
@@ -295,61 +237,61 @@ export default function CampsPage() {
         {showListModal && <ListCampModal onClose={() => setShowListModal(false)} />}
       </AnimatePresence>
 
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 pt-20 pb-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center justify-center p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-full mb-6">
-            <FiActivity size={32} className="text-emerald-400" />
+      <div className="max-w-7xl mx-auto px-4 relative z-10 pt-28 pb-10">
+        
+        {/* Header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center justify-center p-3 bg-white/5 border border-white/10 rounded-2xl mb-6 shadow-xl backdrop-blur-md">
+            <FiActivity size={24} className="text-emerald-400" />
           </div>
-          <h1 className="text-5xl font-black mb-4 tracking-tight">
-            Upcoming <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500">Health Camps</span>
+          <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-[1.1] dropdown-shadow">
+            Medical <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500 tracking-tight">Health Camps</span>
           </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto mb-2">
-            Free medical checkups and health camps organized across India.
-            <span className="block text-sm text-gray-500 mt-1">Want to list your camp? Visit the footer or <button onClick={() => setShowListModal(true)} className="text-emerald-400 underline hover:text-emerald-300 transition">click here</button></span>
+          <p className="text-white/50 max-w-2xl mx-auto text-lg leading-relaxed">
+            Discover free medical checkups organized by top institutions across India. <br />
+            Are you an organizer? <button onClick={() => setShowListModal(true)} className="text-teal-400 font-bold hover:text-teal-300 transition-colors underline decoration-teal-500/30 underline-offset-4">List your camp instantly.</button>
           </p>
         </div>
-      </motion.div>
 
-      {/* Filters */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 mb-10">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 p-6 rounded-3xl shadow-2xl flex flex-wrap gap-6 items-center">
-          <div className="flex items-center gap-2 text-gray-300">
-            <FiFilter className="text-emerald-400" />
-            <span className="font-bold uppercase tracking-wider text-sm">{t('filters')}</span>
+        {/* Filters */}
+        <div className="bg-white/[0.02] border border-white/10 p-4 rounded-[2rem] backdrop-blur-2xl shadow-2xl flex flex-wrap gap-4 items-center mb-12">
+          <div className="flex items-center gap-2 text-white/50 px-4">
+            <FiFilter className="text-emerald-400" size={18} />
+            <span className="font-black uppercase tracking-widest text-xs">Filters</span>
           </div>
-          <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)}
-            className="flex-1 min-w-[200px] px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-white">
-            <option value="" className="bg-slate-900">{t('allStates')}</option>
-            {states.filter(s => s !== 'All India').map(state => <option key={state} value={state} className="bg-slate-900">{state}</option>)}
-          </select>
-          <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}
-            className="flex-1 min-w-[200px] px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-white">
-            <option value="" className="bg-slate-900">{t('allSpecialties')}</option>
-            <option value="cardiac" className="bg-slate-900">Cardiac</option>
-            <option value="diabetes" className="bg-slate-900">Diabetes</option>
-            <option value="women" className="bg-slate-900">Women Health</option>
-            <option value="child" className="bg-slate-900">Child Health</option>
-            <option value="senior" className="bg-slate-900">Senior Citizen</option>
-          </select>
-        </motion.div>
-      </div>
+          <div className="flex-1 flex flex-wrap gap-4">
+            <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)}
+              className="flex-1 min-w-[200px] px-5 py-4 bg-[#0f172a] border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-sm font-semibold text-white appearance-none">
+              <option value="">All States</option>
+              {states.filter(s => s !== 'All India').map(state => <option key={state} value={state}>{state}</option>)}
+            </select>
+            <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}
+              className="flex-1 min-w-[200px] px-5 py-4 bg-[#0f172a] border border-white/5 rounded-2xl focus:border-emerald-500/50 outline-none transition-all text-sm font-semibold text-white appearance-none">
+              <option value="">All Services</option>
+              <option value="cardiac">Cardiac Checkup</option>
+              <option value="diabetes">Diabetes & Sugar</option>
+              <option value="women">Women Health</option>
+              <option value="child">Pediatrics</option>
+              <option value="eye">Eye & Vision</option>
+            </select>
+          </div>
+        </div>
 
-      {/* Camps Grid */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4">
-        <p className="text-gray-400 mb-8 font-medium">Found <span className="text-emerald-400 font-bold">{filteredCamps.length}</span> upcoming events.</p>
+        {/* Camp Grid */}
+        <p className="text-white/40 text-sm font-bold uppercase tracking-widest mb-6 px-2">{filteredCamps.length} Active Camps</p>
+        
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {filteredCamps.map((camp, idx) => (
-              <CampCard key={camp.id} camp={camp} delay={idx * 0.1} onRegister={() => setRegisteringCamp(camp)} />
+              <CampCard key={camp.id} camp={camp} delay={idx * 0.05} onRegister={() => setRegisteringCamp(camp)} />
             ))}
           </AnimatePresence>
         </div>
+
         {filteredCamps.length === 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
-            <FiActivity size={48} className="mx-auto text-gray-600 mb-4" />
-            <p className="text-gray-400 text-lg">{t('noResults')}</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-32 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2.5rem]">
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4"><FiActivity size={32} className="text-white/20" /></div>
+            <p className="text-white/50 text-lg font-medium">No camps match your filters.</p>
           </motion.div>
         )}
       </div>
@@ -357,51 +299,64 @@ export default function CampsPage() {
   );
 }
 
+// ── CAMP CARD ──
 function CampCard({ camp, delay, onRegister }: { camp: Camp, delay: number, onRegister: () => void }) {
-  const { t } = useLanguage();
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }} transition={{ delay }} whileHover={{ y: -5 }}
-      className="bg-slate-900/60 backdrop-blur-xl rounded-3xl border border-white/10 overflow-hidden shadow-2xl hover:border-emerald-500/50 group transition">
-      <div className="bg-gradient-to-br from-emerald-500/20 to-teal-600/20 p-6 border-b border-white/5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl group-hover:bg-emerald-500/30 transition" />
-        <div className="flex justify-between items-start relative z-10">
-          <h3 className="font-bold text-xl text-white mr-2">{camp.name}</h3>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
-            camp.registration === 'Free'
-              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-              : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay, type: 'spring', damping: 25 }}
+      whileHover={{ y: -6 }}
+      className="bg-white/[0.02] backdrop-blur-xl rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl hover:bg-white/[0.04] hover:shadow-[0_20px_40px_rgba(16,185,129,0.1)] group transition-all duration-300 flex flex-col h-full">
+      
+      {/* Card Header */}
+      <div className="p-6 relative overflow-hidden border-b border-white/5 flex-shrink-0" style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.1) 0%, rgba(20,184,166,0) 100%)' }}>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/20 rounded-full blur-[40px] group-hover:bg-emerald-500/30 transition-all opacity-50" />
+        
+        <div className="flex justify-between items-start relative z-10 mb-4">
+          <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+            camp.registration === 'Free' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
           }`}>{camp.registration}</span>
+          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><FiActivity size={14} className="text-white/40" /></div>
         </div>
-        <p className="text-gray-300 text-sm mt-2 font-medium relative z-10">{camp.hospital}</p>
+        
+        <h3 className="font-black text-2xl text-white leading-tight mb-2 relative z-10">{camp.name}</h3>
+        <p className="text-white/50 text-sm font-medium relative z-10">{camp.hospital}</p>
       </div>
-      <div className="p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
-          <div className="flex items-center gap-2 text-gray-300 text-sm">
-            <FiCalendar className="text-emerald-400" /><span className="font-medium">{formatDate(camp.date)}</span>
+
+      {/* Card Body */}
+      <div className="p-6 flex flex-col flex-grow">
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-[#0f172a] border border-white/5 p-3 rounded-xl flex items-center gap-3">
+            <FiCalendar className="text-emerald-400" size={16} />
+            <div><p className="text-[10px] text-white/40 uppercase font-black tracking-wider">Date</p><p className="text-xs text-white font-bold">{formatDate(camp.date)}</p></div>
           </div>
-          <div className="flex items-center gap-2 text-gray-300 text-sm">
-            <FiClock className="text-emerald-400" /><span className="font-medium">{camp.time}</span>
+          <div className="bg-[#0f172a] border border-white/5 p-3 rounded-xl flex items-center gap-3">
+            <FiClock className="text-emerald-400" size={16} />
+            <div><p className="text-[10px] text-white/40 uppercase font-black tracking-wider">Time</p><p className="text-xs text-white font-bold">{camp.time}</p></div>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-gray-300 text-sm">
-          <FiMapPin className="text-emerald-400 shrink-0" /><span className="truncate">{camp.location}, {camp.city}</span>
+
+        <div className="flex items-start gap-3 bg-white/[0.02] p-3 rounded-xl border border-white/5 mb-6 flex-grow">
+          <FiMapPin className="text-emerald-400 mt-0.5 shrink-0" size={16} />
+          <div>
+            <p className="text-[10px] text-white/40 uppercase font-black tracking-wider w-full">Location</p>
+            <p className="text-xs text-white leading-relaxed">{camp.location}, {camp.city}</p>
+          </div>
         </div>
-        <div className="pt-4 border-t border-white/5">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Covered Services</p>
-          <div className="flex flex-wrap gap-2">
-            {camp.services.map(service => (
-              <span key={service} className="text-xs bg-white/5 border border-white/10 text-gray-300 px-3 py-1.5 rounded-full group-hover:bg-white/10 transition">{service}</span>
+
+        <div className="mb-6">
+          <p className="text-[10px] text-white/40 uppercase font-black tracking-widest mb-2 pl-1">Services Provided</p>
+          <div className="flex flex-wrap gap-1.5">
+            {camp.services.slice(0,4).map(service => (
+              <span key={service} className="text-[10px] font-semibold bg-white/5 text-white/70 px-2.5 py-1.5 rounded-md border border-white/5">{service}</span>
             ))}
+            {camp.services.length > 4 && <span className="text-[10px] font-semibold bg-transparent text-white/40 px-2.5 py-1.5">+ {camp.services.length - 4} more</span>}
           </div>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-          onClick={onRegister}
-          className="w-full mt-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
-          {t('registerNow')} →
-        </motion.button>
+
+        <button onClick={onRegister} className="mt-auto w-full py-4 rounded-xl font-black text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
+          style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.2), rgba(16,185,129,0.1))', border: '1px solid rgba(20,184,166,0.3)' }}>
+          Register Now <FiArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+        </button>
       </div>
     </motion.div>
   );
