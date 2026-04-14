@@ -97,6 +97,7 @@ export default function NearbyHospitalsMap() {
   const [showDataGrid, setShowDataGrid] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [useOfflineTiles, setUseOfflineTiles] = useState(false);
+  const [footfallData, setFootfallData] = useState<Record<string, { level: string; label: string; color: string }>>({});
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -185,6 +186,16 @@ export default function NearbyHospitalsMap() {
         }));
         setAllHospitals(processed);
         setIsRealData(true);
+        
+        // Fetch footfall data for nearby hospitals
+        const ids = processed.map(h => h.id).join(',');
+        try {
+          const ffRes = await fetch(`/api/hospitals/footfall?ids=${ids}`);
+          const ffData = await ffRes.json();
+          if (ffData.footfall) {
+            setFootfallData(ffData.footfall);
+          }
+        } catch {}
         
         // Cache for offline use
         saveHospitalsToCache(processed);
@@ -367,6 +378,13 @@ export default function NearbyHospitalsMap() {
             ${hospital.source === 'mock' ? '' : `<span style="background:${isGovt ? '#d1fae5' : isKaggle ? '#dbeafe' : '#ede9fe'};color:${isGovt ? '#059669' : isKaggle ? '#2563eb' : '#7c3aed'};font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">✔️ ${hospital.source.toUpperCase()}</span>`}
           </div>
           <p style="color:#64748b;font-size:11px;margin:0 0 8px;">📍 ${hospital.city || hospital.address || 'Nearby'} · ${hospital.distance?.toFixed(1) || '?'} km away</p>
+          ${footfallData[hospital.id] ? `
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:${footfallData[hospital.id].color}15;border:1px solid ${footfallData[hospital.id].color}30;border-radius:8px;margin-bottom:10px;">
+            <span style="font-size:14px;">👥</span>
+            <span style="font-weight:700;font-size:12px;color:${footfallData[hospital.id].color};">${footfallData[hospital.id].label}</span>
+            <span style="font-size:10px;color:#64748b;margin-left:auto;">Real-time crowd</span>
+          </div>
+          ` : ''}
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:10px;">
             <div style="background:#f0fdf4;padding:6px;border-radius:8px;text-align:center;">
               <div style="font-size:9px;color:#64748b;margin-bottom:2px;">Available</div>
@@ -402,7 +420,7 @@ export default function NearbyHospitalsMap() {
       hasFlownToUserRef.current = true;
       mapInstance.flyTo([latitude, longitude], 12, { duration: 1.5, easeLinearity: 0.25 });
     }
-  }, [mapInstance, L, allHospitals, latitude, longitude, radius, selectedHospital]);
+  }, [mapInstance, L, allHospitals, latitude, longitude, radius, selectedHospital, footfallData]);
 
   /* ---------------------------------------------------------------- */
   /*  Event handlers                                                    */
