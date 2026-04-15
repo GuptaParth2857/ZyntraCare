@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env*
+!*.example
+README.md
+Dockerfile
+.dockerignore
+.vscode
+.gemini
+npm-debug.log
+yarn-error.log
+prisma/*.db
+prisma/*.db-journal
