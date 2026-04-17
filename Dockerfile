@@ -1,60 +1,77 @@
-# Base image
-FROM node:18-alpine AS base
+# ZyntraCare Healthcare Platform - Production Dockerfile
+# Optimized for Google Cloud Run and similar container platforms
 
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat openssl
+# =============================================================================
+# Stage 1: Dependencies
+# =============================================================================
+FROM node:20-alpine AS deps
+
+RUN apk add --no-cache libc6-compat openssl tini
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci --legacy-peer-deps
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# Install dependencies with audit and fund disabled for smaller output
+RUN npm ci --legacy-peer-deps --audit=false --fund=false
+
+# =============================================================================
+# Stage 2: Builder
+# =============================================================================
+FROM node:20-alpine AS builder
+
 WORKDIR /app
-# Need openssl installed to use Prisma
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl python3 make g++
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js telemetry is disabled
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# If using Prisma, ensure schema is generated locally
+# Generate Prisma Client
 RUN npx prisma generate
 
-# Build the Next.js app
+# Build the Next.js application
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
-RUN apk add --no-cache openssl
+# =============================================================================
+# Stage 3: Runner - Production Image
+# =============================================================================
+FROM node:20-alpine AS runner
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+RUN apk add --no-cache openssl tini curl
 
-# Create a non-root user (security best-practice for Cloud Run)
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Security: Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy Prisma engine and generated client correctly
-# By bringing node_modules across, the generated Prisma client is retained
+WORKDIR /app
+
+# Copy only necessary files for production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# Use standalone output for minimal image size
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Ensure proper permissions
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-# server.js is created by next build from the standalone output
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Use tini as init system to handle signals properly
+ENTRYPOINT ["/sbin/tini", "--"]
+
 CMD ["node", "server.js"]

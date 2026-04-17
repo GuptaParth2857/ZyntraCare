@@ -377,7 +377,7 @@ export default function NearbyHospitalsMap() {
             <h3 style="font-weight:900;font-size:15px;margin:0;color:#1e293b;flex:1;padding-right:8px;">${hospital.name}</h3>
             ${hospital.source === 'mock' ? '' : `<span style="background:${isGovt ? '#d1fae5' : isKaggle ? '#dbeafe' : '#ede9fe'};color:${isGovt ? '#059669' : isKaggle ? '#2563eb' : '#7c3aed'};font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">✔️ ${hospital.source.toUpperCase()}</span>`}
           </div>
-          <p style="color:#64748b;font-size:11px;margin:0 0 8px;">📍 ${hospital.city || hospital.address || 'Nearby'} · ${hospital.distance?.toFixed(1) || '?'} km away</p>
+          <p style="color:#64748b;font-size:11px;margin:0 0 8px;">📍 ${hospital.city || hospital.address || 'Nearby'} · ${Number(hospital.distance || 0).toFixed(1)} km away</p>
           ${footfallData[hospital.id] ? `
           <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:${footfallData[hospital.id].color}15;border:1px solid ${footfallData[hospital.id].color}30;border-radius:8px;margin-bottom:10px;">
             <span style="font-size:14px;">👥</span>
@@ -612,7 +612,7 @@ export default function NearbyHospitalsMap() {
               key={h.id}
               onClick={() => handleSidebarClick(h)}
               role="listitem"
-              aria-label={`Select ${h.name}, ${h.distance?.toFixed(1)} km away, ${h.beds.available} beds available`}
+              aria-label={`Select ${h.name}, ${Number(h.distance || 0).toFixed(1)} km away, ${h.beds.available} beds available`}
               aria-pressed={selectedHospital?.id === h.id}
               className={`w-full text-left px-3 py-2.5 border-b border-white/5 hover:bg-white/10 transition-all ${
                 selectedHospital?.id === h.id ? 'bg-blue-600/25 border-l-2 border-blue-500' : ''
@@ -625,7 +625,7 @@ export default function NearbyHospitalsMap() {
                 )}
               </div>
               <div className="flex items-center justify-between mt-0.5">
-                <span className="text-xs text-gray-400">{h.distance?.toFixed(1)} km · {h.city || 'Nearby'}</span>
+                <span className="text-xs text-gray-400">{Number(h.distance || 0).toFixed(1)} km · {h.city || 'Nearby'}</span>
                 <span className={`text-xs font-bold ${h.beds.available > 20 ? 'text-green-400' : h.beds.available > 5 ? 'text-yellow-400' : 'text-red-400'}`}>
                   {h.beds.available} beds
                 </span>
@@ -736,7 +736,7 @@ export default function NearbyHospitalsMap() {
                             {h.source.toUpperCase()}
                           </span>
                         </td>
-                        <td className="p-3 text-gray-300">{h.distance?.toFixed(2)} km</td>
+                        <td className="p-3 text-gray-300">{Number(h.distance || 0).toFixed(2)} km</td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-md text-xs font-bold ${h.beds.available > 10 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                             {h.beds.available} / {h.beds.total}

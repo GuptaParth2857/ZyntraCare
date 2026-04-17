@@ -57,7 +57,7 @@ function usePerformanceMode() {
     if (prefersReducedMotion) return false;
     if (isSlowConnection) return false;
     if (isMobile) return 'light'; // Lightweight animations on mobile
-    return 'full'; // Full 3D on desktop
+    return 'light'; // Force lightweight for performance
   }, [prefersReducedMotion, isSlowConnection, isMobile]);
 
   return { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D };

@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import { hospitals } from '@/data/mockData';
 
 export async function POST(req: Request) {
-  const { lat, lng, priority = 'medium' } = await req.json();
-  const scored = hospitals.map(h => {
-    const distance = calculateDistance(lat, lng, h.location.lat, h.location.lng);
-    const bedScore = h.beds.available / h.beds.total;
-    const emergency = h.emergency ? 1 : 0;
-    const score = (1 / (distance + 1)) * 0.5 + bedScore * 0.3 + emergency * 0.2;
-    return { ...h, distance, score };
-  });
+  const { lat, lng } = await req.json();
+  
+  const scored = hospitals
+    .filter(h => h.location?.lat && h.location?.lng && h.beds?.total)
+    .map(h => {
+      const distance = calculateDistance(lat, lng, h.location!.lat, h.location!.lng);
+      const bedScore = (h.beds?.available || 0) / (h.beds?.total || 1);
+      const emergencyScore = h.emergency ? 1 : 0;
+      const score = (1 / (distance + 1)) * 0.5 + bedScore * 0.3 + emergencyScore * 0.2;
+      return { ...h, distance, score };
+    });
+  
   scored.sort((a, b) => b.score - a.score);
   return NextResponse.json(scored.slice(0, 5));
 }
