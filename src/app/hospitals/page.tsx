@@ -133,7 +133,10 @@ export default function HospitalsPage() {
   }, [hospitals]);
 
   const filteredHospitals = useMemo(() => {
-    let result = hospitals.filter(hospital => {
+    const hospitalList = hospitals || [];
+    if (!hospitalList || !Array.isArray(hospitalList)) return [];
+    
+    let result = hospitalList.filter((hospital) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!hospital.name?.toLowerCase().includes(q) && !hospital.city?.toLowerCase().includes(q)) return false;
