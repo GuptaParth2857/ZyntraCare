@@ -119,13 +119,14 @@ export default function HospitalsPage() {
   }, [searchRadius]);
 
   const platformStats = useMemo(() => {
-    const totalBeds = hospitals.reduce((sum, h) => sum + (h.beds?.available || 0), 0);
-    const avgRating = hospitals.length > 0 
-      ? (hospitals.reduce((sum, h) => sum + (h.rating || 4), 0) / hospitals.length).toFixed(1) 
+    const hospitalList = hospitals || [];
+    const totalBeds = hospitalList.reduce((sum, h) => sum + (h.beds?.available || 0), 0);
+    const avgRating = hospitalList.length > 0 
+      ? (hospitalList.reduce((sum, h) => sum + (h.rating || 4), 0) / hospitalList.length).toFixed(1) 
       : '4.0';
     return [
-      { label: 'Partner Hospitals', value: hospitals.length.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
-      { label: 'Cities Covered', value: `${new Set(hospitals.map(h => h.city).filter(Boolean)).size}+`, icon: FiMapPin, color: 'text-blue-400' },
+      { label: 'Partner Hospitals', value: hospitalList.length.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
+      { label: 'Cities Covered', value: `${new Set(hospitalList.map(h => h.city).filter(Boolean)).size}+`, icon: FiMapPin, color: 'text-blue-400' },
       { label: 'Beds Available', value: totalBeds.toLocaleString(), icon: FiActivity, color: 'text-emerald-400' },
       { label: 'Avg Rating', value: `${avgRating}★`, icon: FiHeart, color: 'text-amber-400' },
     ];
