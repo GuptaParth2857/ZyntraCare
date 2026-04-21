@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { FiArrowRight, FiShield, FiHeart, FiMapPin, FiPhone, FiActivity, FiUsers, FiAward, FiZap, FiCpu, FiStar, FiTrendingUp, FiCheckCircle, FiBookOpen, FiCalendar, FiClock, FiEye, FiLock, FiPlay, FiMessageCircle, FiSend, FiCode } from 'react-icons/fi';
 import { FaHeartbeat, FaBrain, FaBone, FaBaby, FaSpa, FaEye, FaTooth, FaStethoscope, FaLungs, FaRibbon, FaHeart, FaDna, FaUserMd } from 'react-icons/fa';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { hospitals, doctors, specialties } from '@/data/mockData';
 import { useLanguage } from '@/context/LanguageContext';
@@ -16,15 +16,7 @@ import ClientOnly from '@/components/ClientOnly';
 const SearchBar = dynamic(() => import('@/components/SearchBar'), { ssr: false, loading: () => <div className="h-14 bg-white/5 animate-pulse rounded-2xl" /> });
 const HospitalCard = dynamic(() => import('@/components/HospitalCard'), { ssr: false });
 const DoctorCard = dynamic(() => import('@/components/DoctorCard'), { ssr: false });
-const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap'), { ssr: false, loading: () => <div className="h-full bg-slate-900 animate-pulse rounded-2xl" /> });
-const Real3DScene = dynamic(() => import('@/components/Real3DScene'), { ssr: false, loading: () => null });
-const DNARotate3D = dynamic(() => import('@/components/DNARotate3D'), { ssr: false, loading: () => null });
-const Hero3DParticles = dynamic(() => import('@/components/Hero3DParticles'), { ssr: false, loading: () => null });
-const AIBrain3D = dynamic(() => import('@/components/AIBrain3D'), { ssr: false, loading: () => null });
-const HolographicHeart = dynamic(() => import('@/components/HolographicHeart'), { ssr: false, loading: () => null });
-const DNAHelix3DPro = dynamic(() => import('@/components/DNAHelix3DPro'), { ssr: false, loading: () => null });
-const Globe3D = dynamic(() => import('@/components/Globe3D'), { ssr: false, loading: () => null });
-const MedicalCore3D = dynamic(() => import('@/components/MedicalCore3D'), { ssr: false, loading: () => null });
+const DNARotate3D = dynamic(() => import('@/components/DNARotate3D'), { ssr: false });
 
 function usePerformanceMode() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(true);
@@ -54,11 +46,11 @@ function usePerformanceMode() {
   }, []);
 
   const shouldUse3D = useMemo(() => {
-    if (prefersReducedMotion) return false;
-    if (isSlowConnection) return false;
-    if (isMobile) return 'light'; // Lightweight animations on mobile
-    return 'light'; // Force lightweight for performance
-  }, [prefersReducedMotion, isSlowConnection, isMobile]);
+    // Return 'light' — all canvas-based animations are safe and performant
+    if (isSlowConnection) return 'none';
+    if (prefersReducedMotion) return 'none';
+    return 'light';
+  }, [isSlowConnection, prefersReducedMotion]);
 
   return { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D };
 }
@@ -137,7 +129,7 @@ function AIChatSection() {
       .catch(() => {});
   }, []);
   const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
-  const hasFull3D = shouldUse3D === 'full';
+  const hasFull3D = false; // Always light mode for performance
   const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
   
   useEffect(() => {
@@ -154,17 +146,27 @@ function AIChatSection() {
     <section className="py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4">
         <div className="relative bg-gradient-to-br from-slate-950 via-indigo-950/30 to-slate-950 border border-purple-500/20 rounded-[2.5rem] overflow-hidden shadow-2xl">
-          <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-purple-700/10 blur-[140px] rounded-full pointer-events-none" />
-          <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-indigo-700/10 blur-[140px] rounded-full pointer-events-none" />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.1, 0.2, 0.1], scale: [1, 1.05, 1] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-purple-700/15 blur-[140px] rounded-full pointer-events-none"
+          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.08, 0.15, 0.08], scale: [1, 1.08, 1] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
+            className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-indigo-700/12 blur-[140px] rounded-full pointer-events-none"
+          />
           <div className="absolute inset-0 rounded-[2.5rem] pointer-events-none"
             style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(168,85,247,0.07) 50%, transparent 70%)' }} />
 
           <div className="relative z-10 grid lg:grid-cols-2 gap-0">
             {/* Left — text content */}
             <div className="p-10 md:p-14 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-white/5 relative overflow-hidden">
-              {/* 3D Neural network brain animation background */}
-              <div className="absolute inset-0 pointer-events-none opacity-30">
-                {hasAnimations && <AIBrain3D />}
+              {/* Lightweight gradient blob */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
               </div>
               <div className="inline-flex items-center gap-2 bg-purple-500/15 border border-purple-500/25 text-purple-300 px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase mb-8 w-fit">
                 <FiCpu size={13} className="animate-pulse" /> Powered by Gemini AI
@@ -223,7 +225,7 @@ function AIChatSection() {
               {/* 3D AI Brain visual — compact */}
               <div className="relative h-24 mb-4 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-950/50 to-indigo-950/50 border border-purple-500/15 flex items-center justify-center">
                 <div className="absolute inset-0 pointer-events-none">
-                  {hasAnimations && <AIBrain3D />}
+                  <div className="absolute top-1/2 left-1/2 w-40 h-40 bg-purple-500/10 rounded-full blur-2xl" />
                 </div>
                 <div className="relative z-10 flex items-center gap-2.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-purple-500/20">
                   <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
@@ -550,57 +552,13 @@ function VideoSection({ videos }: { videos: VideoMasterclass[] }) {
 export default function Home() {
   const { t } = useLanguage();
   const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
-  const hasFull3D = shouldUse3D === 'full';
+  const hasFull3D = false; // Always light mode for performance
   const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
 
   return (
     <div className="min-h-screen text-white overflow-hidden">
-      {hasFull3D && <Real3DScene />}
-
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute inset-0 bg-slate-950" />
-        {/* CSS animations — GPU compositor thread, zero JS blocking */}
-        <div
-          className="absolute -top-32 left-1/4 w-[750px] h-[750px] bg-sky-600/18 rounded-full blur-[180px]"
-          style={{ animation: 'blob-breathe-1 6s ease-in-out infinite', willChange: 'transform, opacity' }}
-        />
-        <div
-          className="absolute top-1/3 right-0 w-[550px] h-[550px] bg-teal-600/14 rounded-full blur-[140px]"
-          style={{ animation: 'blob-breathe-2 8s ease-in-out infinite 2s', willChange: 'transform, opacity' }}
-        />
-        <div
-          className="absolute bottom-0 left-1/3 w-[600px] h-[600px] bg-blue-600/12 rounded-full blur-[160px]"
-          style={{ animation: 'blob-breathe-3 10s ease-in-out infinite 4s', willChange: 'transform, opacity' }}
-        />
-        
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(148,163,184,1) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,1) 1px, transparent 1px)`,
-            backgroundSize: '100px 100px',
-          }}
-        />
-      </div>
 
       <section className="relative pt-28 pb-24 z-10" style={{ isolation: 'isolate' }}>
-        {/* 3D floating particles layer */}
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          <ClientOnly>
-            {hasAnimations && <Hero3DParticles />}
-          </ClientOnly>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-24 overflow-hidden pointer-events-none opacity-10">
-          <motion.svg viewBox="0 0 1200 60" className="w-full h-full" preserveAspectRatio="none">
-            <motion.path
-              d="M0,30 L180,30 L220,5 L260,55 L300,15 L340,45 L380,30 L560,30 L600,5 L640,55 L680,15 L720,45 L760,30 L940,30 L980,5 L1020,55 L1060,15 L1100,45 L1200,30"
-              fill="none" stroke="#38bdf8" strokeWidth="2.5"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 4, ease: 'easeInOut', repeat: Infinity, repeatType: 'loop', repeatDelay: 0.8 }}
-            />
-          </motion.svg>
-        </div>
-
         <div className="relative max-w-7xl mx-auto px-4 z-10">
 
           <motion.div
@@ -839,7 +797,15 @@ export default function Home() {
               </div>
 
               <div className="h-[380px] bg-slate-900/60 border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl shadow-black/50 relative">
-                <NearbyHospitalsMap />
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                  <Link href="/hospitals" className="px-8 py-4 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-2xl text-lg shadow-lg shadow-sky-500/30 transition-all hover:scale-105 active:scale-95">
+                    🗺️ Find Nearby Hospitals
+                  </Link>
+                  <p className="text-slate-400 text-sm mt-2">Within 1-2km from your location</p>
+                  <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> Live data
+                  </p>
+                </div>
                 <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" />
                 <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
                   <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
@@ -963,7 +929,9 @@ export default function Home() {
           >
             {/* Holographic DNA */}
             <div className="absolute inset-0 drop-shadow-[0_0_50px_rgba(20,184,166,0.3)]">
-              {hasAnimations && <DNAHelix3DPro />}
+              <ClientOnly>
+                <DNARotate3D />
+              </ClientOnly>
             </div>
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl border border-teal-500/20 rounded-full px-6 py-2 flex items-center gap-3">
               <span className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(20,184,166,0.8)]" />
@@ -1183,7 +1151,7 @@ export default function Home() {
           >
             {/* 3D Globe background animation */}
             <div className="absolute inset-0 pointer-events-none opacity-65">
-              {hasFull3D && <Globe3D />}
+              <div className="absolute top-1/2 left-1/2 w-32 h-32 -translate-x-1/2 -translate-y-1/2 bg-sky-500/10 rounded-full animate-pulse" />
             </div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-sky-600/5 blur-[100px] rounded-full pointer-events-none" />
             <div className="relative z-10">
@@ -1213,6 +1181,84 @@ export default function Home() {
               </div>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      <section className="py-16 relative z-10">
+        <div className="max-w-7xl mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <p className="text-teal-400 font-bold tracking-widest uppercase text-sm mb-3">Quick Access</p>
+            <h2 className="text-3xl md:text-4xl font-black text-white">All Features</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[
+              { href: '/pharmacies', icon: '💊', label: 'Pharmacies' },
+              { href: '/labs', icon: '🧪', label: 'Labs' },
+              { href: '/blood-donors', icon: '🩸', label: 'Blood Donors' },
+              { href: '/medications', icon: '⏰', label: 'Medications' },
+              { href: '/health-tracker', icon: '📈', label: 'Health Tracker' },
+              { href: '/wellness', icon: '🌿', label: 'Wellness' },
+              { href: '/first-aid', icon: '🚑', label: 'First Aid' },
+              { href: '/symptoms', icon: '🤒', label: 'Symptoms' },
+              { href: '/health-risk', icon: '❤️', label: 'Health Risk' },
+              { href: '/telehealth', icon: '📹', label: 'Telehealth' },
+              { href: '/video-consult', icon: '💻', label: 'Video Consult' },
+              { href: '/ai-health-coach', icon: '🧘', label: 'AI Coach' },
+              { href: '/clinical-ai', icon: '🤖', label: 'Clinical AI' },
+              { href: '/ai-vision', icon: '👁️', label: 'AI Vision' },
+              { href: '/wearables', icon: '⌚', label: 'Wearables' },
+              { href: '/health-wallet', icon: '💳', label: 'Health Wallet' },
+              { href: '/blockchain-records', icon: '⛓️', label: 'Records' },
+              { href: '/predictive-analytics', icon: '📊', label: 'Analytics' },
+              { href: '/corporate-wellness', icon: '🏢', label: 'Corporate' },
+              { href: '/schemes', icon: '📜', label: 'Schemes' },
+              { href: '/camps', icon: '🏕️', label: 'Camps' },
+              { href: '/lab-booking', icon: '📋', label: 'Lab Booking' },
+              { href: '/medicine-verify', icon: '🔒', label: 'Medicine Verify' },
+              { href: '/multilingual', icon: '🌐', label: 'Multilingual' },
+              { href: '/rewards', icon: '🏆', label: 'Rewards' },
+              { href: '/family-care', icon: '👨‍👩‍👧', label: 'Family Care' },
+              { href: '/womens-health', icon: '🌸', label: "Women's Health" },
+              { href: '/communities', icon: '👥', label: 'Communities' },
+              { href: '/pill-scanner', icon: '📷', label: 'Pill Scanner' },
+              { href: '/pets', icon: '🐾', label: 'Pet Care' },
+              { href: '/accessibility-mode', icon: '👁️', label: 'Eye Access' },
+              { href: '/epidemic-radar', icon: '🌍', label: 'Epidemic Radar' },
+              { href: '/organ-matching', icon: '🔗', label: 'Organ Chain' },
+              { href: '/drone-network', icon: '🚁', label: 'Drone Network' },
+              { href: '/dementia-voice', icon: '🧠', label: 'Elder Voice' },
+              { href: '/admin/god-mode', icon: '🛡️', label: 'God Mode' },
+              { href: '/clinical-scribe', icon: '📝', label: 'AI Scribe' },
+              { href: '/genomic-dashboard', icon: '🧬', label: 'Genomics' },
+              { href: '/eye-control', icon: '👁️', label: 'Eye Control' },
+              { href: '/chain-reaction', icon: '⚡', label: 'Chain Demo' },
+              { href: '/digital-twin', icon: '🧬', label: 'Digital Twin' },
+              { href: '/outbreak-radar', icon: '🎯', label: 'Outbreak Radar' },
+            ].map((feature, idx) => (
+              <motion.div
+                key={feature.href}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.03 }}
+                whileHover={{ y: -4 }}
+              >
+                <Link
+                  href={feature.href}
+                  className="flex flex-col items-center gap-2 p-4 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl hover:border-teal-500/40 hover:bg-white/[0.06] transition-all duration-300 group"
+                >
+                  <span className="text-2xl">{feature.icon}</span>
+                  <span className="text-xs font-semibold text-slate-300 group-hover:text-white text-center">{feature.label}</span>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

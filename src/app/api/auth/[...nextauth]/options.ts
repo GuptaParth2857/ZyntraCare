@@ -6,27 +6,29 @@ import prisma from '@/lib/prisma';
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code"
+    // Only add GoogleProvider if credentials exist
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: {
+          params: {
+            prompt: "consent",
+            access_type: "offline",
+            response_type: "code"
+          }
+        },
+        profile(profile) {
+          return {
+            id: profile.sub,
+            name: profile.name,
+            email: profile.email,
+            image: profile.picture,
+            role: 'patient',
+          };
         }
-      },
-      // Handle errors gracefully
-      profile(profile) {
-        return {
-          id: profile.sub,
-          name: profile.name,
-          email: profile.email,
-          image: profile.picture,
-          role: 'patient',
-        };
-      }
-    }),
+      })
+    ] : []),
 
     // For demo: accept any valid email/password combo
     CredentialsProvider({
@@ -194,17 +196,19 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as { role?: string }).role || 'patient';
         
-        // Fetch subscription from DB
-        try {
-          const subscription = await prisma.subscription.findUnique({
-            where: { userId: user.id }
-          });
-          token.subscription = subscription ? {
-            plan: subscription.plan,
-            status: subscription.status
-          } : { plan: 'Free', status: 'active' };
-        } catch {
-          token.subscription = { plan: 'Free', status: 'active' };
+        // Only fetch subscription on SIGN IN (first time), not on every request
+        if (!token.subscription) {
+          try {
+            const subscription = await prisma.subscription.findUnique({
+              where: { userId: user.id }
+            });
+            token.subscription = subscription ? {
+              plan: subscription.plan,
+              status: subscription.status
+            } : { plan: 'Free', status: 'active' };
+          } catch {
+            token.subscription = { plan: 'Free', status: 'active' };
+          }
         }
       }
       

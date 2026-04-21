@@ -20,32 +20,36 @@ datasource db {
 // ─── USER & AUTH ───────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String   @id @default(cuid())
+  email         String   @unique
   name          String?
-  phone         String?   @unique
+  phone         String?  @unique
   passwordHash  String?
   avatar        String?
   city          String?
   age           Int?
   bloodGroup    String?
-  conditions    String?   // comma-separated medical conditions
-  role          String    @default("patient") // patient | admin | doctor
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  conditions    String? // comma-separated medical conditions
+  role          String   @default("patient") // patient | admin | doctor
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  subscription    Subscription?
-  appointments    Appointment[]
-  healthRecords   HealthRecord[]
-  prescriptions   Prescription[]
-  otpTokens       OtpToken[]
-  sessions        UserSession[]
-  healthMetrics   HealthMetric[]
-  favorites       FavoriteHospital[]
-  notifications   Notification[]
+  subscription      Subscription?
+  appointments      Appointment[]
+  healthRecords     HealthRecord[]
+  prescriptions     Prescription[]
+  otpTokens         OtpToken[]
+  sessions          UserSession[]
+  healthMetrics     HealthMetric[]
+  favorites         FavoriteHospital[]
+  notifications     Notification[]
   ambulanceBookings AmbulanceBooking[]
+  doctor            Doctor?
+  patientRecord     PatientRecord?
+  hospitalAdmin     HospitalAdmin?
+  emergencyAlerts   EmergencyAlert[]
 }
 
 model OtpToken {
@@ -75,14 +79,14 @@ model UserSession {
 // ─── SUBSCRIPTIONS ─────────────────────────────────────────
 
 model Subscription {
-  id         String    @id @default(cuid())
-  userId     String    @unique
-  plan       String    @default("free")   // free | premium_monthly | premium_yearly
-  status     String    @default("active") // active | cancelled | expired
-  startDate  DateTime  @default(now())
-  endDate    DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  plan      String    @default("free") // free | premium_monthly | premium_yearly
+  status    String    @default("active") // active | cancelled | expired
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -99,8 +103,8 @@ model Hospital {
   phone        String
   email        String   @default("")
   website      String   @default("")
-  specialties  String   // JSON array stored as string
-  beds         String   // JSON: { total, available, icu, icuAvailable }
+  specialties  String // JSON array stored as string
+  beds         String // JSON: { total, available, icu, icuAvailable }
   emergency    Boolean  @default(false)
   lat          Float
   lng          Float
@@ -113,8 +117,12 @@ model Hospital {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  appointments  Appointment[]
-  favorites     FavoriteHospital[]
+  appointments     Appointment[]
+  favorites        FavoriteHospital[]
+  doctorLinks      DoctorHospital[]
+  admins           HospitalAdmin[]
+  bedInventory     HospitalBed[]
+  medicineSupplies MedicineSupply[]
 }
 
 model FavoriteHospital {
@@ -131,38 +139,40 @@ model FavoriteHospital {
 // ─── APPOINTMENTS ──────────────────────────────────────────
 
 model Appointment {
-  id           String   @id @default(cuid())
-  userId       String
-  hospitalId   String?
-  doctorName   String
-  specialty    String
-  date         String
-  time         String
-  status       String   @default("pending") // pending | confirmed | completed | cancelled
-  notes        String   @default("")
-  fee          Float    @default(0)
-  isOnline     Boolean  @default(false)
-  meetingLink  String   @default("")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  hospitalId  String?
+  doctorId    String?
+  doctorName  String
+  specialty   String
+  date        String
+  time        String
+  status      String   @default("pending") // pending | confirmed | completed | cancelled
+  notes       String   @default("")
+  fee         Float    @default(0)
+  isOnline    Boolean  @default(false)
+  meetingLink String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   hospital Hospital? @relation(fields: [hospitalId], references: [id])
+  doctor   Doctor?   @relation(fields: [doctorId], references: [id])
 }
 
 // ─── HEALTH RECORDS ────────────────────────────────────────
 
 model HealthRecord {
-  id         String   @id @default(cuid())
-  userId     String
-  title      String
-  type       String   // report | prescription | scan | vaccination
-  fileUrl    String   @default("")
-  notes      String   @default("")
-  date       String
-  hospital   String   @default("")
-  doctor     String   @default("")
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  type      String // report | prescription | scan | vaccination
+  fileUrl   String   @default("")
+  notes     String   @default("")
+  date      String
+  hospital  String   @default("")
+  doctor    String   @default("")
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -170,14 +180,16 @@ model HealthRecord {
 model Prescription {
   id           String   @id @default(cuid())
   userId       String
+  doctorId     String?
   doctorName   String
-  medicines    String   // JSON array
+  medicines    String // JSON array
   instructions String   @default("")
   date         String
   validUntil   String   @default("")
   createdAt    DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor Doctor? @relation(fields: [doctorId], references: [id])
 }
 
 // ─── HEALTH METRICS ────────────────────────────────────────
@@ -186,7 +198,7 @@ model HealthMetric {
   id            String   @id @default(cuid())
   userId        String
   date          String
-  bloodPressure String   @default("")  // "120/80"
+  bloodPressure String   @default("") // "120/80"
   heartRate     Int?
   bloodSugar    Float?
   weight        Float?
@@ -206,7 +218,7 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String   @default("info")   // info | warning | success | emergency
+  type      String   @default("info") // info | warning | success | emergency
   read      Boolean  @default(false)
   link      String   @default("")
   createdAt DateTime @default(now())
@@ -217,25 +229,25 @@ model Notification {
 // ─── AMBULANCE SYSTEM ──────────────────────────────────────
 
 model Ambulance {
-  id              String   @id @default(cuid())
-  driverName      String?
-  vehicleNumber   String   @unique
-  phone           String   @unique
-  lat             Float?
-  lng             Float?
-  isAvailable     Boolean  @default(true)
-  type            String   @default("basic") // basic | acls | neonatal
-  hospitalId      String?  
-  email           String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  driverName    String?
+  vehicleNumber String   @unique
+  phone         String   @unique
+  lat           Float?
+  lng           Float?
+  isAvailable   Boolean  @default(true)
+  type          String   @default("basic") // basic | acls | neonatal
+  hospitalId    String?
+  email         String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   bookings        AmbulanceBooking[]
   locationUpdates AmbulanceLocationUpdate[]
 }
 
 model AmbulanceBooking {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String?
   ambulanceId   String?
   patientName   String
@@ -246,22 +258,165 @@ model AmbulanceBooking {
   dropLat       Float?
   dropLng       Float?
   dropAddress   String?
-  status        String   @default("pending") // pending | assigned | en_route | completed | cancelled
+  status        String    @default("pending") // pending | assigned | en_route | completed | cancelled
   assignedAt    DateTime?
   completedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  ambulance     Ambulance? @relation(fields: [ambulanceId], references: [id], onDelete: SetNull)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ambulance Ambulance? @relation(fields: [ambulanceId], references: [id], onDelete: SetNull)
 }
 
 model AmbulanceLocationUpdate {
-  id            String   @id @default(cuid())
-  ambulanceId   String
-  lat           Float
-  lng           Float
-  timestamp     DateTime @default(now())
+  id          String   @id @default(cuid())
+  ambulanceId String
+  lat         Float
+  lng         Float
+  timestamp   DateTime @default(now())
 
-  ambulance     Ambulance @relation(fields: [ambulanceId], references: [id], onDelete: Cascade)
+  ambulance Ambulance @relation(fields: [ambulanceId], references: [id], onDelete: Cascade)
+}
+
+// ─── DOCTOR MANAGEMENT ─────────────────────────────────────────
+
+model Doctor {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty     String
+  license       String
+  experience    Int      @default(0)
+  bio           String   @default("")
+  education     String   @default("")
+  languages     String   @default("English")
+  consultingFee Float    @default(500)
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hospitalLinks DoctorHospital[]
+  prescriptions Prescription[]
+  appointments  Appointment[]
+}
+
+model DoctorHospital {
+  id         String   @id @default(cuid())
+  doctorId   String
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+
+  @@unique([doctorId, hospitalId])
+}
+
+model HospitalAdmin {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospitalId  String
+  permissions String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id])
+}
+
+// ─── PATIENT RECORDS ─────────────────────────────────────────
+
+model PatientRecord {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bloodType             String?
+  allergies             String?
+  medicalHistory        String?
+  emergencyContact      String?
+  emergencyContactPhone String?
+  dateOfBirth           String?
+  gender                String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// ─── HOSPITAL BEDS ───────────────────────────────────────────
+
+model HospitalBed {
+  id         String   @id @default(cuid())
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  floor      String?
+  ward       String?
+  bedNumber  String?
+  bedType    String   @default("GENERAL")
+  status     String   @default("AVAILABLE")
+  price      Float    @default(500)
+  amenities  String   @default("")
+  occupiedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── REAL-TIME BED TRACKING (SUPABASE) ──────────────────────
+
+model RealTimeBed {
+  id              String   @id @default(cuid())
+  hospitalId      String
+  hospitalName    String
+  totalBeds       Int      @default(0)
+  availableBeds   Int      @default(0)
+  occupiedBeds    Int      @default(0)
+  totalICU        Int      @default(0)
+  availableICU   Int      @default(0)
+  occupiedICU    Int      @default(0)
+  icuOccupancy    Float    @default(0)
+  generalOccupancy Float   @default(0)
+  lastUpdatedBy   String?
+  updateSource   String   @default("auto") // auto | manual | admin
+  isVerified    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([hospitalId])
+  @@index([updatedAt])
+}
+
+// ─── EMERGENCY ALERTS ─────────────────────────────────────────
+
+model EmergencyAlert {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  location    String
+  latitude    Float?
+  longitude   Float?
+  alertType   String   @default("MEDICAL")
+  description String?
+  status      String   @default("TRIGGERED")
+  responders  String?
+  ambulanceId String?
+  hospitalId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── SUPPLY CHAIN ───────────────────────────────────────────
+
+model MedicineSupply {
+  id                String    @id @default(cuid())
+  batchId           String    @unique
+  medicine          String
+  manufacturer      String
+  distributor       String
+  hospitalId        String?
+  hospital          Hospital? @relation(fields: [hospitalId], references: [id])
+  quantity          Int
+  manufacturingDate DateTime
+  expiryDate        DateTime
+  currentLocation   String?
+  supplyStatus      String    @default("MANUFACTURED")
+  blockchainHash    String?   @unique
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }

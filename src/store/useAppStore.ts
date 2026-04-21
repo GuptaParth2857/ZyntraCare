@@ -125,16 +125,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   clearNotification: (id) => set((state) => ({
     notifications: state.notifications.filter(n => n.id !== id)
-  }))),
+  })),
 
   // AI Chat history
   chatHistory: [],
   addChatMessage: (message) => set((state) => ({
-    chatHistory: [...state.chatHistory, message].slice(-50) // Keep last 50 messages
+    chatHistory: [...state.chatHistory, message].slice(-50)
   })),
   clearChat: () => set({ chatHistory: [] }),
 
   // Theme
   darkMode: true,
-  setDarkMode: (dark) => set({ darkMode: dark }),
+  setDarkMode: (dark) => set({ darkMode: dark })
 }));

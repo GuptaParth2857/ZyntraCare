@@ -54,7 +54,8 @@ function useStagedLoad() {
 
 /** Inner component — needs session context for the heartbeat hook */
 function AppShell({ children }: { children: React.ReactNode }) {
-  useActiveUserHeartbeat();
+  // Disabled heartbeat - was causing lag
+  // useActiveUserHeartbeat();
   const loadTier = useStagedLoad();
 
   return (

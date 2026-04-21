@@ -3,12 +3,13 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight } from 'react-icons/fi';
+import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight, FiZap } from 'react-icons/fi';
 import { FaStethoscope, FaPills, FaNotesMedical, FaHeartbeat } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import PremiumGuard from '@/components/PremiumGuard';
 import ClientOnly from '@/components/ClientOnly';
 import dynamic from 'next/dynamic';
+import WellnessMissions from '@/components/WellnessMissions';
 
 const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap'), {
   ssr: false,
@@ -90,7 +91,7 @@ export default function DashboardPage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
         <div className="w-16 h-16 relative">
           <div className="absolute inset-0 rounded-full border-4 border-white/10" />
           <div className="absolute inset-0 rounded-full border-4 border-t-sky-500 animate-spin" />
@@ -101,7 +102,7 @@ export default function DashboardPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#020617] relative flex items-center justify-center overflow-hidden">
+      <div className="min-h-screen bg-transparent relative flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTQgMzBoNmY2VjU0SDU0VjMwbS0wIDBiLTZiLTZiNi02aDYiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')] opacity-20" />
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-sky-500/20 rounded-full blur-[100px]" />
         
@@ -120,7 +121,7 @@ export default function DashboardPage() {
   const isPremium = session?.user?.subscription?.plan !== 'Free' && session?.user?.subscription?.status === 'active';
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-x-hidden font-inter pb-32 text-white">
+    <div className="min-h-screen bg-transparent relative overflow-x-hidden font-inter pb-32 text-white">
       
       {/* ── CINEMATIC BG ── */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -184,6 +185,14 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
+        </motion.div>
+        
+        {/* ── WELLNESS MISSIONS (GAMIFICATION) ── */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-10">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <FiZap className="text-blue-400" /> Daily Health Missions
+          </h2>
+          <WellnessMissions />
         </motion.div>
 
         {/* ── TAB NAVIGATION ── */}
@@ -332,7 +341,7 @@ export default function DashboardPage() {
                   <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
                 </div>
                 <div style={{ height: '600px', filter: 'brightness(0.9) contrast(1.1) saturate(1.2)' }}>
-                  <NearbyHospitalsMap />
+                  <NearbyHospitalsMap initialRadius={2} />
                 </div>
               </div>
             )}

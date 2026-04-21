@@ -49,7 +49,7 @@ export default function DoctorRegistrationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white selection:bg-teal-500/30 overflow-x-hidden pt-24 pb-20 relative">
+    <div className="min-h-screen bg-transparent text-white selection:bg-teal-500/30 overflow-x-hidden pt-24 pb-20 relative">
       
       {/* ── CINEMATIC BACKGROUND ── */}
       <div className="fixed inset-0 pointer-events-none z-0">

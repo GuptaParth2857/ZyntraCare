@@ -2,28 +2,12 @@
 
 import { useRef, useEffect } from 'react';
 
-interface Orb {
-  x: number; y: number; z: number;
-  vx: number; vy: number; vz: number;
-  baseRadius: number;
-  color: string;
-  glowColor: string;
-  phase: number;
-  speed: number;
-  type: 'orb' | 'ring' | 'cross';
-}
-
-interface Line {
-  a: Orb; b: Orb;
-  opacity: number;
-}
-
 const COLORS = [
-  { solid: '#38bdf8', glow: 'rgba(56,189,248,' },    // sky
-  { solid: '#2dd4bf', glow: 'rgba(45,212,191,' },    // teal
-  { solid: '#818cf8', glow: 'rgba(129,140,248,' },   // indigo
-  { solid: '#a78bfa', glow: 'rgba(167,139,250,' },   // violet
-  { solid: '#34d399', glow: 'rgba(52,211,153,' },    // emerald
+  { solid: '#38bdf8', gr: 56,  gg: 189, gb: 248 },
+  { solid: '#2dd4bf', gr: 45,  gg: 212, gb: 191 },
+  { solid: '#818cf8', gr: 129, gg: 140, gb: 248 },
+  { solid: '#a78bfa', gr: 167, gg: 139, gb: 250 },
+  { solid: '#34d399', gr: 52,  gg: 211, gb: 153 },
 ];
 
 export default function Hero3DParticles() {
@@ -37,10 +21,14 @@ export default function Hero3DParticles() {
     if (!ctx) return;
 
     let W = 0, H = 0;
+    let isVisible = false;
+    let lastFrame = 0;
+    const FPS = 30;
+    const FRAME_MS = 1000 / FPS;
 
     const setSize = () => {
-      W = canvas.offsetWidth;
-      H = canvas.offsetHeight;
+      W = canvas.offsetWidth || window.innerWidth;
+      H = canvas.offsetHeight || window.innerHeight;
       canvas.width = W * devicePixelRatio;
       canvas.height = H * devicePixelRatio;
       ctx.scale(devicePixelRatio, devicePixelRatio);
@@ -49,162 +37,106 @@ export default function Hero3DParticles() {
 
     const DEPTH = 500;
     const FOV = 400;
+    const COUNT = 30; // Reduced: 75→30
 
-    // Create orbs in 3D space
-    const orbs: Orb[] = Array.from({ length: 75 }, (_, i) => {
+    const orbs = Array.from({ length: COUNT }, (_, i) => {
       const c = COLORS[i % COLORS.length];
       return {
         x: (Math.random() - 0.5) * W * 2.5,
         y: (Math.random() - 0.5) * H * 2.5,
         z: Math.random() * DEPTH,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        vz: (Math.random() - 0.5) * 0.6,
-        baseRadius: 5 + Math.random() * 11,
-        color: c.solid,
-        glowColor: c.glow,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        vz: (Math.random() - 0.5) * 0.5,
+        baseRadius: 4 + Math.random() * 9,
+        solid: c.solid,
+        gr: c.gr, gg: c.gg, gb: c.gb,
         phase: Math.random() * Math.PI * 2,
-        speed: 0.5 + Math.random() * 1.0,
-        type: i % 8 === 0 ? 'ring' : i % 12 === 0 ? 'cross' : 'orb',
+        speed: 0.5 + Math.random() * 0.8,
       };
     });
 
     let t = 0;
 
-    // Project 3D -> 2D with perspective
-    const project = (orb: Orb) => {
-      const scale = FOV / (FOV + orb.z);
-      const px = W / 2 + orb.x * scale;
-      const py = H / 2 + orb.y * scale;
-      return { px, py, scale };
+    const project = (x: number, y: number, z: number) => {
+      const scale = FOV / (FOV + z);
+      return { px: W / 2 + x * scale, py: H / 2 + y * scale, scale };
     };
 
-    const drawCross = (cx: number, cy: number, size: number, color: string, alpha: number) => {
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = size * 0.18;
-      ctx.lineCap = 'round';
-      ctx.shadowColor = color;
-      ctx.shadowBlur = size * 4;
-      ctx.beginPath();
-      ctx.moveTo(cx - size, cy);
-      ctx.lineTo(cx + size, cy);
-      ctx.moveTo(cx, cy - size);
-      ctx.lineTo(cx, cy + size);
-      ctx.stroke();
-      ctx.restore();
-    };
+    const draw = (now: number) => {
+      if (!isVisible) return;
+      rafRef.current = requestAnimationFrame(draw);
+      if (now - lastFrame < FRAME_MS) return;
+      lastFrame = now;
 
-    const drawRing = (cx: number, cy: number, size: number, color: string, alpha: number) => {
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = size * 0.2;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = size * 4;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    const draw = () => {
       ctx.clearRect(0, 0, W, H);
-      t += 0.008;
+      t += 0.01;
 
-      // Update orb positions
       for (const o of orbs) {
-        o.x += o.vx;
-        o.y += o.vy;
-        o.z += o.vz;
-
-        // Boundary bounce with wrap-around
+        o.x += o.vx; o.y += o.vy; o.z += o.vz;
         if (o.x < -W * 1.5) o.x = W * 1.5;
-        if (o.x > W * 1.5) o.x = -W * 1.5;
+        if (o.x > W * 1.5)  o.x = -W * 1.5;
         if (o.y < -H * 1.5) o.y = H * 1.5;
-        if (o.y > H * 1.5) o.y = -H * 1.5;
-        if (o.z < 0) o.z = DEPTH;
-        if (o.z > DEPTH) o.z = 0;
+        if (o.y > H * 1.5)  o.y = -H * 1.5;
+        if (o.z < 0)        o.z = DEPTH;
+        if (o.z > DEPTH)    o.z = 0;
       }
 
-      // Sort back-to-front for correct overdraw
       const sorted = [...orbs].sort((a, b) => b.z - a.z);
 
-      // Draw connections between close orbs
-      for (let i = 0; i < sorted.length; i++) {
-        for (let j = i + 1; j < sorted.length; j++) {
+      // Draw connections (skip more pairs to reduce O(n²) load)
+      for (let i = 0; i < sorted.length; i += 2) {
+        for (let j = i + 1; j < sorted.length; j += 2) {
           const a = sorted[i], b = sorted[j];
           const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
-          const dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          if (dist3d < 220) {
-            const pA = project(a), pB = project(b);
-            const avgScale = (pA.scale + pB.scale) / 2;
-            const alpha = (1 - dist3d / 220) * 0.18 * avgScale;
-            const grad = ctx.createLinearGradient(pA.px, pA.py, pB.px, pB.py);
-            grad.addColorStop(0, a.glowColor + alpha + ')');
-            grad.addColorStop(1, b.glowColor + alpha + ')');
-            ctx.beginPath();
-            ctx.moveTo(pA.px, pA.py);
-            ctx.lineTo(pB.px, pB.py);
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = avgScale * 0.8;
-            ctx.stroke();
-          }
+          if (dx * dx + dy * dy + dz * dz > 130 * 130) continue; // reduced range
+          const pA = project(a.x, a.y, a.z);
+          const pB = project(b.x, b.y, b.z);
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const alpha = (1 - dist / 130) * 0.15;
+          ctx.beginPath();
+          ctx.moveTo(pA.px, pA.py);
+          ctx.lineTo(pB.px, pB.py);
+          ctx.strokeStyle = `rgba(${a.gr},${a.gg},${a.gb},${alpha.toFixed(2)})`;
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
         }
       }
 
       // Draw orbs
       for (const o of sorted) {
-        const { px, py, scale } = project(o);
-
-        // Skip if outside viewport
+        const { px, py, scale } = project(o.x, o.y, o.z);
         if (px < -50 || px > W + 50 || py < -50 || py > H + 50) continue;
 
-        const pulse = 1 + 0.25 * Math.sin(t * o.speed + o.phase);
+        const pulse = 1 + 0.2 * Math.sin(t * o.speed + o.phase);
         const r = o.baseRadius * scale * pulse;
-        const alpha = 0.15 + 0.7 * scale;
+        const alpha = 0.2 + 0.6 * scale;
 
-        if (o.type === 'cross') {
-          drawCross(px, py, r * 3, o.color, alpha * 0.9);
-        } else if (o.type === 'ring') {
-          drawRing(px, py, r * 2.5, o.color, alpha * 0.85);
-        } else {
-          // Glow halo
-          const grd = ctx.createRadialGradient(px, py, 0, px, py, r * 6);
-          grd.addColorStop(0, o.glowColor + Math.min(1, alpha * 0.55) + ')');
-          grd.addColorStop(0.5, o.glowColor + Math.min(1, alpha * 0.2) + ')');
-          grd.addColorStop(1, o.glowColor + '0)');
-          ctx.beginPath();
-          ctx.arc(px, py, r * 6, 0, Math.PI * 2);
-          ctx.fillStyle = grd;
-          ctx.fill();
-
-          // Core dot
-          const core = ctx.createRadialGradient(px, py, 0, px, py, r);
-          core.addColorStop(0, '#ffffff');
-          core.addColorStop(0.35, o.color);
-          core.addColorStop(1, o.glowColor + '0)');
-          ctx.beginPath();
-          ctx.arc(px, py, r, 0, Math.PI * 2);
-          ctx.fillStyle = core;
-          ctx.shadowColor = o.color;
-          ctx.shadowBlur = r * 8;
-          ctx.fill();
-          ctx.shadowBlur = 0;
-        }
+        // Simple core dot (no expensive radial gradient for all orbs)
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${o.gr},${o.gg},${o.gb},${alpha.toFixed(2)})`;
+        ctx.fill();
       }
-
-      rafRef.current = requestAnimationFrame(draw);
     };
 
-    draw();
+    const observer = new IntersectionObserver(entries => {
+      isVisible = entries[0].isIntersecting;
+      if (isVisible) {
+        lastFrame = 0;
+        rafRef.current = requestAnimationFrame(draw);
+      } else {
+        cancelAnimationFrame(rafRef.current);
+      }
+    }, { threshold: 0.05 });
+    observer.observe(canvas);
 
-    const onResize = () => { setSize(); };
-    window.addEventListener('resize', onResize);
+    const onResize = () => setSize();
+    window.addEventListener('resize', onResize, { passive: true });
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      observer.disconnect();
       window.removeEventListener('resize', onResize);
     };
   }, []);

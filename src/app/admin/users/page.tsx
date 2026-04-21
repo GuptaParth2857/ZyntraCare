@@ -45,7 +45,7 @@ export default function UserManagement() {
 
   return (
     <RoleGuard allow={['admin']}>
-      <div className="min-h-screen bg-slate-950 p-4 md:p-8">
+      <div className="min-h-screen bg-transparent p-4 md:p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">

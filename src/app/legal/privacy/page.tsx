@@ -65,7 +65,7 @@ export default function PrivacyPolicyPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-950 pt-24 pb-16">
+    <main className="min-h-screen bg-transparent pt-24 pb-16">
       <div className="max-w-4xl mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
           <div className="w-16 h-16 bg-gradient-to-br from-sky-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">

@@ -1,14 +1,43 @@
 // src/app/hospitals/page.tsx
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { FiFilter, FiMapPin, FiGrid, FiSearch, FiActivity, FiTrendingUp, FiHeart } from 'react-icons/fi';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { FiFilter, FiMapPin, FiGrid, FiSearch, FiActivity, FiTrendingUp, FiHeart, FiClock } from 'react-icons/fi';
 import { MdLocalHospital } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import HospitalCard from '@/components/HospitalCard';
 import HospitalMap from '@/components/HospitalMap';
 import { Hospital } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
+
+const CACHE_KEY = 'zyntracare_hospitals_cache';
+const CACHE_TIMESTAMP_KEY = 'zyntracare_hospitals_timestamp';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+interface CachedHospitalData {
+  hospitals: Hospital[];
+  location: { lat: number; lng: number };
+  timestamp: number;
+}
+
+function getCachedHospitals(): CachedHospitalData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+    if (!timestamp) return null;
+    if (Date.now() - parseInt(timestamp) > CACHE_DURATION) return null;
+    const data = localStorage.getItem(CACHE_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch { return null; }
+}
+
+function setCachedHospitals(hospitals: Hospital[], location: { lat: number; lng: number }) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ hospitals, location, timestamp: Date.now() }));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+  } catch {}
+}
 
 const SPECIALTIES_LIST = ['Cardiology', 'Oncology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Nephrology', 'Transplant', 'Ophthalmology'];
 const INDIAN_STATES = ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Telangana', 'West Bengal', 'Gujarat', 'Rajasthan', 'Uttar Pradesh', 'Madhya Pradesh', 'Punjab', 'Haryana', 'Kerala', 'Bihar', 'Jharkhand'];
@@ -25,12 +54,20 @@ export default function HospitalsPage() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
+  const [dataLastUpdated, setDataLastUpdated] = useState<number | null>(null);
+  const [searchRadius, setSearchRadius] = useState(5);
 
   useEffect(() => {
+
     const fetchHospitals = async () => {
-      setLoading(true);
-      
-      // Get user's real GPS location first
+      const cached = getCachedHospitals();
+      if (cached) {
+        setHospitals(cached.hospitals);
+        setUserLocation(cached.location);
+        setDataLastUpdated(cached.timestamp);
+        setLoading(false);
+      }
+
       const getUserLocation = () => {
         return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
           if (!navigator.geolocation) {
@@ -40,37 +77,46 @@ export default function HospitalsPage() {
           navigator.geolocation.getCurrentPosition(
             (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
             (err) => reject(err),
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
           );
         });
       };
 
       try {
-        // Try to get user's location
         const location = await getUserLocation();
         setUserLocation(location);
-        
-        // Fetch hospitals near user's location
-        const res = await fetch(`/api/hospitals/nearby?lat=${location.lat}&lng=${location.lng}&radius=50000`);
+
+        if (!cached || cached.location.lat !== location.lat || cached.location.lng !== location.lng) {
+          setLoading(true);
+        }
+
+        const res = await fetch(`/api/hospitals/nearby?lat=${location.lat}&lng=${location.lng}&radius=${searchRadius * 1000}`);
         const data = await res.json();
         if (data.hospitals && data.hospitals.length > 0) {
           setHospitals(data.hospitals);
+          setCachedHospitals(data.hospitals, location);
+          setDataLastUpdated(Date.now());
         }
       } catch (err: any) {
         console.log('Using default location, error:', err.message);
         setLocationError('Using default location');
-        
-        // Fallback to Delhi if location not available
-        const res = await fetch('/api/hospitals/nearby?lat=28.6139&lng=77.2090&radius=50000');
-        const data = await res.json();
-        if (data.hospitals && data.hospitals.length > 0) {
-          setHospitals(data.hospitals);
+
+        if (!cached) {
+          const res = await fetch(`/api/hospitals/nearby?lat=28.6139&lng=77.2090&radius=${searchRadius * 1000}`);
+          const data = await res.json();
+          if (data.hospitals && data.hospitals.length > 0) {
+            setHospitals(data.hospitals);
+            setCachedHospitals(data.hospitals, { lat: 28.6139, lng: 77.2090 });
+            setDataLastUpdated(Date.now());
+          }
         }
       }
       setLoading(false);
     };
-    fetchHospitals();
-  }, []);
+
+    const debounceTimer = setTimeout(fetchHospitals, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [searchRadius]);
 
   const platformStats = useMemo(() => {
     const totalBeds = hospitals.reduce((sum, h) => sum + (h.beds?.available || 0), 0);
@@ -135,21 +181,6 @@ export default function HospitalsPage() {
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.12, 0.25, 0.12], scale: [1, 1.05, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-40 left-1/4 w-[700px] h-[700px] bg-teal-600/20 rounded-full blur-[180px]"
-        />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.08, 0.18, 0.08], scale: [1, 1.08, 1] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-          className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-emerald-500/12 rounded-full blur-[140px]"
-        />
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 text-center">
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
@@ -291,6 +322,29 @@ export default function HospitalsPage() {
             <option value="name" className="bg-slate-900">A–Z by Name</option>
           </select>
 
+          <select
+            value={searchRadius}
+            onChange={e => {
+              const val = parseInt(e.target.value);
+              if (val > 6) {
+                if (window.confirm('Searching beyond 6km requires ZyntraCare Premium. View plans?')) {
+                  window.location.href = '/subscription';
+                }
+                return;
+              }
+              setSearchRadius(val);
+            }}
+            className="flex-1 min-w-[140px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition text-white text-sm"
+          >
+            <option value="1" className="bg-slate-900">Radius: 1 km</option>
+            <option value="2" className="bg-slate-900">Radius: 2 km</option>
+            <option value="5" className="bg-slate-900">Radius: 5 km (Default)</option>
+            <option value="6" className="bg-slate-900">Radius: 6 km</option>
+            <option value="10" className="bg-slate-900">Radius: 10 km 👑</option>
+            <option value="25" className="bg-slate-900">Radius: 25 km 👑</option>
+            <option value="50" className="bg-slate-900">Radius: 50 km 👑</option>
+          </select>
+
           <label className="flex items-center gap-2 cursor-pointer bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 hover:bg-white/10 transition">
             <input
               type="checkbox"
@@ -354,6 +408,12 @@ export default function HospitalsPage() {
                   ? 'Getting your location...'
                   : 'Loading hospitals...'}
             </p>
+            {dataLastUpdated && (
+              <p className="text-gray-500 text-xs mt-2 flex items-center justify-center gap-1">
+                <FiClock size={12} />
+                Last updated: {new Date(dataLastUpdated).toLocaleTimeString()}
+              </p>
+            )}
           </div>
         ) : viewMode === 'grid' ? (
           filteredHospitals.length === 0 ? (

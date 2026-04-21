@@ -108,13 +108,28 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
     const markers: any[] = [];
     filteredHospitals.forEach((hospital) => {
       const occupancy = Math.round((hospital.beds.occupied / hospital.beds.total) * 100);
+      const facilityType = (hospital as any).facilityType || 'hospital';
+      
+      const facilityColors: Record<string, string> = {
+        hospital: '#ef4444',
+        clinic: '#3b82f6',
+        pharmacy: '#10b981',
+      };
+      const facilityEmojis: Record<string, string> = {
+        hospital: '🏥',
+        clinic: '🏠',
+        pharmacy: '💊',
+      };
+      
+      const baseColor = facilityColors[facilityType] || '#ef4444';
+      const emoji = facilityEmojis[facilityType] || '🏥';
       const color = occupancy > 80 ? '#ef4444' : occupancy > 50 ? '#f59e0b' : '#22c55e';
 
       const hospitalIcon = L.divIcon({
         className: 'hospital-marker',
         html: `<div style="position:relative;z-index:1000;">
-          <div style="width:36px;height:36px;background:${color};border:3px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:16px;">🏥</div>
-          <div style="position:absolute;top:-8px;right:-8px;background:${hospital.beds.available > 0 ? '#22c55e' : '#ef4444'};color:white;font-size:10px;font-weight:bold;padding:1px 5px;border-radius:10px;border:2px solid white;">${hospital.beds.available}</div>
+          <div style="width:36px;height:36px;background:${baseColor};border:3px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:16px;">${emoji}</div>
+          ${facilityType !== 'clinic' ? `<div style="position:absolute;top:-8px;right:-8px;background:${hospital.beds.available > 0 ? '#22c55e' : '#ef4444'};color:white;font-size:10px;font-weight:bold;padding:1px 5px;border-radius:10px;border:2px solid white;">${hospital.beds.available}</div>` : ''}
         </div>`,
         iconSize: [36, 36],
         iconAnchor: [18, 18],
@@ -230,10 +245,15 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
 
       {/* Legend */}
       <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 hidden sm:block">
-        <p className="text-xs font-bold mb-2 text-slate-800">Legend</p>
+        <p className="text-xs font-bold mb-2 text-slate-800">Facility Types</p>
         <div className="space-y-1.5 text-xs text-slate-800">
-          <p className="flex items-center gap-2"><span className="w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow" /> Your Location</p>
-          <p className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full" /> Low Occupancy (&lt;50%)</p>
+          <p className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow" /> Hospital</p>
+          <p className="flex items-center gap-2"><span className="w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow" /> Clinic</p>
+          <p className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow" /> Pharmacy</p>
+        </div>
+        <p className="text-xs font-bold mt-3 mb-2 text-slate-800">Bed Availability</p>
+        <div className="space-y-1.5 text-xs text-slate-800">
+          <p className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full" /> Low (&lt;50%)</p>
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-500 rounded-full" /> Medium (50-80%)</p>
           <p className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-full" /> High (&gt;80%)</p>
         </div>

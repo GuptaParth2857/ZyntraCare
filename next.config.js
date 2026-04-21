@@ -20,7 +20,7 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
-  typescript: { ignoreBuildErrors: true },
+  typescript: { ignoreBuildErrors: false },
 
   experimental: {
     optimizeCss: false,
@@ -110,6 +110,7 @@ const nextConfig = {
     resolveAlias: {
       'react-is': 'react-is',
     },
+    root: __dirname,
   },
 
   // Security + performance headers

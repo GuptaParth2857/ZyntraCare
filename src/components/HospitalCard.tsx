@@ -48,6 +48,8 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
     setMounted(true);
   }, []);
 
+  const imageSrc = hospital.image || '';
+
   const occupancyPercentage = Math.round((hospital.beds.occupied / hospital.beds.total) * 100);
   const isLight = variant === 'light';
 
@@ -84,9 +86,9 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
       </div>
       {/* Image */}
       <div className="relative h-44 overflow-hidden">
-        {!imgError ? (
+        {!imgError && imageSrc ? (
           <Image
-            src={hospital.image}
+            src={imageSrc}
             alt={`${hospital.name} hospital`}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

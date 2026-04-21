@@ -65,15 +65,13 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
            : 'bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-blue-500/40 hover:shadow-[0_0_40px_rgba(59,130,246,0.2)]'
       }`}
     >
-      {/* Glass shimmer effect */}
+      {/* Glass shimmer effect - CSS powered */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-        <motion.div
-          className="absolute top-0 left-0 w-full h-full"
+        <div
+          className="absolute top-0 left-0 w-full h-full specialty-shimmer"
           style={{
             background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%)',
           }}
-          animate={{ x: ['-100%', '200%'] }}
-          transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
         />
       </div>
       {/* Gradient accent top line */}

@@ -56,12 +56,7 @@ export default function PharmaciesPage() {
   }, [userLocation, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-hidden font-inter pb-24 text-white">
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/20 via-transparent to-cyan-900/10" />
-        <div className="absolute top-[20%] left-[-10%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[120px]" />
-      </div>
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24">
         <motion.div

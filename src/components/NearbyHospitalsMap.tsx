@@ -14,6 +14,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 /*  Types                                                               */
 /* ------------------------------------------------------------------ */
 type DatasetSource = 'openstreetmap' | 'mock' | 'Govt Dataset' | 'Kaggle' | 'Web Scraping';
+export type FacilityType = 'hospital' | 'clinic' | 'pharmacy';
 
 interface RealHospital {
   id: string;
@@ -31,6 +32,7 @@ interface RealHospital {
   source: DatasetSource;
   directionsUrl: string;
   googleMapsUrl: string;
+  facilityType?: FacilityType;
 }
 
 // For dataset simulation
@@ -80,15 +82,16 @@ function getHospitalsFromCache(): RealHospital[] | null {
 /* ------------------------------------------------------------------ */
 /*  Component                                                           */
 /* ------------------------------------------------------------------ */
-export default function NearbyHospitalsMap() {
+export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadius?: number }) {
   const { latitude, longitude, loading: geoLoading, refreshLocation } = useGeolocation();
 
   const [mounted, setMounted] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [L, setL] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mapInstance, setMapInstance] = useState<any>(null);
-  const [radius, setRadius] = useState(10);
+  const [radius, setRadius] = useState(initialRadius);
   const [selectedHospital, setSelectedHospital] = useState<RealHospital | null>(null);
   const [allHospitals, setAllHospitals] = useState<RealHospital[]>([]);
   const [realDataLoading, setRealDataLoading] = useState(false);
@@ -341,6 +344,22 @@ export default function NearbyHospitalsMap() {
       const isOSM = hospital.source === 'openstreetmap';
       const isGovt = hospital.source === 'Govt Dataset';
       const isKaggle = hospital.source === 'Kaggle';
+      const facilityType = hospital.facilityType || 'hospital';
+      
+      const facilityColors: Record<string, string> = {
+        hospital: '#ef4444',
+        clinic: '#3b82f6',
+        pharmacy: '#10b981',
+      };
+      const facilityEmojis: Record<string, string> = {
+        hospital: '🏥',
+        clinic: '🏠',
+        pharmacy: '💊',
+      };
+      
+      const baseColor = facilityColors[facilityType] || '#ef4444';
+      const facilityEmoji = facilityEmojis[facilityType] || '🏥';
+      
       const availPct = hospital.beds.available / Math.max(hospital.beds.total, 1);
       const color = availPct > 0.3 ? '#22c55e' : availPct > 0.1 ? '#f59e0b' : '#ef4444';
       const size = isSelected ? 48 : 38;
@@ -348,22 +367,22 @@ export default function NearbyHospitalsMap() {
       const hospitalIcon = L.divIcon({
         className: '',
         html: `
-          <div style="position:relative;cursor:pointer;filter:drop-shadow(0 4px 12px ${color}80);">
-            ${isSelected ? `<div style="position:absolute;inset:-8px;border-radius:50%;border:2px solid ${color};opacity:0.5;animation:markerPulse 1.5s infinite;"></div>` : ''}
+          <div style="position:relative;cursor:pointer;filter:drop-shadow(0 4px 12px ${baseColor}80);">
+            ${isSelected ? `<div style="position:absolute;inset:-8px;border-radius:50%;border:2px solid ${baseColor};opacity:0.5;animation:markerPulse 1.5s infinite;"></div>` : ''}
             ${isOSM ? `<div style="position:absolute;top:-10px;right:-10px;background:#8b5cf6;color:white;font-size:8px;font-weight:700;padding:1px 4px;border-radius:6px;border:1.5px solid white;white-space:nowrap;">OSM</div>` : 
               isGovt ? `<div style="position:absolute;top:-10px;right:-10px;background:#10b981;color:white;font-size:8px;font-weight:700;padding:1px 4px;border-radius:6px;border:1.5px solid white;white-space:nowrap;">GOVT</div>` :
               isKaggle ? `<div style="position:absolute;top:-10px;right:-10px;background:#3b82f6;color:white;font-size:8px;font-weight:700;padding:1px 4px;border-radius:6px;border:1.5px solid white;white-space:nowrap;">KAGGLE</div>` :
               hospital.source === 'Web Scraping' ? `<div style="position:absolute;top:-10px;right:-10px;background:#f59e0b;color:white;font-size:8px;font-weight:700;padding:1px 4px;border-radius:6px;border:1.5px solid white;white-space:nowrap;">SCRAPED</div>` : ''}
             <div style="
               width:${size}px;height:${size}px;
-              background:linear-gradient(135deg, ${color}, ${color}cc);
+              background:linear-gradient(135deg, ${baseColor}, ${baseColor}cc);
               border:${isSelected ? 4 : 2.5}px solid white;
               border-radius:50%;
               display:flex;align-items:center;justify-content:center;
-              box-shadow:0 4px 16px ${color}60;
+              box-shadow:0 4px 16px ${baseColor}60;
               font-size:${isSelected ? 22 : 18}px;
-            ">🏥</div>
-            <div style="position:absolute;top:-6px;right:-4px;background:${hospital.beds.available > 5 ? '#22c55e' : '#ef4444'};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;border:2px solid white;min-width:20px;text-align:center;">${hospital.beds.available}</div>
+            ">${facilityEmoji}</div>
+            ${facilityType !== 'clinic' ? `<div style="position:absolute;top:-6px;right:-4px;background:${hospital.beds.available > 5 ? '#22c55e' : '#ef4444'};color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;border:2px solid white;min-width:20px;text-align:center;">${hospital.beds.available}</div>` : ''}
           </div>
         `,
         iconSize: [size, size],
@@ -496,7 +515,7 @@ export default function NearbyHospitalsMap() {
           <p className="text-xs font-semibold text-gray-400 mb-2">Search Radius</p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setRadius(r => Math.max(5, r - 5))}
+              onClick={() => setRadius(r => Math.max(1, r - 1))}
               aria-label="Decrease search radius"
               className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition"
             >
@@ -504,7 +523,18 @@ export default function NearbyHospitalsMap() {
             </button>
             <span className="text-sm font-bold w-14 text-center text-blue-300">{radius} km</span>
             <button
-              onClick={() => setRadius(r => Math.min(50, r + 5))}
+              onClick={() => {
+                setRadius(r => {
+                  const nextR = r + 1;
+                  if (nextR > 10) {
+                    if (window.confirm('Seeing data beyond 10km radius requires a ZyntraCare Premium subscription. View premium plans?')) {
+                      window.location.href = '/subscription';
+                    }
+                    return r;
+                  }
+                  return nextR;
+                })
+              }}
               aria-label="Increase search radius"
               className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition"
             >
@@ -653,15 +683,21 @@ export default function NearbyHospitalsMap() {
           role="complementary"
           aria-label="Map legend"
         >
-          <p className="text-gray-400 font-semibold mb-0.5">Legend & Dataset Sources</p>
-          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white flex-shrink-0" /> You</span>
-          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" /> Available</span>
-          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" /> Full</span>
+          <p className="text-gray-400 font-semibold mb-0.5">Facility Types</p>
+          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-red-500 border-2 border-white flex-shrink-0" /> Hospital</span>
+          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white flex-shrink-0" /> Clinic</span>
+          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-green-500 border-2 border-white flex-shrink-0" /> Pharmacy</span>
           <div className="h-px bg-white/20 my-1 rounded-full"/>
-          <span className="flex items-center gap-1.5 text-green-400 font-medium whitespace-nowrap">🏛 Govt Dataset (Trusted)</span>
-          <span className="flex items-center gap-1.5 text-blue-400 font-medium whitespace-nowrap">📊 Kaggle (AI Models)</span>
-          <span className="flex items-center gap-1.5 text-orange-400 font-medium whitespace-nowrap">🕸 Web Scraped</span>
-          <span className="flex items-center gap-1.5 text-purple-400 font-medium whitespace-nowrap">🌐 OSM API</span>
+          <p className="text-gray-400 font-semibold mb-0.5">Bed Availability</p>
+          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" /> Available (&gt;30%)</span>
+          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-yellow-500 flex-shrink-0" /> Limited (10-30%)</span>
+          <span className="flex items-center gap-1.5 text-white/70"><span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" /> Full (&lt;10%)</span>
+          <div className="h-px bg-white/20 my-1 rounded-full"/>
+          <p className="text-gray-400 font-semibold mb-0.5">Data Sources</p>
+          <span className="flex items-center gap-1.5 text-green-400 font-medium whitespace-nowrap">🏛 Govt</span>
+          <span className="flex items-center gap-1.5 text-blue-400 font-medium whitespace-nowrap">📊 Kaggle</span>
+          <span className="flex items-center gap-1.5 text-orange-400 font-medium whitespace-nowrap">🕸 Scraped</span>
+          <span className="flex items-center gap-1.5 text-purple-400 font-medium whitespace-nowrap">🌐 OSM</span>
         </div>
       </div>
 

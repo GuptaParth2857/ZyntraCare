@@ -9,6 +9,7 @@
 //  5. Passive resize listener
 
 import { useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 interface Star {
   x: number; y: number; vx: number; vy: number;
@@ -30,6 +31,7 @@ export default function CanvasBackground() {
   const animRef   = useRef<number>(0);
   const pausedRef = useRef<boolean>(false);
   const lastTimeRef = useRef<number>(0);
+  const pathname = usePathname() || '';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -37,11 +39,44 @@ export default function CanvasBackground() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // ── Responsive particle count - optimized but visually rich
+    // ── Theming based on Route
+    let themeColors = ['#38bdf8', '#818cf8', '#a78bfa', '#34d399', '#f472b6']; // Default Mix
+    let orbsColors = ['#38bdf8', '#a78bfa', '#34d399'];
+    let ringsColors = ['#3b82f6', '#8b5cf6', '#10b981'];
+    let connColor = '129,140,248'; // Indigo
+    let bgColor = 'rgba(2, 6, 23, 0.15)'; // Slate 950
+
+    if (pathname.includes('/pharmacies') || pathname.includes('/pharmacy') || pathname.includes('/medications')) {
+      themeColors = ['#34d399', '#10b981', '#059669', '#6ee7b7', '#047857'];
+      orbsColors = ['#34d399', '#10b981', '#059669'];
+      ringsColors = ['#10b981', '#059669', '#047857'];
+      connColor = '52,211,153'; // Emerald
+      bgColor = 'rgba(2, 12, 10, 0.15)'; // dark greenish
+    } else if (pathname.includes('/hospitals') || pathname.includes('/doctors') || pathname.includes('/specialists')) {
+      themeColors = ['#38bdf8', '#0ea5e9', '#0284c7', '#22d3ee', '#06b6d4'];
+      orbsColors = ['#38bdf8', '#0ea5e9', '#22d3ee'];
+      ringsColors = ['#0ea5e9', '#0284c7', '#06b6d4'];
+      connColor = '56,189,248'; // Sky
+      bgColor = 'rgba(2, 10, 20, 0.15)'; // dark bluish
+    } else if (pathname.includes('/camp') || pathname.includes('/wellness')) {
+      themeColors = ['#fbbf24', '#f59e0b', '#d97706', '#fb923c', '#f97316'];
+      orbsColors = ['#fbbf24', '#f59e0b', '#fb923c'];
+      ringsColors = ['#f59e0b', '#d97706', '#f97316'];
+      connColor = '251,191,36'; // Amber
+      bgColor = 'rgba(15, 10, 2, 0.15)'; // dark amberish
+    } else if (pathname.includes('/blood') || pathname.includes('/emergency')) {
+      themeColors = ['#fb7185', '#f43f5e', '#e11d48', '#f87171', '#ef4444'];
+      orbsColors = ['#fb7185', '#f43f5e', '#f87171'];
+      ringsColors = ['#f43f5e', '#e11d48', '#ef4444'];
+      connColor = '244,63,94'; // Rose
+      bgColor = 'rgba(20, 4, 6, 0.15)'; // dark redish
+    }
+
+    // ── Responsive particle count - optimized
     const isMobile = window.innerWidth < 768;
-    const STAR_COUNT        = isMobile ? 60  : 150; // Good visual density
-    const CONNECT_DISTANCE  = isMobile ? 0   : 80;  // Skip on mobile, use on desktop
-    const FPS_CAP           = 30;                    // Standard 30fps
+    const STAR_COUNT        = isMobile ? 60  : 150; 
+    const CONNECT_DISTANCE  = isMobile ? 0   : 80;  
+    const FPS_CAP           = 30;                    
     const FRAME_MS          = 1000 / FPS_CAP;
 
     const resize = () => {
@@ -58,23 +93,23 @@ export default function CanvasBackground() {
       vx:      (Math.random() - 0.5) * 0.25,
       vy:      (Math.random() - 0.5) * 0.25,
       size:    Math.random() * 2.2 + 0.3,
-      color:   ['#38bdf8', '#818cf8', '#a78bfa', '#34d399', '#f472b6'][Math.floor(Math.random() * 5)],
+      color:   themeColors[Math.floor(Math.random() * themeColors.length)],
       opacity: Math.random() * 0.5 + 0.15,
       pulse:   Math.random() * Math.PI * 2,
     }));
 
-    // Flying energy orbs - beautiful trails
+    // Flying energy orbs
     const orbs: Orb[] = isMobile ? [] : [
-      { angle: 0,   radius: 0.32, speed:  0.006, color: '#38bdf8', trailPoints: [] },
-      { angle: 2.1, radius: 0.28, speed: -0.008, color: '#a78bfa', trailPoints: [] },
-      { angle: 4.2, radius: 0.36, speed:  0.005, color: '#34d399', trailPoints: [] },
+      { angle: 0,   radius: 0.32, speed:  0.006, color: orbsColors[0], trailPoints: [] },
+      { angle: 2.1, radius: 0.28, speed: -0.008, color: orbsColors[1], trailPoints: [] },
+      { angle: 4.2, radius: 0.36, speed:  0.005, color: orbsColors[2], trailPoints: [] },
     ];
 
-    // Spinning rings (desktop only — skip on mobile)
+    // Spinning rings
     const rings: Ring[] = isMobile ? [] : [
-      { angleX: 0,   angleY: 0,   sizeR: 0.22, speedX:  0.004, speedY:  0.003, color: '#3b82f6' },
-      { angleX: 1.2, angleY: 0.8, sizeR: 0.28, speedX: -0.003, speedY:  0.005, color: '#8b5cf6' },
-      { angleX: 0.5, angleY: 1.5, sizeR: 0.18, speedX:  0.006, speedY: -0.004, color: '#10b981' },
+      { angleX: 0,   angleY: 0,   sizeR: 0.22, speedX:  0.004, speedY:  0.003, color: ringsColors[0] },
+      { angleX: 1.2, angleY: 0.8, sizeR: 0.28, speedX: -0.003, speedY:  0.005, color: ringsColors[1] },
+      { angleX: 0.5, angleY: 1.5, sizeR: 0.18, speedX:  0.006, speedY: -0.004, color: ringsColors[2] },
     ];
 
     const startTime = performance.now();
@@ -96,7 +131,7 @@ export default function CanvasBackground() {
       const H = canvas.height;
       const t = (now - startTime) / 1000;
 
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.15)';
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, W, H);
 
       // ── Stars / Neural particles
@@ -126,7 +161,7 @@ export default function CanvasBackground() {
               ctx.beginPath();
               ctx.moveTo(stars[i].x, stars[i].y);
               ctx.lineTo(stars[j].x, stars[j].y);
-              ctx.strokeStyle = `rgba(129,140,248,${a})`;
+              ctx.strokeStyle = `rgba(${connColor},${a})`;
               ctx.lineWidth = 0.5;
               ctx.stroke();
             }
@@ -201,7 +236,7 @@ export default function CanvasBackground() {
       window.removeEventListener('resize', resize);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <canvas

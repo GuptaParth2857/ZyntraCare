@@ -12,6 +12,15 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useLanguage } from '@/context/LanguageContext';
 
+export default function HospitalDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const router = useRouter();
+  const { t, lang } = useLanguage();
+  const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [bedData, setBedData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [imgError, setImgError] = useState(false);
+
 const specialtyIcons: Record<string, React.ReactNode> = {
   Cardiology: <FiHeart className="text-red-500" />,
   Neurology: <FiTarget className="text-purple-500" />,
@@ -25,14 +34,6 @@ const specialtyIcons: Record<string, React.ReactNode> = {
   Pulmonology: <FiThermometer className="text-orange-500" />,
   default: <FiCheckCircle className="text-teal-500" />
 };
-
-export default function HospitalDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const { t, lang } = useLanguage();
-  const [hospital, setHospital] = useState<Hospital | null>(null);
-  const [bedData, setBedData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const found = allHospitals.find(h => h.id === id);
@@ -49,7 +50,7 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -61,7 +62,7 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
 
   if (!hospital) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center">
         <FiAlertCircle size={64} className="text-red-500 mb-4" />
         <h1 className="text-2xl font-bold text-white mb-2">Hospital Not Found</h1>
         <Link href="/hospitals" className="text-teal-400 hover:underline">Go Back to Hospitals</Link>
@@ -83,7 +84,7 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-transparent">
       <Navbar />
       
       <main className="pt-24 pb-16">
@@ -106,12 +107,19 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
             className="relative rounded-3xl overflow-hidden mb-8"
           >
             <div className="h-64 md:h-80 relative">
-              <Image
-                src={hospital.image}
-                alt={hospital.name}
-                fill
-                className="object-cover"
-              />
+              {!imgError && hospital.image ? (
+                <Image
+                  src={hospital.image}
+                  alt={hospital.name}
+                  fill
+                  className="object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-teal-900/60 to-slate-900 flex items-center justify-center">
+                  <FiActivity size={64} className="text-teal-500/40" />
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
               
               {hospital.emergency && (

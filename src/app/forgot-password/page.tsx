@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-transparent">
         <Navbar />
         <main className="pt-24 pb-16">
           <div className="max-w-md mx-auto px-4 text-center">
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-transparent">
       <Navbar />
       
       <main className="pt-24 pb-16">

@@ -1,9 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiPhone, FiHeart, FiAlertCircle, FiPlus, FiX, FiDownload, FiShare2, FiEdit2, FiActivity, FiClock, FiShield } from 'react-icons/fi';
 import QRCode from 'qrcode';
+
+function debounce<T extends (...args: unknown[]) => unknown>(fn: T, delay: number) {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
 
 interface MedicalInfo {
   name: string;
@@ -46,24 +54,31 @@ export default function MedicalIDWidget() {
     }
   }, []);
 
-  useEffect(() => {
-    if (medicalInfo.name && medicalInfo.bloodType) {
+  const generateQR = useMemo(() => debounce(async (info: MedicalInfo) => {
+    if (info.name && info.bloodType) {
       const qrData = JSON.stringify({
-        name: medicalInfo.name,
-        blood: medicalInfo.bloodType,
-        allergies: medicalInfo.allergies.join(', '),
-        conditions: medicalInfo.conditions.join(', '),
-        emergency: medicalInfo.emergencyPhone,
-        organDonor: medicalInfo.organDonor,
+        name: info.name,
+        blood: info.bloodType,
+        allergies: info.allergies.join(', '),
+        conditions: info.conditions.join(', '),
+        emergency: info.emergencyPhone,
+        organDonor: info.organDonor,
       });
       
-      QRCode.toDataURL(qrData, {
+      const url = await QRCode.toDataURL(qrData, {
         width: 200,
         margin: 2,
         color: { dark: '#000000', light: '#ffffff' },
-      }).then(setQrDataUrl);
+      });
+      setQrDataUrl(url);
     }
-  }, [medicalInfo]);
+  }, 500), []);
+
+  useEffect(() => {
+    if (medicalInfo.name && medicalInfo.bloodType) {
+      generateQR(medicalInfo);
+    }
+  }, [medicalInfo.name, medicalInfo.bloodType, medicalInfo.allergies, medicalInfo.conditions, medicalInfo.emergencyPhone, medicalInfo.organDonor]);
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(medicalInfo));
@@ -151,6 +166,16 @@ export default function MedicalIDWidget() {
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-pink-500 to-red-600 p-5 relative">
+                {/* Family Switcher */}
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                  {['Myself', 'Mom', 'Dad', 'Kavya (Daughter)'].map((member, i) => (
+                    <button key={i} className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter whitespace-nowrap transition ${i === 0 ? 'bg-white text-pink-600 shadow-lg' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                      {member}
+                    </button>
+                  ))}
+                  <button className="px-3 py-1 rounded-full bg-pink-400/30 text-white text-[10px] font-black">+</button>
+                </div>
+
                 <button
                   onClick={() => setIsOpen(false)}
                   className="absolute top-3 right-3 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white"

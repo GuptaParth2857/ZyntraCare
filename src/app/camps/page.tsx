@@ -273,15 +273,7 @@ export default function CampsPage() {
   }, [selectedState, selectedService]);
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-x-hidden font-inter pb-24 text-white">
-      
-      {/* ── CINEMATIC BG ── */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 0%, rgba(20,184,166,0.1) 0%, transparent 70%)' }} />
-        <div className="absolute top-[10%] left-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '7s' }} />
-        <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '10s' }} />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTQgMzBoNmY2VjU0SDU0VjMwbS0wIDBiLTZiLTZiNi02aDYiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')] opacity-[0.25]" />
-      </div>
+    <div className="min-h-screen bg-transparent relative overflow-x-hidden font-inter pb-24 text-white">
 
       <AnimatePresence>
         {registeringCamp && <RegisterModal camp={registeringCamp} onClose={() => setRegisteringCamp(null)} />}

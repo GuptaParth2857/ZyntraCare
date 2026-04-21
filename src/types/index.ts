@@ -1,4 +1,6 @@
 // src/types/index.ts
+export type FacilityType = 'hospital' | 'clinic' | 'pharmacy';
+
 export interface Hospital {
   id: string;
   name: string;
@@ -28,6 +30,10 @@ export interface Hospital {
   workingHours?: string;
   doctors?: number;
   distance?: number;
+  facilityType?: FacilityType;
+  source?: string;
+  googleMapsUrl?: string;
+  directionsUrl?: string;
 }
 
 export interface Doctor {

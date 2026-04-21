@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { motion, useSpring } from 'framer-motion';
 
 export default function ActiveTheoryCursor() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const [isClicking, setIsClicking] = useState(false);
 
@@ -17,10 +16,9 @@ export default function ActiveTheoryCursor() {
 
   useEffect(() => {
     const mouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-      cursorX.set(e.clientX - 20); // 40px width / 2
+      cursorX.set(e.clientX - 20);
       cursorY.set(e.clientY - 20);
-      dotX.set(e.clientX - 4); // 8px width / 2
+      dotX.set(e.clientX - 4);
       dotY.set(e.clientY - 4);
     };
 
@@ -67,7 +65,6 @@ export default function ActiveTheoryCursor() {
         style={{ x: cursorX, y: cursorY }}
         animate={{
           scale: isClicking ? 0.8 : isHovering ? 1.5 : 1,
-          backgroundColor: isHovering ? 'rgba(255,255,255,0.1)' : 'transparent',
           border: isHovering ? '1px solid rgba(255,255,255,0)' : '1px solid rgba(255,255,255,0.5)',
         }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}

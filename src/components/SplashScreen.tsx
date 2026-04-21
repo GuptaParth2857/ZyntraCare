@@ -13,12 +13,19 @@ export default function SplashScreen() {
       setProgress((prev) => (prev >= 100 ? 100 : prev + Math.random() * 35));
     }, 180);
 
+    // Force hide after 5s to prevent infinite loading
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2800);
+    }, 5000);
+
+    // Fallback to ensure splash always hides
+    const forceHide = setTimeout(() => {
+      setShowSplash(false);
+    }, 8000);
 
     return () => {
       clearTimeout(timer);
+      clearTimeout(forceHide);
       clearInterval(interval);
     };
   }, []);

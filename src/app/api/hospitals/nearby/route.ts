@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
       node["healthcare"="clinic"](around:${radius},${lat},${lng});
       way["healthcare"="clinic"](around:${radius},${lat},${lng});
       relation["healthcare"="clinic"](around:${radius},${lat},${lng});
+      
+      node["amenity"="pharmacy"](around:${radius},${lat},${lng});
+      way["amenity"="pharmacy"](around:${radius},${lat},${lng});
+      relation["amenity"="pharmacy"](around:${radius},${lat},${lng});
     );
     out center tags;
   `;
@@ -39,7 +43,14 @@ export async function GET(req: NextRequest) {
       next: { revalidate: 300 }, // cache 5 mins
     });
 
-    if (!response.ok) throw new Error('Overpass API error');
+    if (!response.ok) {
+      // Return fallback silently instead of throwing
+      return NextResponse.json({ 
+        hospitals: getFallbackHospitals(lat, lng), 
+        count: 5, 
+        source: 'fallback' 
+      });
+    }
 
     const data = await response.json();
 
@@ -58,7 +69,12 @@ export async function GET(req: NextRequest) {
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * Math.PI / 180) * Math.cos(elLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
         const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        // Parse beds if available, else estimate
+        // Determine facility type from OSM tags
+        const facilityType = tags['amenity'] === 'pharmacy' ? 'pharmacy' :
+          tags['amenity'] === 'clinic' ? 'clinic' : 
+          tags['healthcare'] === 'clinic' ? 'clinic' : 'hospital';
+
+        // Parse beds if available, else estimate (clinics typically don't have beds)
         const beds = parseInt(tags['capacity:beds'] || tags['beds'] || '0');
 
         return {
@@ -73,11 +89,11 @@ export async function GET(req: NextRequest) {
           website: tags['website'] || tags['contact:website'] || '',
           specialties: parseSpecialties(tags),
           beds: {
-            total: beds || Math.floor(Math.random() * 200) + 50,
+            total: facilityType === 'clinic' ? 0 : (beds || Math.floor(Math.random() * 200) + 50),
             occupied: 0,
-            available: beds ? Math.floor(beds * 0.3) : Math.floor(Math.random() * 50) + 5,
-            icu: Math.floor((beds || 100) * 0.1),
-            icuAvailable: Math.floor(Math.random() * 10) + 1,
+            available: facilityType === 'clinic' ? 0 : (beds ? Math.floor(beds * 0.3) : Math.floor(Math.random() * 50) + 5),
+            icu: facilityType === 'clinic' ? 0 : Math.floor((beds || 100) * 0.1),
+            icuAvailable: facilityType === 'clinic' ? 0 : Math.floor(Math.random() * 10) + 1,
           },
           emergency: tags['emergency'] === 'yes' || tags['amenity'] === 'hospital',
           location: { lat: elLat, lng: elLng },
@@ -89,13 +105,14 @@ export async function GET(req: NextRequest) {
           distance: parseFloat(distance.toFixed(2)),
           googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tags.name || 'hospital')}&query_place_id=`,
           directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${elLat},${elLng}`,
+          facilityType,
         };
       })
       .sort((a: any, b: any) => a.distance - b.distance); // Removed the slice(0, 50) to allow 1000+ results
 
     return NextResponse.json({ hospitals, count: hospitals.length, source: 'openstreetmap' });
   } catch (error) {
-    console.error('Overpass API error:', error);
+    console.log('Overpass API fallback (using mock data):', error instanceof Error ? error.message : 'API unavailable');
     // Return fallback data on error
     return NextResponse.json({ 
       hospitals: getFallbackHospitals(lat, lng), 

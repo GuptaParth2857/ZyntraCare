@@ -7,9 +7,10 @@ import RoleGuard from '@/components/RoleGuard';
 import {
   FiActivity, FiAlertCircle, FiTruck, FiUsers, FiBarChart2,
   FiBell, FiSettings, FiMapPin, FiPhone, FiRadio, FiCheckCircle,
-  FiClock, FiAlertTriangle, FiHome, FiPlus, FiRefreshCw
+  FiClock, FiAlertTriangle, FiHome, FiPlus, FiRefreshCw, FiMic
 } from 'react-icons/fi';
 import { MdLocalHospital, MdEmergency } from 'react-icons/md';
+import AIHealthScribe from '@/components/AIHealthScribe';
 
 /* ── Mock hospital data ────────────────────────────────── */
 const HOSPITAL_ID = 'HOSP_001';
@@ -22,7 +23,7 @@ const INITIAL_BED_DATA = {
   pediatric: { total: 50, occupied: 38, available: 12 },
 };
 
-const AMBULANCES = [
+const INITIAL_ambulances = [
   { id: 'AMB-01', driver: 'Ramesh Kumar', plate: 'DL-4C-AB-1234', status: 'available', location: 'Sector 21, Noida', lastUpdated: '2 min ago' },
   { id: 'AMB-02', driver: 'Suresh Verma', plate: 'DL-4C-CD-5678', status: 'en-route', location: 'Karol Bagh → AIIMS', lastUpdated: '1 min ago' },
   { id: 'AMB-03', driver: 'Mahesh Singh', plate: 'DL-4C-EF-9012', status: 'at-hospital', location: 'Hospital Bay 3', lastUpdated: '5 min ago' },
@@ -30,17 +31,11 @@ const AMBULANCES = [
   { id: 'AMB-05', driver: 'Rajesh Gupta', plate: 'DL-4C-IJ-7890', status: 'maintenance', location: 'Garage', lastUpdated: '1 hr ago' },
 ];
 
-const EMERGENCY_CASES = [
-  { id: 'EM-1049', type: 'Cardiac Arrest', patient: 'Male, ~55 yrs', priority: 'Critical', eta: '4 min', location: 'Connaught Place', unit: 'AMB-02' },
-  { id: 'EM-1048', type: 'Road Accident', patient: 'Female, ~28 yrs', priority: 'High', eta: '12 min', location: 'Ring Road, Lajpat', unit: 'AMB-01' },
-  { id: 'EM-1047', type: 'Stroke', patient: 'Male, ~68 yrs', priority: 'Critical', eta: '8 min', location: 'Defence Colony', unit: 'AMB-04' },
-  { id: 'EM-1046', type: 'Fracture', patient: 'Child, ~10 yrs', priority: 'Medium', eta: '18 min', location: 'Saket', unit: 'AMB-03' },
-];
-
 const TABS = [
   { id: 'overview', label: 'Overview', icon: <FiHome /> },
   { id: 'ambulances', label: 'Ambulances', icon: <FiTruck /> },
   { id: 'emergencies', label: 'Emergency Feed', icon: <MdEmergency /> },
+  { id: 'scribe', label: 'Consultation AI', icon: <FiMic /> },
   { id: 'beds', label: 'Bed Management', icon: <FiActivity /> },
   { id: 'staff', label: 'Staff', icon: <FiUsers /> },
 ];
@@ -109,6 +104,13 @@ export default function HospitalDashboardPage() {
   const [notifCount, setNotifCount] = useState(3);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [beds, setBeds] = useState(INITIAL_BED_DATA);
+  const [emergencyCases, setEmergencyCases] = useState([
+    { id: 'EM-1049', type: 'Cardiac Arrest', patient: 'Male, ~55 yrs', priority: 'Critical', eta: '4 min', location: 'Connaught Place', unit: 'AMB-02', timestamp: new Date().toISOString() },
+    { id: 'EM-1048', type: 'Road Accident', patient: 'Female, ~28 yrs', priority: 'High', eta: '12 min', location: 'Ring Road, Lajpat', unit: 'AMB-01', timestamp: new Date().toISOString() },
+    { id: 'EM-1047', type: 'Stroke', patient: 'Male, ~68 yrs', priority: 'Critical', eta: '8 min', location: 'Defence Colony', unit: 'AMB-04', timestamp: new Date().toISOString() },
+    { id: 'EM-1046', type: 'Fracture', patient: 'Child, ~10 yrs', priority: 'Medium', eta: '18 min', location: 'Saket', unit: 'AMB-03', timestamp: new Date().toISOString() },
+  ]);
+  const [ambulances, setAmbulances] = useState(INITIAL_ambulances);
 
   // Pulse animation
   useEffect(() => {
@@ -127,6 +129,24 @@ export default function HospitalDashboardPage() {
       }));
       setLastRefresh(new Date());
     }, 10000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Fetch fresh emergency cases from API (every 15s)
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const res = await fetch('/api/emergency/cases');
+        const data = await res.json();
+        if (data.cases && data.cases.length > 0) {
+          setEmergencyCases(data.cases);
+        }
+      } catch (err) {
+        // Keep using local data
+      }
+    };
+    fetchCases();
+    const iv = setInterval(fetchCases, 15000);
     return () => clearInterval(iv);
   }, []);
 
@@ -211,8 +231,8 @@ export default function HospitalDashboardPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <StatCard label="Total Patients Today" value={289} sub="+14 from yesterday" color="bg-blue-500" icon={<FiUsers size={18} />} />
                   <StatCard label="Available Beds" value={beds.general.available + beds.icu.available + beds.emergency.available} sub="Across all wards" color="bg-emerald-500" icon={<FiActivity size={18} />} />
-                  <StatCard label="Active Ambulances" value={AMBULANCES.filter(a => a.status !== 'maintenance').length} sub="Ready to deploy" color="bg-orange-500" icon={<FiTruck size={18} />} />
-                  <StatCard label="Emergency Cases" value={EMERGENCY_CASES.length} sub="2 Critical inbound" color="bg-red-500" icon={<FiAlertCircle size={18} />} />
+                  <StatCard label="Active Ambulances" value={ambulances.filter(a => a.status !== 'maintenance').length} sub="Ready to deploy" color="bg-orange-500" icon={<FiTruck size={18} />} />
+                  <StatCard label="Emergency Cases" value={emergencyCases.length} sub="2 Critical inbound" color="bg-red-500" icon={<FiAlertCircle size={18} />} />
                 </div>
 
                 {/* Bed Overview */}
@@ -236,7 +256,7 @@ export default function HospitalDashboardPage() {
                     Inbound Emergency Feed
                   </h2>
                   <div className="space-y-3">
-                    {EMERGENCY_CASES.slice(0, 3).map(em => (
+                    {emergencyCases.slice(0, 3).map(em => (
                       <div key={em.id} className="flex items-center justify-between bg-black/20 rounded-2xl p-4 border border-white/5">
                         <div className="flex items-center gap-4">
                           <span className={`px-2 py-0.5 rounded-lg text-xs font-bold border ${priorityStyle[em.priority]}`}>{em.priority}</span>
@@ -256,7 +276,18 @@ export default function HospitalDashboardPage() {
               </div>
             )}
 
-            {/* ── AMBULANCES ── */}
+            {/* ── CONSULTATION AI ── */}
+            {tab === 'scribe' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="font-bold text-xl text-white">AI Consultation Scribe</h2>
+                  <span className="text-xs text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/30 font-black uppercase tracking-widest">Next-Gen Clinical AI</span>
+                </div>
+                <AIHealthScribe />
+              </div>
+            )}
+
+            {/* ── ambulances ── */}
             {tab === 'ambulances' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-2">
@@ -265,7 +296,7 @@ export default function HospitalDashboardPage() {
                     <FiPlus /> Dispatch Unit
                   </button>
                 </div>
-                {AMBULANCES.map((amb, idx) => (
+                {ambulances.map((amb, idx) => (
                   <motion.div
                     key={amb.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -308,9 +339,9 @@ export default function HospitalDashboardPage() {
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`w-3 h-3 rounded-full bg-red-400 ${pulse ? 'scale-125' : 'scale-100'} transition-transform`} />
                   <h2 className="font-bold text-xl text-white">Live Emergency Feed</h2>
-                  <span className="bg-red-500/20 border border-red-500/30 text-red-400 text-xs px-2 py-0.5 rounded-full font-bold">{EMERGENCY_CASES.length} active</span>
+                  <span className="bg-red-500/20 border border-red-500/30 text-red-400 text-xs px-2 py-0.5 rounded-full font-bold">{emergencyCases.length} active</span>
                 </div>
-                {EMERGENCY_CASES.map((em, idx) => (
+                {emergencyCases.map((em, idx) => (
                   <motion.div
                     key={em.id}
                     initial={{ opacity: 0, y: 10 }}

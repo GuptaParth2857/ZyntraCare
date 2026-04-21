@@ -167,7 +167,7 @@ export default function FirstAidPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-hidden font-inter pb-24 text-white">
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-red-900/20 via-transparent to-orange-900/10" />
         <div className="absolute top-[10%] right-[-10%] w-[600px] h-[600px] bg-red-500/10 rounded-full blur-[150px]" />

@@ -39,14 +39,61 @@ export default function Navbar() {
     { href: '/', label: t('home') },
     { href: '/hospitals', label: t('hospitals') },
     { href: '/specialists', label: t('specialists') },
-    { href: '/booking', label: 'Book Now' },
+    { href: '/pharmacies', label: 'Pharmacies' },
+    { href: '/labs', label: 'Labs' },
     { href: '/emergency', label: t('emergency'), isEmergency: true },
-    { href: '/camps', label: t('healthCamps') },
-    { href: '/install', label: 'Install App' },
+    { href: '/telehealth', label: 'Telehealth' },
+    { href: '/booking', label: 'Book Now' },
     { href: '/dashboard', label: t('myHealth') },
     { href: '/subscription', label: t('premium'), isPremium: true },
-    { href: '/contact', label: 'Contact' },
   ], [t]);
+
+  const megaMenuLinks = {
+    findCare: [
+      { href: '/health-tracker', label: 'Health Tracker' },
+      { href: '/blood-donors', label: 'Blood Donors' },
+      { href: '/wellness', label: 'Wellness' },
+      { href: '/first-aid', label: 'First Aid' },
+      { href: '/symptoms', label: 'Symptoms' },
+      { href: '/camps', label: t('healthCamps') },
+    ],
+    aiTech: [
+      { href: '/clinical-ai', label: 'Clinical AI' },
+      { href: '/ai-health-coach', label: 'AI Coach' },
+      { href: '/wearables', label: 'Wearables' },
+      { href: '/health-wallet', label: 'Smart Wallet' },
+      { href: '/medicine-verify', label: 'Verify Medicine' },
+      { href: '/blockchain-records', label: 'Blockchain Records' },
+    ],
+    newFeatures: [
+      { href: '/accessibility-mode', label: 'Eye Access 👁️' },
+      { href: '/epidemic-radar', label: 'Epidemic Radar 🌐' },
+      { href: '/organ-matching', label: 'Organ Chain 🔗' },
+      { href: '/drone-network', label: 'Drone Network 🚁' },
+      { href: '/dementia-voice', label: 'Elder Voice 🧠' },
+      { href: '/digital-twin', label: 'Digital Twin 🧬' },
+      { href: '/outbreak-radar', label: 'Outbreak Radar 🎯' },
+      { href: '/data-marketplace', label: 'Data Market 🛒' },
+      { href: '/micro-insurance', label: 'Micro Insurance 💰' },
+      { href: '/offline-mesh', label: 'Offline Mesh 📡' },
+    ],
+    moreCare: [
+      { href: '/rewards', label: 'Rewards 🏆' },
+      { href: '/family-care', label: 'Family Care 👨‍👩‍👧' },
+      { href: '/womens-health', label: "Women's Health 🌸" },
+      { href: '/communities', label: 'Communities 👥' },
+      { href: '/pill-scanner', label: 'Pill Scanner 📷' },
+      { href: '/pets', label: 'Pet Care 🐾' },
+    ],
+    adminPanel: [
+      { href: '/admin/god-mode', label: 'God Mode 🛡️' },
+      { href: '/clinical-scribe', label: 'AI Scribe 📝' },
+      { href: '/genomic-dashboard', label: 'Genomics 🧬' },
+      { href: '/eye-control', label: 'Eye Control 👁️' },
+      { href: '/chain-reaction', label: 'Chain Demo ⚡' },
+      { href: '/medications', label: 'Medications 💊' },
+    ],
+  };
 
   return (
     <>
@@ -107,7 +154,6 @@ export default function Navbar() {
                   )}
                   {link.label}
                   {link.isPremium && <FiStar className="inline ml-1 text-amber-400" size={11} aria-hidden="true" />}
-                  {/* Active underline */}
                   <span
                     className={`absolute bottom-1 left-3 right-3 h-0.5 rounded-full bg-gradient-to-r from-blue-400 to-teal-400 transition-all duration-300 ${
                       pathname === link.href ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'
@@ -116,6 +162,47 @@ export default function Navbar() {
                   />
                 </Link>
               ))}
+              
+              {/* Mega Menu */}
+              <div className="relative group">
+                <button className="px-3 py-2 rounded-xl font-medium text-sm text-gray-400 hover:text-white hover:bg-white/8 transition-all">
+                  More ▾
+                </button>
+                <div className="absolute top-full left-0 mt-2 w-[700px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="grid grid-cols-5 gap-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2">Find Care</h4>
+                      {megaMenuLinks.findCare.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      ))}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">AI & Tech</h4>
+                      {megaMenuLinks.aiTech.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      ))}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">New Features</h4>
+                      {megaMenuLinks.newFeatures.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      ))}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">More Care</h4>
+                      {megaMenuLinks.moreCare.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      ))}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Admin</h4>
+                      {megaMenuLinks.adminPanel.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </nav>
 
             {/* Right side controls */}
