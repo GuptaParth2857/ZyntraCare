@@ -326,8 +326,8 @@ export default function HospitalsPage() {
             value={searchRadius}
             onChange={e => {
               const val = parseInt(e.target.value);
-              if (val > 6) {
-                if (window.confirm('Searching beyond 6km requires ZyntraCare Premium. View plans?')) {
+              if (val > 10) {
+                if (window.confirm('Searching beyond 10km requires ZyntraCare Premium. View plans?')) {
                   window.location.href = '/subscription';
                 }
                 return;
@@ -338,9 +338,9 @@ export default function HospitalsPage() {
           >
             <option value="1" className="bg-slate-900">Radius: 1 km</option>
             <option value="2" className="bg-slate-900">Radius: 2 km</option>
-            <option value="5" className="bg-slate-900">Radius: 5 km (Default)</option>
-            <option value="6" className="bg-slate-900">Radius: 6 km</option>
-            <option value="10" className="bg-slate-900">Radius: 10 km 👑</option>
+            <option value="5" className="bg-slate-900">Radius: 5 km</option>
+            <option value="10" className="bg-slate-900">Radius: 10 km (Basic)</option>
+            <option value="15" className="bg-slate-900">Radius: 15 km 👑</option>
             <option value="25" className="bg-slate-900">Radius: 25 km 👑</option>
             <option value="50" className="bg-slate-900">Radius: 50 km 👑</option>
           </select>

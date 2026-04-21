@@ -341,7 +341,7 @@ export default function DashboardPage() {
                   <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
                 </div>
                 <div style={{ height: '600px', filter: 'brightness(0.9) contrast(1.1) saturate(1.2)' }}>
-                  <NearbyHospitalsMap initialRadius={2} />
+                  <NearbyHospitalsMap initialRadius={5} />
                 </div>
               </div>
             )}

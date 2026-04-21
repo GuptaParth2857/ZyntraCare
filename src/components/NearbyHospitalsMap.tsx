@@ -91,7 +91,7 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
   const [L, setL] = useState<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mapInstance, setMapInstance] = useState<any>(null);
-  const [radius, setRadius] = useState(initialRadius);
+  const [radius, setRadius] = useState(initialRadius || 10);
   const [selectedHospital, setSelectedHospital] = useState<RealHospital | null>(null);
   const [allHospitals, setAllHospitals] = useState<RealHospital[]>([]);
   const [realDataLoading, setRealDataLoading] = useState(false);
