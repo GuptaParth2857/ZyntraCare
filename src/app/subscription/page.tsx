@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { FiCheck, FiStar, FiShield } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -51,7 +50,9 @@ const plans = [
 ];
 
 export default function SubscriptionPage() {
-  const { data: session, update } = useSession();
+  // Guest mode - no login required
+  const session = null;
+  const update = async () => {};
   const [loading, setLoading] = useState(false);
 
   const handleSubscribe = async (planName: string) => {
@@ -63,8 +64,7 @@ export default function SubscriptionPage() {
         body: JSON.stringify({ plan: planName }),
       });
       if (res.ok) {
-        await update();
-        alert('Subscription successful!');
+        alert('Subscription successful! This is a demo - in production, payment would be processed.');
       } else {
         const err = await res.json();
         alert(err.error || 'Subscription failed');

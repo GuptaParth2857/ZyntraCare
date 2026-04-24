@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import {
   FiSearch, FiMapPin, FiCalendar, FiClock, FiFilter,
   FiCheck, FiArrowLeft, FiArrowRight, FiUser, FiPhone,
@@ -11,6 +11,8 @@ import {
 } from 'react-icons/fi';
 import { MdLocalHospital, MdEmergency } from 'react-icons/md';
 import { FaAmbulance } from 'react-icons/fa';
+
+const AnimatedBackground = dynamic(() => import('@/components/AnimatedBackground'), { ssr: false });
 
 const CITIES = ['Delhi', 'Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Chandigarh', 'Noida', 'Gurugram'];
 const SPECIALTIES = ['Cardiology', 'Orthopedics', 'Oncology', 'Neurology', 'Pediatrics', 'Gynecology', 'Gastroenterology', 'Nephrology', 'Dermatology', 'Ophthalmology', 'ENT', 'Psychiatry', 'Urology', 'Endocrinology', 'Pulmonology'];
@@ -164,7 +166,8 @@ function OTPModal({ phone, onVerified, onClose }: { phone: string; onVerified: (
 }
 
 export default function BookingPage() {
-  const { data: session } = useSession();
+  // Guest mode - no login required
+  const session = null;
   const [step, setStep] = useState(1);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(false);
@@ -175,7 +178,7 @@ export default function BookingPage() {
   const [appointmentType, setAppointmentType] = useState('In-Person Consultation');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
-  const [patientName, setPatientName] = useState(session?.user?.name || '');
+  const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [patientAge, setPatientAge] = useState('');
   const [symptoms, setSymptoms] = useState('');
@@ -261,20 +264,7 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.15, 0.28, 0.15], scale: [1, 1.06, 1] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-40 left-1/4 w-[700px] h-[700px] bg-indigo-600/20 rounded-full blur-[170px]"
-        />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.1, 0.22, 0.1], scale: [1, 1.1, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
-          className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[130px]"
-        />
-      </div>
+      <AnimatedBackground theme="indigo" />
       {showOTP && <OTPModal phone={patientPhone} onVerified={() => { setPhoneVerified(true); setShowOTP(false); handleBook(); }} onClose={() => setShowOTP(false)} />}
 
       {/* Header */}

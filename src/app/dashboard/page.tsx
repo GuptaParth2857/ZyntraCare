@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight, FiZap } from 'react-icons/fi';
@@ -69,7 +68,9 @@ const HEALTH_METRICS = [
 ];
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  // No login required - Guest mode (no session needed)
+  const status = 'authenticated'; // Skip loading state
+  const session = null; // Mock guest user
   const [activeTab, setActiveTab] = useState('appointments');
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);
@@ -89,36 +90,11 @@ export default function DashboardPage() {
     return () => controller.abort();
   }, []);
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center">
-        <div className="w-16 h-16 relative">
-          <div className="absolute inset-0 rounded-full border-4 border-white/10" />
-          <div className="absolute inset-0 rounded-full border-4 border-t-sky-500 animate-spin" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-transparent relative flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTQgMzBoNmY2VjU0SDU0VjMwbS0wIDBiLTZiLTZiNi02aDYiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')] opacity-20" />
-        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-sky-500/20 rounded-full blur-[100px]" />
-        
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center bg-white/[0.02] border border-white/10 p-12 rounded-[2.5rem] backdrop-blur-3xl shadow-2xl max-w-md w-full mx-4">
-          <div className="w-24 h-24 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(14,165,233,0.4)]">
-            <FiUser size={40} className="text-white" />
-          </div>
-          <h2 className="text-3xl font-black text-white mb-2">Access Restricted</h2>
-          <p className="text-white/50 mb-8 font-medium">Please authenticate to view your encrypted medical dashboard.</p>
-          <button onClick={() => window.location.href = '/'} className="w-full bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold py-4 rounded-2xl transition-all">Sign In</button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const isPremium = session?.user?.subscription?.plan !== 'Free' && session?.user?.subscription?.status === 'active';
+  // For guest mode, hide loading and use guest user
+  const isPremium = false; // Guest users can see basic features
+  const isLoggedIn = false;
+  const userName = 'Guest User';
+  const userEmail = '';
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-x-hidden font-inter pb-32 text-white">
@@ -143,38 +119,103 @@ export default function DashboardPage() {
               <div className="absolute inset-0 rounded-full animate-pulse border-2 border-sky-500/30" style={{ animationDuration: '3s' }} />
               <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-sky-500 to-indigo-600 p-1 rounded-full shadow-[0_0_50px_rgba(14,165,233,0.3)]">
                 <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center border-4 border-[#020617] relative overflow-hidden">
-                  <FiUser size={48} className="text-white/80 z-10" />
+                  {session?.user?.image ? (
+                    <img src={session.user.image} alt={userName} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <FiUser size={48} className="text-white/80 z-10" />
+                  )}
                   <div className="absolute bottom-0 w-full h-1/2 bg-sky-500/20 blur-md" />
                 </div>
               </div>
             </div>
-            
-            <div>
-              <p className="text-sky-400 font-bold tracking-widest uppercase text-xs mb-2">Patient Gateway</p>
-              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-2">
-                Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'},<br />
-                {session.user?.name || 'Patient'}
-              </h1>
-              <p className="text-white/40 font-medium mb-4">{session.user?.email}</p>
-              
-              <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                {isPremium ? (
-                  <span className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                    <FiStar /> Premium Activated
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2">
+                <h1 className="text-2xl md:text-3xl font-black text-white">{userName}</h1>
+                {isPremium && (
+                  <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-3 py-1 rounded-full border border-amber-500/30">
+                    <FiStar className="inline mr-1" size={12} /> PREMIUM
                   </span>
-                ) : (
-                  <Link href="/subscription" className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest transition-all">
-                    <FiStar /> Upgrade Now
-                  </Link>
                 )}
-                <span className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Profile 100%
-                </span>
+                {!isLoggedIn && (
+                  <span className="bg-teal-500/20 text-teal-400 text-xs font-bold px-3 py-1 rounded-full border border-teal-500/30">
+                    Guest User
+                  </span>
+                )}
               </div>
+              <p className="text-slate-400 text-sm mb-3">{userEmail || 'Sign in to access all features'}</p>
+              {isLoggedIn ? (
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                  <span className="bg-sky-500/15 text-sky-400 text-xs font-semibold px-3 py-1 rounded-full border border-sky-500/20">Patient</span>
+                  <span className="bg-emerald-500/15 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-500/20">Verified</span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                  <button onClick={() => window.location.href = '/subscription'} className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold px-4 py-1.5 rounded-full border border-amber-500/30 transition">
+                    <FiStar className="inline mr-1" size={12} /> Sign up for Premium
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar relative z-10">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4 relative z-10 w-full md:w-auto">
+            {isLoggedIn ? (
+              <>
+                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                  <FiPlus size={15} /> Book Appointment
+                </button>
+                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                  <FiVideo size={15} /> Teleconsult
+                </button>
+              </>
+            ) : (
+              <div className="w-full flex gap-2">
+                <button onClick={() => window.location.href = '/'} className="flex-1 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                  <FiUser size={15} /> Sign In
+                </button>
+                <button onClick={() => window.location.href = '/emergency'} className="flex-1 flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                  <FiActivity size={15} /> Emergency
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* ── Quick Access for Non-Logged Users ── */}
+        {!isLoggedIn && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-teal-950/60 to-sky-950/40 border border-teal-500/20 rounded-[2rem] p-6 mb-10 backdrop-blur-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-teal-500/20 rounded-xl flex items-center justify-center">
+                <FiZap className="text-teal-400" size={20} />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Welcome to ZyntraCare!</h3>
+                <p className="text-slate-400 text-sm">Access emergency features and health info without signing up</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Link href="/emergency" className="flex flex-col items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-4 hover:bg-red-500/20 transition">
+                <FiActivity className="text-red-400" size={24} />
+                <span className="text-white text-xs font-bold">Emergency</span>
+              </Link>
+              <Link href="/hospitals" className="flex flex-col items-center gap-2 bg-sky-500/10 border border-sky-500/20 rounded-xl p-4 hover:bg-sky-500/20 transition">
+                <FiMapPin className="text-sky-400" size={24} />
+                <span className="text-white text-xs font-bold">Hospitals</span>
+              </Link>
+              <Link href="/pharmacies" className="flex flex-col items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 hover:bg-emerald-500/20 transition">
+                <FaPills className="text-emerald-400" size={24} />
+                <span className="text-white text-xs font-bold">Pharmacies</span>
+              </Link>
+              <Link href="/labs" className="flex flex-col items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 hover:bg-purple-500/20 transition">
+                <FaNotesMedical className="text-purple-400" size={24} />
+                <span className="text-white text-xs font-bold">Labs</span>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+
+        <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar relative z-10">
             {[
               { icon: <FiVideo />, label: 'Fast Teleconsult', bg: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
               { icon: <FiCalendar />, label: 'Book Doctor', bg: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
@@ -185,8 +226,7 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-        </motion.div>
-        
+
         {/* ── WELLNESS MISSIONS (GAMIFICATION) ── */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-10">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
