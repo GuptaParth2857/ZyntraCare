@@ -5,6 +5,7 @@ import { FiMapPin, FiSearch, FiPhone, FiClock, FiNavigation, FiShield } from 're
 import { motion } from 'framer-motion';
 import { FaPills } from 'react-icons/fa';
 import Link from 'next/link';
+import DirectionsModal from '@/components/DirectionsModal';
 
 interface Pharmacy {
   id: string;
@@ -23,6 +24,8 @@ export default function PharmaciesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [showDirections, setShowDirections] = useState(false);
+  const [selectedPharmacy, setSelectedPharmacy] = useState<Pharmacy | null>(null);
 
   useEffect(() => {
     const getUserLocation = () => {
@@ -144,20 +147,30 @@ export default function PharmaciesPage() {
                       <FiPhone size={14} /> Call
                     </a>
                   )}
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${pharmacy.location.lat},${pharmacy.location.lng}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition"
-                  >
-                    <FiNavigation size={16} />
-                  </a>
+<button
+                      onClick={() => { setSelectedPharmacy(pharmacy); setShowDirections(true); }}
+                      className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition"
+                    >
+                      <FiNavigation size={16} />
+                    </button>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
       </div>
+
+      <DirectionsModal
+        isOpen={showDirections}
+        onClose={() => { setShowDirections(false); setSelectedPharmacy(null); }}
+        destination={selectedPharmacy ? {
+          name: selectedPharmacy.name,
+          address: selectedPharmacy.address,
+          lat: selectedPharmacy.location.lat,
+          lng: selectedPharmacy.location.lng,
+        } : { name: '', address: '', lat: 0, lng: 0 }}
+        userLocation={userLocation || { lat: 28.6139, lng: 77.2090 }}
+      />
     </div>
   );
 }

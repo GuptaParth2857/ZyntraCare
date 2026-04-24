@@ -35,7 +35,8 @@ export default function Globe3D() {
       lat: (Math.random() - 0.5) * Math.PI,
       lng: Math.random() * Math.PI * 2,
       size: 1 + Math.random() * 2,
-      color: ['#38bdf8', '#2dd4bf', '#818cf8', '#34d399'][Math.floor(Math.random() * 4)],
+      // Teal + Gold BEAST palette
+      color: ['#14b8a6', '#0d9488', '#5eead4', '#d4a574'][Math.floor(Math.random() * 4)],
       speed: (Math.random() - 0.5) * 0.003,
     }));
 
@@ -44,7 +45,8 @@ export default function Globe3D() {
       orbitAngle: (i / 2) * Math.PI * 2,
       orbitTilt: (i * 0.4 + 0.2) * Math.PI,
       orbitR: R * (1.2 + i * 0.08),
-      color: ['#38bdf8', '#a78bfa'][i],
+      // Teal + Gold BEAST palette
+      color: ['#14b8a6', '#d4a574'][i],
       speed: 0.012 + i * 0.007,
     }));
 

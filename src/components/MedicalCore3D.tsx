@@ -81,7 +81,7 @@ export default function MedicalCore3D() {
           ctx.beginPath();
           ctx.moveTo(p1.sx, p1.sy);
           ctx.lineTo(p2.sx, p2.sy);
-          ctx.strokeStyle = `rgba(56,189,248,${alpha.toFixed(2)})`;
+          ctx.strokeStyle = `rgba(20,184,166,${alpha.toFixed(2)})`;
           ctx.lineWidth = 1;
           ctx.stroke();
         }
@@ -98,7 +98,7 @@ export default function MedicalCore3D() {
         const pAlpha = Math.max(0.1, 0.8 - proj.z * 0.003);
         ctx.beginPath();
         ctx.arc(proj.sx, proj.sy, 1.2 * proj.s, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(168,85,247,${pAlpha.toFixed(2)})`;
+        ctx.fillStyle = `rgba(212,165,116,${pAlpha.toFixed(2)})`;
         ctx.fill();
       }
     };

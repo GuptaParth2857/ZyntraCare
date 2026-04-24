@@ -20,7 +20,7 @@ function GlowingBlob() {
   return (
     <Sphere ref={meshRef} args={[1, 100, 100]} scale={2.5}>
       <MeshDistortMaterial
-        color="#6366f1"
+        color="#14b8a6"
         attach="material"
         distort={0.5}
         speed={1.5}
@@ -62,7 +62,7 @@ function FloatingParticles() {
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial size={0.03} color="#a78bfa" transparent opacity={0.7} />
+      <pointsMaterial size={0.03} color="#14b8a6" transparent opacity={0.7} />
     </points>
   );
 }

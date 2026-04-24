@@ -10,6 +10,7 @@ import { hospitals as allHospitals } from '@/data/mockData';
 import { Hospital } from '@/types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import DirectionsModal from '@/components/DirectionsModal';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function HospitalDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +21,18 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
   const [bedData, setBedData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
+  const [showDirections, setShowDirections] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, []);
 
 const specialtyIcons: Record<string, React.ReactNode> = {
   Cardiology: <FiHeart className="text-red-500" />,
@@ -170,15 +183,13 @@ const specialtyIcons: Record<string, React.ReactNode> = {
               <FiTruck size={24} />
               Call Ambulance (102)
             </a>
-            <a
-              href={getDirectionsUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => setShowDirections(true)}
               className="flex items-center justify-center gap-3 bg-teal-600 hover:bg-teal-500 text-white py-4 rounded-2xl font-bold text-lg transition"
             >
               <FiNavigation size={24} />
               Get Directions
-            </a>
+            </button>
           </motion.div>
 
           {/* Real-time Bed Status */}
@@ -343,6 +354,18 @@ const specialtyIcons: Record<string, React.ReactNode> = {
       </main>
 
       <Footer />
+
+      <DirectionsModal
+        isOpen={showDirections}
+        onClose={() => setShowDirections(false)}
+        destination={hospital ? {
+          name: hospital.name,
+          address: hospital.address,
+          lat: hospital.location.lat,
+          lng: hospital.location.lng,
+        } : { name: '', address: '', lat: 0, lng: 0 }}
+        userLocation={userLocation || { lat: 28.6139, lng: 77.2090 }}
+      />
     </div>
   );
 }

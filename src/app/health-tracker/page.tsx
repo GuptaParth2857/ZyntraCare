@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { FiCalendar, FiCheck, FiClock, FiBell, FiActivity, FiHeart, FiCoffee, FiMoon, FiDroplet, FiShield } from 'react-icons/fi';
+
+const AnimatedBackground = dynamic(() => import('@/components/AnimatedBackground'), { ssr: false });
 
 interface Vaccine {
   id: string;
@@ -42,9 +45,10 @@ export default function VaccinationPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 relative">
+      <AnimatedBackground theme="purple" />
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-purple-700 text-white p-6">
+      <div className="bg-gradient-to-br from-violet-600 to-purple-700 text-white p-6 relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">

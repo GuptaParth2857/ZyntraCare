@@ -20,6 +20,10 @@ import { useState, useEffect } from 'react';
 
 import { NotificationProvider } from '@/components/Notifications';
 
+// AI Self-Healing System
+const SelfHealingSystem = dynamic(() => import('@/components/SelfHealingSystem'), { ssr: false });
+const GlobalErrorHandler = dynamic(() => import('@/components/GlobalErrorHandler'), { ssr: false });
+
 // ── TIER 1: Load immediately (visible/critical on first paint)
 const Navbar           = dynamic(() => import('@/components/Navbar'),           { ssr: false });
 const Footer           = dynamic(() => import('@/components/Footer'),           { ssr: false });
@@ -99,7 +103,11 @@ export default function ClientProviders({ children }: { children: React.ReactNod
     <SessionProvider>
       <LanguageProvider>
         <NotificationProvider>
-          <AppShell>{children}</AppShell>
+          <SelfHealingSystem>
+            <GlobalErrorHandler>
+              <AppShell>{children}</AppShell>
+            </GlobalErrorHandler>
+          </SelfHealingSystem>
         </NotificationProvider>
       </LanguageProvider>
     </SessionProvider>

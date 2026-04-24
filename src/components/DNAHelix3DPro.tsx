@@ -88,9 +88,10 @@ export default function DNAHelix3DPro() {
         ctx.beginPath();
         ctx.moveTo(rung.p1.x, rung.p1.y);
         ctx.lineTo(rung.p2.x, rung.p2.y);
+        // Teal + Gold BEAST palette
         const grad = ctx.createLinearGradient(rung.p1.x, rung.p1.y, rung.p2.x, rung.p2.y);
-        grad.addColorStop(0, `rgba(45,212,191,${finalAlpha})`);
-        grad.addColorStop(1, `rgba(56,189,248,${finalAlpha})`);
+        grad.addColorStop(0, `rgba(20,184,166,${finalAlpha})`); // teal
+        grad.addColorStop(1, `rgba(212,165,116,${finalAlpha})`); // gold
         ctx.strokeStyle = grad;
         ctx.lineWidth = 1.0;
         ctx.stroke();
@@ -98,7 +99,8 @@ export default function DNAHelix3DPro() {
 
       // Draw Nodes
       for (const n of nodes) {
-        const color = n.isStrand1 ? '45,212,191' : '56,189,248';
+        // Teal + Gold BEAST palette
+        const color = n.isStrand1 ? '20,184,166' : '212,165,116';
         const size = 2 * n.s;
         const depthAlpha = Math.max(0.1, 0.5 - (n.z / radius) * 0.3);
         ctx.beginPath();

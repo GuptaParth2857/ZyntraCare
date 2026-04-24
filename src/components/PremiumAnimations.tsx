@@ -43,7 +43,8 @@ export default function PremiumParticles() {
       speedX: (Math.random() - 0.5) * 0.5,
       speedY: (Math.random() - 0.5) * 0.5,
       opacity: Math.random() * 0.5 + 0.2,
-      color: ['#38bdf8', '#0ea5e9', '#06b6d4', '#22d3ee', '#67e8f9'][
+      // Teal + Gold BEAST palette
+      color: ['#14b8a6', '#0d9488', '#5eead4', '#d4a574', '#ca8a04'][
         Math.floor(Math.random() * 5)
       ],
     });
@@ -72,7 +73,8 @@ export default function PremiumParticles() {
 
           if (distance < 150) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(56, 189, 248, ${0.1 * (1 - distance / 150)})`;
+            // Teal connection lines
+            ctx.strokeStyle = `rgba(20, 184, 166, ${0.1 * (1 - distance / 150)})`;
             ctx.lineWidth = 0.5;
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);

@@ -32,7 +32,8 @@ export default function HolographicHeart3D() {
     canvas.height = 400;
 
     const newParticles: HeartParticle[] = [];
-    const colors = ['#ef4444', '#f87171', '#fca5a5', '#dc2626', '#991b1b'];
+    // Teal + warm red BEAST palette
+    const colors = ['#14b8a6', '#ef4444', '#f87171', '#dc2626', '#0d9488', '#d4a574'];
     
     for (let ring = 0; ring < 8; ring++) {
       const numParticles = 20 + ring * 8;

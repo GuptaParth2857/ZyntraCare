@@ -84,28 +84,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="image/png"
         />
 
-        {/* Apple touch icon */}
-        <link rel="apple-touch-icon" href="/images/publiczyntracare-logo.png" />
-
-        {/* PWA Manifest */}
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="ZyntraCare" />
-
-        {/* Google Analytics */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'GA_MEASUREMENT_ID');
-            `,
-          }}
+{/* Apple touch icon */}
+        <link
+          rel="apple-touch-icon"
+          href="/images/publiczyntracare-logo.png"
         />
+
+        {/* iOS Smart App Banner - Shows "Download on App Store" prompt */}
+        <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=partner=zyntracare" />
+        
+        {/* Android/Play Store - TWA support */}
+        <link rel="manifest" href="/manifest.json" />
 
         {/* Color scheme */}
         <meta name="color-scheme" content="dark light" />

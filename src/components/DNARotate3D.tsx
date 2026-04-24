@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { EffectComposer, Bloom, DepthOfField, ToneMapping } from '@react-three/postprocessing';
@@ -11,10 +11,11 @@ const RADIUS = 2.4;
 const HEIGHT = 0.5;
 const TWIST = 0.3;
 
-const darkMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.9, roughness: 0.15 });
-const orangeGlowMat = new THREE.MeshStandardMaterial({ color: '#ea580c', emissive: '#ff6600', emissiveIntensity: 5, toneMapped: false });
-const blueGlowMat = new THREE.MeshStandardMaterial({ color: '#0284c7', emissive: '#00ccff', emissiveIntensity: 4, toneMapped: false });
-const silverMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', metalness: 1.0, roughness: 0.2 });
+// Teal + Gold BEAST color palette
+const tealColor = '#14b8a6';
+const tealDark = '#0d9488';
+const goldColor = '#d4a574';
+const lightTeal = '#5eead4';
 
 function TubeSegment({ start, end, radius, material }: { start: THREE.Vector3, end: THREE.Vector3, radius: number, material: THREE.Material }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -34,7 +35,7 @@ function TubeSegment({ start, end, radius, material }: { start: THREE.Vector3, e
   );
 }
 
-function DNAStructure() {
+function DNAStructure({ bloomIntensity = 2.0 }: { bloomIntensity?: number }) {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -53,28 +54,53 @@ function DNAStructure() {
       const p1 = new THREE.Vector3(Math.cos(angle) * RADIUS, y, Math.sin(angle) * RADIUS);
       const p2 = new THREE.Vector3(Math.cos(angle + Math.PI) * RADIUS, y, Math.sin(angle + Math.PI) * RADIUS);
       
-      // We'll create varied glowing elements
-      const isBlue = Math.random() > 0.8;
-      const glowMat = isBlue ? blueGlowMat : orangeGlowMat;
+      // Teal or gold glowing elements
+      const isGold = i % 5 === 0;
+      const isTeal = i % 4 === 0;
+      const glowColor = isGold ? goldColor : (isTeal ? lightTeal : tealColor);
+      const glowEmissive = isGold ? '#d4a574' : (isTeal ? '#5eead4' : '#14b8a6');
+      const glowIntensity = (isGold || isTeal) ? 5 * bloomIntensity : 4 * bloomIntensity;
+      
       const isBroken = Math.random() > 0.85;
 
-      arr.push({ i, p1, p2, glowMat, isBroken, isBlue });
+      arr.push({ i, p1, p2, glowColor, glowEmissive, glowIntensity, isBroken, isGold, isTeal });
     }
     return arr;
-  }, []);
+  }, [bloomIntensity]);
+
+  // Create materials outside render loop for performance
+  const goldGlowMat = useMemo(() => new THREE.MeshStandardMaterial({ 
+    color: goldColor, 
+    emissive: '#d4a574', 
+    emissiveIntensity: 5 * bloomIntensity, 
+    toneMapped: false 
+  }), [bloomIntensity]);
+  
+  const tealGlowMat = useMemo(() => new THREE.MeshStandardMaterial({ 
+    color: lightTeal, 
+    emissive: '#5eead4', 
+    emissiveIntensity: 4 * bloomIntensity, 
+    toneMapped: false 
+  }), [bloomIntensity]);
+  
+  const darkMat = useMemo(() => new THREE.MeshStandardMaterial({ 
+    color: '#0a1612', 
+    metalness: 0.9, 
+    roughness: 0.15 
+  }), []);
+  
+  const silverMat = useMemo(() => new THREE.MeshStandardMaterial({ 
+    color: '#94a3b8', 
+    metalness: 1.0, 
+    roughness: 0.2 
+  }), []);
 
   return (
     <group ref={groupRef} rotation={[0.4, 0, 0.2]}>
       {rungs.map((rung, i) => {
-        // Backbone segments connecting to the NEXT rung
         const nextRung = rungs[i + 1];
-        
-        // Calculate midpoint with a gap for the center connection
         const midPoint = rung.p1.clone().lerp(rung.p2, 0.5);
-        
-        // Left rung rod (from P1 to slightly before middle)
         const leftInner = rung.p1.clone().lerp(midPoint, rung.isBroken ? 0.7 : 0.95);
-        // Right rung rod (from P2 to slightly before middle)
         const rightInner = rung.p2.clone().lerp(midPoint, rung.isBroken ? 0.7 : 0.95);
 
         return (
@@ -82,15 +108,15 @@ function DNAStructure() {
             {/* Backbone connecting to next node */}
             {nextRung && (
               <>
-                <TubeSegment start={rung.p1} end={nextRung.p1} radius={0.16} material={rung.isBlue ? blueGlowMat : darkMat} />
-                <TubeSegment start={rung.p2} end={nextRung.p2} radius={0.16} material={Math.random() > 0.9 ? blueGlowMat : darkMat} />
+                <TubeSegment start={rung.p1} end={nextRung.p1} radius={0.16} material={rung.isTeal ? tealGlowMat : darkMat} />
+                <TubeSegment start={rung.p2} end={nextRung.p2} radius={0.16} material={Math.random() > 0.9 ? tealGlowMat : darkMat} />
               </>
             )}
 
-            {/* Glowing joints on backbone */}
+            {/* Glowing joints on backbone - teal or gold */}
             <mesh position={rung.p1}>
               <sphereGeometry args={[0.22, 16, 16]} />
-              <primitive object={orangeGlowMat} />
+              <primitive object={rung.isGold ? goldGlowMat : tealGlowMat} />
             </mesh>
             <mesh position={rung.p2}>
               <cylinderGeometry args={[0.2, 0.2, 0.3, 16]} />
@@ -104,18 +130,18 @@ function DNAStructure() {
             {/* Glowing Tips in the middle */}
             <mesh position={leftInner}>
               <sphereGeometry args={[0.12, 12, 12]} />
-              <primitive object={rung.glowMat} />
+              <primitive object={rung.isGold ? goldGlowMat : tealGlowMat} />
             </mesh>
             <mesh position={rightInner}>
               <sphereGeometry args={[0.12, 12, 12]} />
-              <primitive object={rung.glowMat} />
+              <primitive object={rung.isGold ? goldGlowMat : tealGlowMat} />
             </mesh>
 
-            {/* Add occasional floating holographic text/data bits */}
+            {/* Holographic data bits - teal colored */}
             {i % 8 === 0 && (
               <mesh position={midPoint.clone().add(new THREE.Vector3(0, 0.8, 0))}>
                 <boxGeometry args={[0.2, 0.6, 0.05]} />
-                <primitive object={blueGlowMat} />
+                <primitive object={tealGlowMat} />
               </mesh>
             )}
           </React.Fragment>
@@ -126,23 +152,49 @@ function DNAStructure() {
 }
 
 export default function DNARotate3D() {
+  const [isMobile, setIsMobile] = useState(false);
+  const [bloomIntensity, setBloomIntensity] = useState(2.0);
+
+  useEffect(() => {
+    const checkDevice = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setBloomIntensity(mobile ? 1.0 : 2.0);
+    };
+
+    checkDevice();
+    window.addEventListener('resize', checkDevice, { passive: true });
+
+    // Check for reduced motion
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mq.matches) {
+      setBloomIntensity(0.5);
+    }
+
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
   return (
     <div className="w-full h-full min-h-[500px] relative cursor-move bg-transparent">
-      {/* Fallback glow background matching the reference */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(2,132,199,0.08) 0%, transparent 60%)' }} />
+      {/* Teal ambient glow background */}
+      <div className="absolute inset-0 pointer-events-none" style={{ 
+        background: 'radial-gradient(circle at center, rgba(20, 184, 166, 0.08) 0%, transparent 60%)' 
+      }} />
       
       <Canvas 
         camera={{ position: [0, 0, 14], fov: 45 }}
         gl={{ powerPreference: 'high-performance', antialias: false, alpha: true }}
+        dpr={isMobile ? [1, 1] : [1, 1.5]}
       >
-        <color attach="background" args={['#020617']} />
+        <color attach="background" args={['#0a1612']} />
         
+        {/* Teal tinted lighting */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[10, 10, 10]} intensity={2.5} color="#ffffff" />
-        <directionalLight position={[-10, -10, -10]} intensity={1.5} color="#0284c7" />
-        <pointLight position={[0, 0, 0]} intensity={3} color="#ea580c" distance={15} />
+        <directionalLight position={[-10, -10, -10]} intensity={1.5} color={tealColor} />
+        <pointLight position={[0, 0, 0]} intensity={3} color={goldColor} distance={15} />
 
-        <DNAStructure />
+        <DNAStructure bloomIntensity={bloomIntensity} />
         
         <OrbitControls 
           enableZoom={true} 
@@ -157,7 +209,7 @@ export default function DNARotate3D() {
           <Bloom 
             luminanceThreshold={0.2} 
             luminanceSmoothing={0.9} 
-            intensity={2.0} 
+            intensity={bloomIntensity} 
             mipmapBlur 
           />
           <DepthOfField 
@@ -169,7 +221,6 @@ export default function DNARotate3D() {
           <ToneMapping />
         </EffectComposer>
         
-        {/* Environment brings out the reflections in the metallic backbone */}
         <Environment preset="city" />
       </Canvas>
     </div>

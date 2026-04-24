@@ -1,5 +1,5 @@
 'use client';
-import 'leaflet/dist/leaflet.css'; // Load only when this map component renders, not globally
+import 'leaflet/dist/leaflet.css';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import { hospitals as mockHospitals } from '@/data/mockData';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import DirectionsModal from './DirectionsModal';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
@@ -83,7 +84,9 @@ function getHospitalsFromCache(): RealHospital[] | null {
 /*  Component                                                           */
 /* ------------------------------------------------------------------ */
 export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadius?: number }) {
-  const { latitude, longitude, loading: geoLoading, refreshLocation } = useGeolocation();
+  const { position, loading: geoLoading, requestLocation } = useGeolocation();
+  const latitude = position?.lat;
+  const longitude = position?.lng;
 
   const [mounted, setMounted] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -101,6 +104,19 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
   const [isOnline, setIsOnline] = useState(true);
   const [useOfflineTiles, setUseOfflineTiles] = useState(false);
   const [footfallData, setFootfallData] = useState<Record<string, { level: string; label: string; color: string }>>({});
+  const [showDirections, setShowDirections] = useState(false);
+  const [directionsTarget, setDirectionsTarget] = useState<{ name: string; address: string; lat: number; lng: number } | null>(null);
+
+  // Listen for custom directions event from marker popups
+  useEffect(() => {
+    const handleOpenDirections = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setDirectionsTarget({ name: detail.name, address: detail.address || detail.name, lat: detail.lat, lng: detail.lng });
+      setShowDirections(true);
+    };
+    window.addEventListener('openDirections', handleOpenDirections);
+    return () => window.removeEventListener('openDirections', handleOpenDirections);
+  }, []);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -421,7 +437,7 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
           ${hospital.phone ? `<p style="font-size:11px;color:#475569;margin-bottom:8px;">📞 ${hospital.phone}</p>` : ''}
           <div style="display:flex;gap:6px;">
             ${hospital.phone ? `<a href="tel:${hospital.phone}" style="flex:1;background:#0284c7;color:white;padding:7px;border-radius:8px;text-align:center;text-decoration:none;font-size:11px;font-weight:600;">📞 Call</a>` : ''}
-            <a href="${hospital.directionsUrl}" target="_blank" rel="noopener noreferrer" style="flex:1;background:#16a34a;color:white;padding:7px;border-radius:8px;text-align:center;text-decoration:none;font-size:11px;font-weight:600;">🗺️ Directions</a>
+            <button onclick="window.dispatchEvent(new CustomEvent('openDirections', {detail: {lat: ${hospital.location.lat}, lng: ${hospital.location.lng}, name: '${hospital.name}', address: '${hospital.address || ''}'}}))" style="flex:1;background:#16a34a;color:white;padding:7px;border-radius:8px;text-align:center;text-decoration:none;font-size:11px;font-weight:600;cursor:pointer;border:none;">🗺️ Directions</button>
             <a href="${hospital.googleMapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(hospital.name)}`}" target="_blank" rel="noopener noreferrer" style="background:#f8fafc;border:1px solid #e2e8f0;color:#475569;padding:7px 10px;border-radius:8px;text-align:center;text-decoration:none;font-size:11px;">G</a>
           </div>
         </div>
@@ -456,7 +472,7 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
   };
 
   const handleMyLocation = () => {
-    refreshLocation();
+    requestLocation();
     if (mapInstance && latitude && longitude) {
       mapInstance.flyTo([latitude, longitude], 13, { duration: 1 });
     }
@@ -782,13 +798,12 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
                           {h.emergency ? <span className="text-red-400 text-xs font-bold bg-red-400/10 px-2 py-1 rounded-lg">YES</span> : <span className="text-gray-500 text-xs">NO</span>}
                         </td>
                         <td className="p-3 text-right">
-                          <a 
-                            href={h.directionsUrl} 
-                            target="_blank" rel="noopener noreferrer"
-                            className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg inline-block transition-colors"
+                          <button 
+                            onClick={() => { setDirectionsTarget({ name: h.name, address: h.address, lat: h.location.lat, lng: h.location.lng }); setShowDirections(true); }}
+                            className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg inline-block transition-colors cursor-pointer"
                           >
                             Map ↗
-                          </a>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -799,6 +814,13 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DirectionsModal
+        isOpen={showDirections}
+        onClose={() => { setShowDirections(false); setDirectionsTarget(null); }}
+        destination={directionsTarget || { name: '', address: '', lat: 0, lng: 0 }}
+        userLocation={{ lat: latitude || 28.6139, lng: longitude || 77.2090 }}
+      />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 'use client';
-import 'leaflet/dist/leaflet.css'; // Load only when this map component renders, not globally
+import 'leaflet/dist/leaflet.css';
 
 import { useEffect, useState, useCallback } from 'react';
 import { FiPhone, FiClock, FiStar, FiPlus, FiMinus, FiNavigation, FiRefreshCw } from 'react-icons/fi';
 import { Hospital } from '@/types';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import DirectionsModal from './DirectionsModal';
 
 interface HospitalMapProps {
   hospitals: Hospital[];
@@ -12,12 +13,27 @@ interface HospitalMapProps {
 }
 
 export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMapProps) {
-  const { latitude, longitude, loading, refreshLocation } = useGeolocation();
+  const { position, loading: geoLoading, requestLocation } = useGeolocation();
+  const latitude = position?.lat;
+  const longitude = position?.lng;
   const [radius, setRadius] = useState(50);
   const [filteredHospitals, setFilteredHospitals] = useState<Hospital[]>(hospitals);
   const [mounted, setMounted] = useState(false);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [L, setL] = useState<any>(null);
+  const [showDirections, setShowDirections] = useState(false);
+  const [directionsTarget, setDirectionsTarget] = useState<{ name: string; address: string; lat: number; lng: number } | null>(null);
+
+  // Listen for custom directions event from marker popups
+  useEffect(() => {
+    const handleOpenDirections = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setDirectionsTarget({ name: detail.name, address: detail.address || detail.name, lat: detail.lat, lng: detail.lng });
+      setShowDirections(true);
+    };
+    window.addEventListener('openHospitalDirections', handleOpenDirections);
+    return () => window.removeEventListener('openHospitalDirections', handleOpenDirections);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -161,7 +177,7 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
           </div>
           <div style="display:flex;gap:6px;">
             <a href="tel:${hospital.phone}" style="flex:1;background:#0284c7;color:white;padding:8px;border-radius:8px;text-align:center;text-decoration:none;font-size:12px;font-weight:600;">📞 Call</a>
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${hospital.location.lat},${hospital.location.lng}" target="_blank" style="flex:1;background:#16a34a;color:white;padding:8px;border-radius:8px;text-align:center;text-decoration:none;font-size:12px;font-weight:600;">🗺️ Directions</a>
+            <button onclick="window.dispatchEvent(new CustomEvent('openHospitalDirections', {detail: {lat: ${hospital.location.lat}, lng: ${hospital.location.lng}, name: '${hospital.name}', address: '${hospital.address}'}}))" style="flex:1;background:#16a34a;color:white;padding:8px;border-radius:8px;text-align:center;text-decoration:none;font-size:12px;font-weight:600;cursor:pointer;border:none;">🗺️ Directions</button>
           </div>
         </div>
       `;
@@ -224,7 +240,7 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
         {/* My Location button */}
         <button
           onClick={() => {
-            refreshLocation();
+            requestLocation();
             if (mapInstance && latitude && longitude) mapInstance.setView([latitude, longitude], 13);
           }}
           className="bg-white rounded-xl shadow-lg p-3 flex items-center gap-2 hover:bg-gray-50 transition w-full"
@@ -235,7 +251,7 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
 
         {/* Refresh */}
         <button
-          onClick={refreshLocation}
+          onClick={requestLocation}
           className="bg-white rounded-xl shadow-lg p-3 flex items-center gap-2 hover:bg-gray-50 transition w-full"
         >
           <FiRefreshCw className="text-gray-600" size={16} />
@@ -265,8 +281,15 @@ export default function HospitalMap({ hospitals, onHospitalSelect }: HospitalMap
         <p className="text-xs text-slate-600 font-semibold">
           {filteredHospitals.reduce((a, h) => a + h.beds.available, 0)} beds available
         </p>
-        {loading && <p className="text-xs text-blue-600 mt-1 animate-pulse">📡 Getting location...</p>}
+        {geoLoading && <p className="text-xs text-blue-600 mt-1 animate-pulse">📡 Getting location...</p>}
       </div>
+
+      <DirectionsModal
+        isOpen={showDirections}
+        onClose={() => { setShowDirections(false); setDirectionsTarget(null); }}
+        destination={directionsTarget || { name: '', address: '', lat: 0, lng: 0 }}
+        userLocation={{ lat: latitude || 28.6139, lng: longitude || 77.2090 }}
+      />
     </div>
   );
 }

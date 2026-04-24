@@ -27,7 +27,8 @@ export default function DNAHelix3D() {
     canvas.height = 600;
 
     const newParticles: HelixPoint[] = [];
-    const colors = ['#0ea5e9', '#14b8a6', '#8b5cf6', '#ec4899', '#22c55e', '#f97316'];
+    // Teal + Gold BEAST palette
+    const colors = ['#14b8a6', '#0d9488', '#5eead4', '#d4a574', '#ca8a04', '#facc15'];
     const numPoints = 32;
     const amplitude = 100;
     const frequency = 0.02;

@@ -7,6 +7,7 @@ import {
   FiActivity, FiGrid, FiHeart, FiClock, FiShield, FiAlertCircle, FiUsers
 } from 'react-icons/fi';
 import { FaAmbulance, FaHospital, FaUserMd, FaBed } from 'react-icons/fa';
+import DirectionsModal from './DirectionsModal';
 
 interface Hospital {
   id: string;
@@ -94,6 +95,8 @@ export default function EmergencyCallWidget() {
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [footfallData, setFootfallData] = useState<Record<string, FootfallData>>({});
   const [reportingId, setReportingId] = useState<string | null>(null);
+  const [showDirections, setShowDirections] = useState(false);
+  const [directionsTarget, setDirectionsTarget] = useState<Hospital | null>(null);
 
   const startSOS = useCallback(() => {
     setIsSOSOpen(true);
@@ -384,9 +387,12 @@ export default function EmergencyCallWidget() {
                               <FiPhone size={14} /> Find Phone
                             </a>
                           )}
-                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`} target="_blank" rel="noopener" className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition">
+                          <button 
+                            onClick={() => { setDirectionsTarget(h); setShowDirections(true); }}
+                            className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition"
+                          >
                             <FiNavigation size={16} />
-                          </a>
+                          </button>
                           <button 
                             onClick={() => setReportingId(h.id)}
                             className="w-12 h-12 bg-purple-600 hover:bg-purple-500 rounded-xl flex items-center justify-center text-white transition"
@@ -484,6 +490,18 @@ export default function EmergencyCallWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DirectionsModal
+        isOpen={showDirections}
+        onClose={() => { setShowDirections(false); setDirectionsTarget(null); }}
+        destination={directionsTarget ? {
+          name: directionsTarget.name,
+          address: directionsTarget.address,
+          lat: directionsTarget.location.lat,
+          lng: directionsTarget.location.lng,
+        } : { name: '', address: '', lat: 0, lng: 0 }}
+        userLocation={userLocation || { lat: 28.6139, lng: 77.2090 }}
+      />
     </>
   );
 }

@@ -2,11 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { 
   FiActivity, FiAlertTriangle, FiCheckCircle, FiX, FiDroplet, FiGitMerge,
   FiHeart, FiShield, FiCpu, FiDatabase, FiTrendingUp, FiClock, FiDownload,
-  FiUpload, FiRefreshCw, FiInfo, FiZap, FiTarget
+  FiUpload, FiRefreshCw, FiInfo, FiZap, FiTarget, FiArrowLeft
 } from 'react-icons/fi';
+
+const DNAUltra3D = dynamic(() => import('@/components/DNAUltra3D'), { ssr: false });
 
 interface GeneVariant {
   gene: string;
@@ -134,7 +138,7 @@ export default function GenomicDashboardPage() {
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-6">
-          <motion.div 
+<motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden"
@@ -146,68 +150,7 @@ export default function GenomicDashboardPage() {
               </h2>
             </div>
             <div className="h-80 relative overflow-hidden bg-gradient-to-b from-[#0a0a0f] to-[#0f172a]">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div 
-                  animate={{ rotateY: dnaRotation }}
-                  className="relative w-32 h-72"
-                  style={{ perspective: '1000px' }}
-                >
-                  {[...Array(20)].map((_, i) => {
-                    const y = i * 18 - 180;
-                    const phase = (i * 36 + dnaRotation) * (Math.PI / 180);
-                    const x1 = Math.cos(phase) * 60;
-                    const z1 = Math.sin(phase) * 40;
-                    const x2 = -x1;
-                    const z2 = -z1;
-                    const opacity = Math.abs(Math.sin(phase)) * 0.8 + 0.2;
-                    
-                    return (
-                      <div key={i} className="absolute w-full" style={{ top: '50%', transform: `translateY(${y}px)` }}>
-                        <motion.div
-                          animate={{ 
-                            x: x1,
-                            opacity: opacity,
-                            scaleX: 1 + Math.sin(phase) * 0.3
-                          }}
-                          className="absolute left-1/2 w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]"
-                          style={{ 
-                            boxShadow: `0 0 ${10 + Math.sin(phase) * 10}px rgba(6,182,212,${opacity})`
-                          }}
-                        />
-                        <motion.div
-                          animate={{ 
-                            x: x2,
-                            opacity: opacity,
-                            scaleX: 1 + Math.sin(phase + Math.PI) * 0.3
-                          }}
-                          className="absolute left-1/2 w-3 h-3 rounded-full bg-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.8)]"
-                          style={{ 
-                            boxShadow: `0 0 ${10 + Math.sin(phase + Math.PI) * 10}px rgba(236,72,153,${opacity})`
-                          }}
-                        />
-                        <div 
-                          className="absolute left-1/2 h-0.5 bg-gradient-to-r from-cyan-500/30 via-white/50 to-pink-500/30"
-                          style={{ 
-                            width: `${Math.abs(x1 - x2)}px`,
-                            transform: 'translateX(-50%)'
-                          }} 
-                        />
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              </div>
-              
-              <div className="absolute top-4 left-4 text-xs font-mono text-cyan-400/70">
-                ROTATING DNA HELIX<br/>
-                GENOME: 23 CHROMOSOMES<br/>
-                GENES ANALYZED: 8
-              </div>
-              <div className="absolute bottom-4 right-4 text-xs font-mono text-purple-400/70 text-right">
-                CYP2D6: *10/CT<br/>
-                CYP2C9: *2/AA<br/>
-                SLCO1B1: 521TT
-              </div>
+              <DNAUltra3D height={320} />
             </div>
           </motion.div>
 

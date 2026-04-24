@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FiArrowRight, FiShield, FiHeart, FiMapPin, FiPhone, FiActivity, FiUsers, FiAward, FiZap, FiCpu, FiStar, FiTrendingUp, FiCheckCircle, FiBookOpen, FiCalendar, FiClock, FiEye, FiLock, FiPlay, FiMessageCircle, FiSend, FiCode } from 'react-icons/fi';
+import { FiArrowRight, FiShield, FiHeart, FiMapPin, FiPhone, FiActivity, FiUsers, FiAward, FiZap, FiCpu, FiStar, FiTrendingUp, FiCheckCircle, FiBookOpen, FiCalendar, FiClock, FiEye, FiLock, FiPlay, FiMessageCircle, FiSend, FiCode, FiRefreshCw, FiNavigation, FiFilter } from 'react-icons/fi';
 import { FaHeartbeat, FaBrain, FaBone, FaBaby, FaSpa, FaEye, FaTooth, FaStethoscope, FaLungs, FaRibbon, FaHeart, FaDna, FaUserMd } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -12,11 +12,17 @@ import Image from 'next/image';
 
 import { AnimatedGradientText, MorphingBlob, FloatingIcon, PulseRing } from '@/components/PremiumAnimations';
 import ClientOnly from '@/components/ClientOnly';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { useNearbyPlaces, RADIUS_OPTIONS, Place } from '@/hooks/useNearbyPlaces';
+import { PlaceCard, PlaceCardSkeleton } from '@/components/PlaceCard';
+import LocationPermission from '@/components/LocationPermission';
 
 const SearchBar = dynamic(() => import('@/components/SearchBar'), { ssr: false, loading: () => <div className="h-14 bg-white/5 animate-pulse rounded-2xl" /> });
 const HospitalCard = dynamic(() => import('@/components/HospitalCard'), { ssr: false });
 const DoctorCard = dynamic(() => import('@/components/DoctorCard'), { ssr: false });
 const DNARotate3D = dynamic(() => import('@/components/DNARotate3D'), { ssr: false });
+const DNAUltra3D = dynamic(() => import('@/components/DNAUltra3D'), { ssr: false });
+const NearbyMap = dynamic(() => import('@/components/NearbyMap'), { ssr: false, loading: () => <div className="w-full h-full bg-slate-800/50 animate-pulse flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin" /></div> });
 
 function usePerformanceMode() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(true);
@@ -104,6 +110,175 @@ function StatCard({ value, label, icon: Icon, idx }: { value: string; label: str
 }
 
 const MemoizedStatCard = memo(StatCard);
+
+// Hero Nearby Map Component - Real-time location-based hospitals
+function HeroNearbyMap() {
+  const { position, loading, error, requestLocation, hasPermission } = useGeolocation();
+  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'clinic' | 'pharmacy'>('all');
+  const [radius, setRadius] = useState(2);
+  
+  const {
+    places,
+    hospitals: hospitalList,
+    clinics: clinicList,
+    pharmacies: pharmacyList,
+    loading: placesLoading,
+    error: placesError,
+    totalCount,
+  } = useNearbyPlaces(position?.lat ?? null, position?.lng ?? null, {
+    initialRadius: radius,
+    autoFetch: true,
+  });
+
+  // Filter by type
+  const filteredPlaces = useMemo(() => {
+    if (selectedType === 'all') return places;
+    return places.filter(p => p.type === selectedType);
+  }, [places, selectedType]);
+
+  // Show top 3 places
+  const topPlaces = filteredPlaces.slice(0, 3);
+
+  // No permission state
+  if (hasPermission === false) {
+    return (
+      <div className="w-full h-full flex items-center justify-center p-4">
+        <LocationPermission
+          onRequestPermission={requestLocation}
+          loading={loading}
+          error={error || placesError}
+        />
+      </div>
+    );
+  }
+
+  // Loading state
+  if (loading || !position) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mb-4 mx-auto" />
+          <p className="text-teal-400 text-sm">Getting your location...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      {/* Map Section */}
+      <div className="flex-1 min-h-[200px]">
+        <NearbyMap
+          places={filteredPlaces}
+          userLat={position.lat}
+          userLng={position.lng}
+          radius={radius}
+          height="100%"
+          compact
+          showRadiusCircle
+        />
+      </div>
+      
+      {/* Bottom Section - Type filters + List */}
+      <div className="bg-slate-900/90 backdrop-blur-sm p-4 space-y-3">
+        {/* Type Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setSelectedType('all')}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              selectedType === 'all'
+                ? 'bg-teal-500 text-white'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            All ({totalCount})
+          </button>
+          <button
+            onClick={() => setSelectedType('hospital')}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              selectedType === 'hospital'
+                ? 'bg-red-500 text-white'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            🏥 {hospitalList.length}
+          </button>
+          <button
+            onClick={() => setSelectedType('clinic')}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              selectedType === 'clinic'
+                ? 'bg-blue-500 text-white'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            🏨 {clinicList.length}
+          </button>
+          <button
+            onClick={() => setSelectedType('pharmacy')}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              selectedType === 'pharmacy'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            💊 {pharmacyList.length}
+          </button>
+          
+          {/* Radius selector */}
+          <div className="ml-auto flex items-center gap-1">
+            <FiFilter size={12} className="text-slate-500" />
+            <select
+              value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+              className="bg-white/5 text-slate-400 text-xs px-2 py-1.5 rounded-lg border-none outline-none"
+            >
+              {RADIUS_OPTIONS.map(r => (
+                <option key={r} value={r}>{r}km</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        {/* Places List */}
+        {placesLoading ? (
+          <div className="space-y-2">
+            <PlaceCardSkeleton />
+            <PlaceCardSkeleton />
+          </div>
+        ) : topPlaces.length > 0 ? (
+          <div className="space-y-2 max-h-[120px] overflow-y-auto scrollbar-thin">
+            {topPlaces.map((place, idx) => (
+              <PlaceCard
+                key={`${place.id}_${idx}`}
+                place={place}
+                compact
+              />
+            ))}
+            {filteredPlaces.length > 3 && (
+              <Link
+                href="/hospitals"
+                className="flex items-center justify-center gap-2 text-teal-400 text-xs font-semibold py-2 hover:text-teal-300 transition"
+              >
+                View all {filteredPlaces.length} places
+                <FiArrowRight size={12} />
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-slate-500 text-sm">No places found within {radius}km</p>
+            <button
+              onClick={() => setRadius(10)}
+              className="text-teal-400 text-xs mt-1 hover:text-teal-300"
+            >
+              Expand search radius
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const chatMessages = [
   { role: 'ai', text: "Hello! I'm your AI Medical Assistant powered by Gemini. Describe your symptoms and I'll help guide you." },
@@ -310,12 +485,16 @@ const tagColors: Record<string, string> = {
   'In-Depth': 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   'Awareness': 'bg-pink-500/15 text-pink-400 border-pink-500/25',
   'Behind The Scenes': 'bg-teal-500/15 text-teal-400 border-teal-500/25',
+  'Featured': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+  'Popular': 'bg-rose-500/15 text-rose-400 border-rose-500/25',
+  'New': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 };
 
 const catColors: Record<string, string> = {
   'Cardiology': 'text-red-400', 'Technology': 'text-purple-400',
   'Public Health': 'text-emerald-400', 'Endocrinology': 'text-amber-400',
   'Mental Health': 'text-pink-400', 'Innovation': 'text-sky-400',
+  'Wellness': 'text-teal-400', 'Nutrition': 'text-green-400',
 };
 
 interface BlogPost {
@@ -335,6 +514,7 @@ interface VideoMasterclass {
   title: string;
   category: string;
   thumbnail: string;
+  videoUrl?: string;
   isLive?: boolean;
   scheduledDate?: string;
   isPremium?: boolean;
@@ -356,6 +536,50 @@ const blogPosts: BlogPost[] = [
     tag: 'Trending',
     excerpt: 'How AI and robotics are transforming complex surgeries into minimally invasive procedures.',
     author: 'Dr. Amit Sharma'
+  },
+  {
+    id: 2,
+    title: 'Understanding Heart Health: A Complete Guide',
+    category: 'Cardiology',
+    readTime: '7 min read',
+    date: 'Apr 8, 2026',
+    image: '/images/publiczyntracare-logo.png',
+    tag: 'Featured',
+    excerpt: 'Everything you need to know about maintaining cardiovascular health in your daily life.',
+    author: 'Dr. Priya Mehta'
+  },
+  {
+    id: 3,
+    title: 'Mental Health Matters: Breaking the Stigma',
+    category: 'Wellness',
+    readTime: '6 min read',
+    date: 'Apr 5, 2026',
+    image: '/images/publiczyntracare-logo.png',
+    tag: 'Popular',
+    excerpt: 'Exploring the importance of mental health awareness and available support systems.',
+    author: 'Dr. Raj Patel'
+  },
+  {
+    id: 4,
+    title: 'AI in Healthcare: Revolutionizing Diagnosis',
+    category: 'Technology',
+    readTime: '8 min read',
+    date: 'Apr 3, 2026',
+    image: '/images/publiczyntracare-logo.png',
+    tag: 'New',
+    excerpt: 'How artificial intelligence is helping doctors detect diseases earlier and more accurately.',
+    author: 'Dr. Sarah Khan'
+  },
+  {
+    id: 5,
+    title: 'Nutrition Basics: Building a Healthy Plate',
+    category: 'Nutrition',
+    readTime: '4 min read',
+    date: 'Apr 1, 2026',
+    image: '/images/publiczyntracare-logo.png',
+    tag: 'Trending',
+    excerpt: 'Simple guidelines for creating balanced meals that support overall health.',
+    author: 'Anjali Desai'
   }
 ];
 
@@ -372,6 +596,58 @@ const videoMasterclasses: VideoMasterclass[] = [
     description: 'A deep dive into arrhythmias.',
     host: 'Dr. Rajeev Gupta',
     hostRole: 'Senior Cardiologist'
+  },
+  {
+    id: 2,
+    title: 'Diabetes Management Guide',
+    category: 'Endocrinology',
+    thumbnail: '/images/publiczyntracare-logo.png',
+    isLive: false,
+    isPremium: false,
+    duration: '38 mins',
+    viewCount: '8.5k',
+    description: 'Living well with diabetes.',
+    host: 'Dr. Anita Sharma',
+    hostRole: 'Endocrinologist'
+  },
+  {
+    id: 3,
+    title: 'Mental Wellness 101',
+    category: 'Mental Health',
+    thumbnail: '/images/publiczyntracare-logo.png',
+    isLive: true,
+    isPremium: false,
+    duration: 'LIVE',
+    viewCount: '2.3k',
+    description: 'Managing stress and anxiety.',
+    host: 'Dr. Vikram Singh',
+    hostRole: 'Psychiatrist'
+  },
+  {
+    id: 4,
+    title: 'Pregnancy Care Essentials',
+    category: 'Gynecology',
+    thumbnail: '/images/publiczyntracare-logo.png',
+    isLive: false,
+    isPremium: true,
+    duration: '52 mins',
+    viewCount: '15k',
+    description: 'A complete guide for expecting mothers.',
+    host: 'Dr. Priya Menon',
+    hostRole: 'Gynecologist'
+  },
+  {
+    id: 5,
+    title: 'Brain Health & Memory',
+    category: 'Neurology',
+    thumbnail: '/images/publiczyntracare-logo.png',
+    isLive: false,
+    isPremium: false,
+    duration: '41 mins',
+    viewCount: '6.2k',
+    description: 'Keeping your mind sharp.',
+    host: 'Dr. Sanjay Rao',
+    hostRole: 'Neurologist'
   }
 ];
 
@@ -447,100 +723,156 @@ function BlogSection({ posts }: { posts: BlogPost[] }) {
 }
 
 function VideoSection({ videos }: { videos: VideoMasterclass[] }) {
+  const featuredVideo = videos[0];
+  const otherVideos = videos.slice(1, 5);
+  
   return (
-    <section className="py-24 relative z-10 overflow-hidden">
+    <section className="py-28 relative z-10 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/20 to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] bg-rose-900/5 blur-[150px] rounded-full" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50vw] h-[50vw] bg-rose-600/10 blur-[180px] rounded-full" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="flex flex-col md:flex-row justify-between items-end mb-14 gap-4">
+          className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
           <div>
-            <p className="text-rose-400 font-bold tracking-widest uppercase text-sm mb-2">ZyntraCare Studio</p>
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-2">
-              Video <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-orange-400">Masterclasses</span>
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500/20 to-orange-500/20 border border-rose-500/30 px-4 py-1.5 rounded-full mb-4">
+              <span className="w-2 h-2 bg-rose-400 rounded-full animate-pulse" />
+              <span className="text-rose-400 text-xs font-bold uppercase tracking-widest">ZyntraCare Studio</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-3">
+              Video <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-orange-400 to-amber-400">Masterclasses</span>
             </h2>
-            <p className="text-slate-400 text-lg">Free expert sessions from India's top doctors & researchers.</p>
+            <p className="text-slate-400 text-lg max-w-xl">Expert healthcare knowledge from India's top doctors — free for everyone.</p>
           </div>
-          <Link href="/blogs" className="flex items-center gap-2 text-rose-400 hover:text-rose-300 font-bold bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 hover:border-rose-500/40 px-6 py-2.5 rounded-xl transition-all group flex-shrink-0">
-            All Videos <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
+          <Link href="/blogs" className="flex items-center gap-2 text-white hover:text-rose-300 font-semibold bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/40 px-5 py-2.5 rounded-xl transition-all group">
+            <span>View All</span>
+            <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {videos.slice(0, 5).map((video, i) => (
-            <motion.div key={video.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-              className={`group ${i === 0 ? 'md:col-span-2 lg:col-span-1' : ''}`}>
-              <div className="bg-slate-900/70 border border-white/8 rounded-[1.8rem] overflow-hidden hover:border-rose-500/25 hover:shadow-[0_0_35px_rgba(244,63,94,0.08)] transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
-                <div className="relative h-48 overflow-hidden flex-shrink-0">
-                  <Image src={video.thumbnail} alt={video.title} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/20 to-transparent" />
+        {/* Featured Video */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-10"
+        >
+          <a 
+            href={featuredVideo.videoUrl || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="group relative block"
+          >
+            <div className="relative aspect-[21/9] md:aspect-[2.5/1] rounded-3xl overflow-hidden">
+              <Image 
+                src={featuredVideo.thumbnail} 
+                alt={featuredVideo.title} 
+                fill
+                sizes="(max-width: 768px) 100vw, 80vw"
+                unoptimized
+                className="object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-transparent" />
+              
+              <motion.div 
+                whileHover={{ scale: 1.1 }}
+                className="absolute left-8 md:left-16 top-1/2 -translate-y-1/2 w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md border-2 border-white/30 flex items-center justify-center shadow-[0_0_40px_rgba(244,63,94,0.4)] group-hover:shadow-[0_0_60px_rgba(244,63,94,0.6)] transition-all"
+              >
+                <FiPlay className="text-white text-3xl ml-1" />
+              </motion.div>
 
-                  <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
-                    {video.isLive && (
-                      <span className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-[0_0_12px_rgba(220,38,38,0.6)]">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" /> LIVE
-                      </span>
-                    )}
-                    {video.scheduledDate && !video.isLive && (
-                      <span className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">
-                        <FiCalendar size={10} /> Coming Soon
-                      </span>
-                    )}
-                    {video.isPremium && (
-                      <span className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">
-                        <FiStar size={10} /> Premium
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <motion.div whileHover={{ scale: 1.12 }} className={`w-14 h-14 rounded-full flex items-center justify-center backdrop-blur-md border shadow-2xl transition-all duration-300 ${
-                      video.isLive ? 'bg-red-600/80 border-red-400/50 group-hover:bg-red-500/90' :
-                      video.isPremium ? 'bg-amber-500/30 border-amber-400/40 group-hover:bg-amber-500/50' :
-                      'bg-white/15 border-white/25 group-hover:bg-white/25'
-                    }`}>
-                      <FiPlay className="text-white ml-1" size={22} />
-                    </motion.div>
-                  </div>
-
-                  {!video.isLive && (
-                    <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-lg">
-                      {video.duration}
-                    </div>
-                  )}
-                  {video.viewCount && (
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-slate-300 text-xs px-2.5 py-1 rounded-lg">
-                      <FiEye size={11} /> {video.viewCount} views
-                    </div>
-                  )}
+              <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="bg-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    Featured
+                  </span>
+                  <span className="bg-white/10 backdrop-blur-sm text-white/80 text-xs font-medium px-3 py-1 rounded-full">
+                    {featuredVideo.category}
+                  </span>
                 </div>
-
-                <div className="p-5 flex flex-col flex-1">
-                  <p className="text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">{video.category}</p>
-                  <h3 className="text-white font-black text-sm leading-snug mb-2 group-hover:text-rose-300 transition-colors line-clamp-2 flex-1">{video.title}</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed mb-4 line-clamp-2">{video.description}</p>
-                  {video.scheduledDate && (
-                    <div className="flex items-center gap-1.5 text-amber-400 text-xs font-semibold mb-3">
-                      <FiCalendar size={12} /> {video.scheduledDate}
+                <h3 className="text-white text-2xl md:text-4xl font-black mb-2 group-hover:text-rose-300 transition-colors">
+                  {featuredVideo.title}
+                </h3>
+                <p className="text-slate-300 text-sm md:text-base max-w-xl mb-4 line-clamp-2">
+                  {featuredVideo.description}
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-xs font-bold text-white">
+                      {featuredVideo.host.split(' ')[0][0]}
                     </div>
-                  )}
-                  <div className="flex items-center gap-2.5 pt-3 border-t border-white/5 mt-auto">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
-                      {video.host.split(' ')[1]?.[0] || 'H'}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-white text-xs font-bold truncate">{video.host}</p>
-                      <p className="text-slate-500 text-xs truncate">{video.hostRole.split(',')[0]}</p>
-                    </div>
-                    {video.isPremium && <FiLock className="text-amber-400 ml-auto flex-shrink-0" size={14} />}
+                    <span className="text-white text-sm font-medium">{featuredVideo.host}</span>
                   </div>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-400 text-sm">{featuredVideo.duration}</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-slate-400 text-sm">{featuredVideo.viewCount} views</span>
                 </div>
               </div>
+
+              <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg">
+                {featuredVideo.duration}
+              </div>
+            </div>
+          </a>
+        </motion.div>
+
+        {/* Other Videos Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {otherVideos.map((video, i) => (
+            <motion.div 
+              key={video.id} 
+              initial={{ opacity: 0, y: 20 }} 
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }} 
+              transition={{ delay: i * 0.05 }}
+            >
+              <a 
+                href={video.videoUrl || '#'} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group block bg-slate-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-rose-500/30 hover:bg-slate-900/80 transition-all duration-300"
+              >
+                <div className="relative aspect-video overflow-hidden">
+                  <Image 
+                    src={video.thumbnail} 
+                    alt={video.title} 
+                    fill
+                    sizes="(max-width: 768px) 100vw, 25vw"
+                    unoptimized
+                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+                  
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+                      <FiPlay className="text-white text-lg ml-0.5" />
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs font-bold px-2 py-0.5 rounded">
+                    {video.duration}
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-rose-400 text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 px-2 py-0.5 rounded">
+                      {video.category}
+                    </span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm leading-snug mb-2 group-hover:text-rose-300 transition-colors line-clamp-2">
+                    {video.title}
+                  </h3>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 text-xs">{video.viewCount} views</span>
+                  </div>
+                </div>
+              </a>
             </motion.div>
           ))}
         </div>
@@ -796,20 +1128,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="h-[380px] bg-slate-900/60 border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl shadow-black/50 relative">
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                  <Link href="/hospitals" className="px-8 py-4 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-2xl text-lg shadow-lg shadow-sky-500/30 transition-all hover:scale-105 active:scale-95">
-                    🗺️ Find Nearby Hospitals
-                  </Link>
-                  <p className="text-slate-400 text-sm mt-2">Within 1-2km from your location</p>
-                  <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> Live data
-                  </p>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" />
-                <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
-                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  <span className="text-xs font-bold text-emerald-400">Live Map</span>
+              <div className="h-[420px] bg-slate-900/60 border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl shadow-black/50 relative">
+                <ClientOnly>
+                  <HeroNearbyMap />
+                </ClientOnly>
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent pointer-events-none z-10" />
+                <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full z-20">
+                  <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+                  <span className="text-xs font-bold text-teal-400">Live Nearby</span>
                 </div>
               </div>
             </div>
@@ -930,7 +1256,7 @@ export default function Home() {
             {/* Holographic DNA */}
             <div className="absolute inset-0 drop-shadow-[0_0_50px_rgba(20,184,166,0.3)]">
               <ClientOnly>
-                <DNARotate3D />
+                <DNAUltra3D height={400} />
               </ClientOnly>
             </div>
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl border border-teal-500/20 rounded-full px-6 py-2 flex items-center gap-3">
@@ -980,14 +1306,13 @@ export default function Home() {
               ))}
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              className="bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-500 hover:to-sky-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all shadow-[0_0_30px_rgba(20,184,166,0.25)] hover:shadow-[0_0_45px_rgba(20,184,166,0.45)] group"
+            <Link
+              href="/genomic-dashboard"
+              className="bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-500 hover:to-sky-500 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all shadow-[0_0_30px_rgba(20,184,166,0.25)] hover:shadow-[0_0_45px_rgba(20,184,166,0.45)] group w-fit"
             >
               Learn About Genomics
               <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
-            </motion.button>
+            </Link>
           </motion.div>
         </div>
       </section>
@@ -1006,142 +1331,75 @@ export default function Home() {
               initial={{ opacity: 0, y: 30, scale: 0.95 }}
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
               viewport={{ once: true }}
-              className="relative max-w-4xl mx-auto"
+              className="relative max-w-5xl mx-auto"
             >
               <motion.div
-                className="absolute -inset-1 bg-gradient-to-r from-sky-500/20 via-cyan-500/20 to-teal-500/20 rounded-[3rem] blur-xl"
+                className="absolute -inset-2 bg-gradient-to-r from-sky-500/20 via-cyan-500/20 to-teal-500/20 rounded-[3rem] blur-xl"
                 style={{ animation: 'founder-glow 4s ease-in-out infinite', willChange: 'transform, opacity' }}
               />
               
-              <div className="relative bg-slate-900/80 border border-white/10 p-10 md:p-16 rounded-[3rem] backdrop-blur-xl shadow-2xl group overflow-hidden">
+              <div className="relative bg-slate-900/90 border border-white/10 p-8 md:p-12 rounded-[2.5rem] backdrop-blur-xl shadow-2xl">
                 <div
-                  className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-teal-500/5"
+                  className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-teal-500/5 rounded-[2.5rem]"
                   style={{ animation: 'founder-inner-glow 3s ease-in-out infinite' }}
                 />
                 
-                <div className="relative flex flex-col items-center gap-10">
-                  <div className="flex items-center justify-center gap-6 md:gap-10 flex-wrap">
-                    <div className="relative">
-                      <div
-                        className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 blur-md"
-                        style={{ animation: 'avatar-glow 3s ease-in-out infinite' }}
-                      />
-                      <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-purple-500/50 shadow-[0_0_35px_rgba(168,85,247,0.4)]">
-                        <Image 
-                          src="/images/Futuristic Zenvyx logo design.png" 
-                          alt="Zenvyx Team Logo" 
-                          fill 
-                          className="object-cover"
-                        />
-                      </div>
-                      <PulseRing size={180} color="purple" />
-                      <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-purple-400 font-bold whitespace-nowrap">Team Zenvyx</p>
-                    </div>
-                    
-                    <FloatingIcon delay={0.3}>
-                      <div className="relative">
-                        <div
-                          className="absolute inset-0 rounded-full bg-gradient-to-r from-sky-400 to-cyan-400 blur-md"
-                          style={{ animation: 'avatar-glow 3s ease-in-out infinite 0.5s' }}
-                        />
-                        <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-sky-500/50 shadow-[0_0_35px_rgba(56,189,248,0.4)]">
-                          <Image 
-                            src="/images/publiczyntracare-logo.png" 
-                            alt="ZyntraCare Logo" 
-                            fill 
-                            className="object-cover"
-                          />
+                <div className="relative">
+                  <p className="text-teal-400 font-bold tracking-widest uppercase text-sm mb-6 text-center">Leadership</p>
+                  <h2 className="text-3xl md:text-4xl font-black text-white mb-10 text-center">
+                    Meet Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-400 to-teal-400">Founder & Team</span>
+                  </h2>
+                  
+                  <div className="flex items-center justify-center gap-4 md:gap-8 flex-wrap">
+                    {[
+                      { name: 'Team Zenvyx', role: 'Vision & Innovation', img: '/images/Futuristic Zenvyx logo design.png', color: 'purple', border: 'border-purple-500/50', glow: 'from-purple-400 to-pink-400', text: 'text-purple-400' },
+                      { name: 'Parth Gupta', role: 'Founder & Lead Developer', img: '/images/founder.jpg', color: 'teal', border: 'border-teal-500/50', glow: 'from-teal-400 to-emerald-400', text: 'text-teal-400' },
+                    ].map((member, idx) => (
+                      <div key={idx} className="flex flex-col items-center">
+                        <div className="relative mb-3">
+                          <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${member.glow} blur-md`} style={{ animation: 'avatar-glow 3s ease-in-out infinite' }} />
+                          <div className={`relative w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 ${member.border} shadow-[0_0_25px_rgba(0,0,0,0.3)]`}>
+                            <Image 
+                              src={member.img} 
+                              alt={member.name} 
+                              fill 
+                              className="object-cover"
+                            />
+                          </div>
                         </div>
-                        <PulseRing size={180} color="sky" />
+                        <h3 className="text-lg font-black text-white text-center">{member.name}</h3>
+                        <p className={`text-xs font-bold ${member.text} text-center`}>{member.role}</p>
                       </div>
-                    </FloatingIcon>
-                    
-                    <div className="relative">
-                      <div
-                        className="absolute inset-0 rounded-full bg-gradient-to-r from-teal-400 to-emerald-400 blur-md"
-                        style={{ animation: 'avatar-glow 3s ease-in-out infinite 1s' }}
-                      />
-                      <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-teal-500/50 shadow-[0_0_35px_rgba(20,184,166,0.4)]">
-                        <Image 
-                          src="/images/founder.jpg" 
-                          alt="Parth Gupta - Founder" 
-                          fill 
-                          className="object-cover"
-                        />
-                      </div>
-                      <PulseRing size={180} color="teal" />
-                      <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-teal-400 font-bold whitespace-nowrap">Parth Gupta</p>
-                    </div>
+                    ))}
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-                    <div className="text-center">
-                      <motion.h3 
-                        className="text-2xl font-black text-white mb-1"
-                        animate={{ textShadow: ['0 0 10px rgba(168,85,247,0.3)', '0 0 20px rgba(168,85,247,0.5)', '0 0 10px rgba(168,85,247,0.3)'] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        Team Zenvyx
-                      </motion.h3>
-                      <div className="text-purple-400 font-bold flex items-center justify-center gap-2">
-                        <FloatingIcon delay={0.2}>
-                          <FiAward size={16} />
-                        </FloatingIcon>
-                        Vision & Innovation
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <motion.h3 
-                        className="text-2xl font-black text-white mb-1"
-                        animate={{ textShadow: ['0 0 10px rgba(56,189,248,0.3)', '0 0 20px rgba(56,189,248,0.5)', '0 0 10px rgba(56,189,248,0.3)'] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        Parth Gupta
-                      </motion.h3>
-                      <div className="text-sky-400 font-bold flex items-center justify-center gap-2">
-                        <FloatingIcon delay={0.3}>
-                          <FiAward size={16} />
-                        </FloatingIcon>
-                        Founder & Lead Developer
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div
-                    className="w-full max-w-2xl h-px rounded-full overflow-hidden"
-                  >
-                    <div
-                      className="h-full bg-gradient-to-r from-purple-500 via-sky-500 to-teal-500 team-line-scan"
-                      style={{ width: '50%' }}
-                    />
-                  </div>
-                  
-                  <motion.div 
-                    className="text-center max-w-3xl space-y-4"
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <p
-                      className="text-white text-lg md:text-xl font-medium leading-relaxed team-text-pulse"
-                    >
+                </div>
+                
+                <motion.div 
+                  className="mt-12 max-w-3xl mx-auto text-center"
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/50 backdrop-blur-xl rounded-3xl border border-white/10 p-8 space-y-4">
+                    <p className="text-white text-xl md:text-2xl font-medium leading-relaxed">
                       "We are Team <span className="text-purple-400 font-bold">Zenvyx</span>."
                     </p>
-                    <p className="text-slate-300 text-base md:text-lg leading-relaxed italic">
+                    <p className="text-slate-300 text-base md:text-lg leading-relaxed">
                       "A team that combines calm intelligence with <span className="text-sky-400 font-semibold">futuristic innovation</span>. Zenvyx represents a balance between clarity of thought and advanced innovation, reflecting a team that builds <span className="text-teal-400 font-semibold">smart and impactful solutions</span>."
                     </p>
+                    <div className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                     <p className="text-slate-400 text-sm leading-relaxed">
                       Driven by a vision to revolutionize healthcare accessibility in India, <span className="text-sky-400 font-semibold">ZyntraCare</span> bridges the gap between patients and premium medical services through transparent, reliable, and high-performance technology.
                     </p>
-                  </motion.div>
-                </div>
+                  </div>
+                </motion.div>
               </div>
             </motion.div>
-        </div>
-      </section>
+          </div>
+        </section>
 
-      <section className="py-20 relative z-10">
+        <section className="py-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -1192,54 +1450,57 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <p className="text-teal-400 font-bold tracking-widest uppercase text-sm mb-3">Quick Access</p>
-            <h2 className="text-3xl md:text-4xl font-black text-white">All Features</h2>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 rounded-full border border-teal-500/20 mb-4">
+              <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
+              <p className="text-teal-400 font-bold tracking-widest uppercase text-sm">Quick Access</p>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-3">All Features</h2>
+            <p className="text-slate-400 text-lg max-w-xl mx-auto">Explore our comprehensive healthcare ecosystem</p>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
             {[
-              { href: '/pharmacies', icon: '💊', label: 'Pharmacies' },
-              { href: '/labs', icon: '🧪', label: 'Labs' },
-              { href: '/blood-donors', icon: '🩸', label: 'Blood Donors' },
-              { href: '/medications', icon: '⏰', label: 'Medications' },
-              { href: '/health-tracker', icon: '📈', label: 'Health Tracker' },
-              { href: '/wellness', icon: '🌿', label: 'Wellness' },
-              { href: '/first-aid', icon: '🚑', label: 'First Aid' },
-              { href: '/symptoms', icon: '🤒', label: 'Symptoms' },
-              { href: '/health-risk', icon: '❤️', label: 'Health Risk' },
-              { href: '/telehealth', icon: '📹', label: 'Telehealth' },
-              { href: '/video-consult', icon: '💻', label: 'Video Consult' },
-              { href: '/ai-health-coach', icon: '🧘', label: 'AI Coach' },
-              { href: '/clinical-ai', icon: '🤖', label: 'Clinical AI' },
-              { href: '/ai-vision', icon: '👁️', label: 'AI Vision' },
-              { href: '/wearables', icon: '⌚', label: 'Wearables' },
-              { href: '/health-wallet', icon: '💳', label: 'Health Wallet' },
-              { href: '/blockchain-records', icon: '⛓️', label: 'Records' },
-              { href: '/predictive-analytics', icon: '📊', label: 'Analytics' },
-              { href: '/corporate-wellness', icon: '🏢', label: 'Corporate' },
-              { href: '/schemes', icon: '📜', label: 'Schemes' },
-              { href: '/camps', icon: '🏕️', label: 'Camps' },
-              { href: '/lab-booking', icon: '📋', label: 'Lab Booking' },
-              { href: '/medicine-verify', icon: '🔒', label: 'Medicine Verify' },
-              { href: '/multilingual', icon: '🌐', label: 'Multilingual' },
-              { href: '/rewards', icon: '🏆', label: 'Rewards' },
-              { href: '/family-care', icon: '👨‍👩‍👧', label: 'Family Care' },
-              { href: '/womens-health', icon: '🌸', label: "Women's Health" },
-              { href: '/communities', icon: '👥', label: 'Communities' },
-              { href: '/pill-scanner', icon: '📷', label: 'Pill Scanner' },
-              { href: '/pets', icon: '🐾', label: 'Pet Care' },
-              { href: '/accessibility-mode', icon: '👁️', label: 'Eye Access' },
-              { href: '/epidemic-radar', icon: '🌍', label: 'Epidemic Radar' },
-              { href: '/organ-matching', icon: '🔗', label: 'Organ Chain' },
-              { href: '/drone-network', icon: '🚁', label: 'Drone Network' },
-              { href: '/dementia-voice', icon: '🧠', label: 'Elder Voice' },
-              { href: '/admin/god-mode', icon: '🛡️', label: 'God Mode' },
-              { href: '/clinical-scribe', icon: '📝', label: 'AI Scribe' },
-              { href: '/genomic-dashboard', icon: '🧬', label: 'Genomics' },
-              { href: '/eye-control', icon: '👁️', label: 'Eye Control' },
-              { href: '/chain-reaction', icon: '⚡', label: 'Chain Demo' },
-              { href: '/digital-twin', icon: '🧬', label: 'Digital Twin' },
-              { href: '/outbreak-radar', icon: '🎯', label: 'Outbreak Radar' },
+              { href: '/pharmacies', icon: '💊', label: 'Pharmacies', color: 'from-emerald-500 to-teal-500', desc: 'Order medicines' },
+              { href: '/labs', icon: '🧪', label: 'Labs', color: 'from-purple-500 to-pink-500', desc: 'Book diagnostics' },
+              { href: '/blood-donors', icon: '🩸', label: 'Blood Donors', color: 'from-red-500 to-rose-500', desc: 'Find donors' },
+              { href: '/telehealth', icon: '📹', label: 'Telehealth', color: 'from-blue-500 to-cyan-500', desc: 'Virtual consult' },
+              { href: '/video-consult', icon: '💻', label: 'Video Consult', color: 'from-indigo-500 to-purple-500', desc: 'Face to face' },
+              { href: '/ai-health-coach', icon: '🧘', label: 'AI Coach', color: 'from-teal-500 to-emerald-500', desc: 'Smart guidance' },
+              { href: '/genomic-dashboard', icon: '🧬', label: 'Genomics', color: 'from-pink-500 to-rose-500', desc: 'DNA analysis' },
+              { href: '/health-tracker', icon: '📈', label: 'Health Tracker', color: 'from-amber-500 to-orange-500', desc: 'Monitor vitals' },
+              { href: '/predictive-analytics', icon: '📊', label: 'Analytics', color: 'from-cyan-500 to-blue-500', desc: 'AI predictions' },
+              { href: '/blockchain-records', icon: '⛓️', label: 'Records', color: 'from-violet-500 to-purple-500', desc: 'Secure storage' },
+              { href: '/health-wallet', icon: '💳', label: 'Health Wallet', color: 'from-sky-500 to-teal-500', desc: 'Digital cards' },
+              { href: '/clinical-ai', icon: '🤖', label: 'Clinical AI', color: 'from-fuchsia-500 to-pink-500', desc: 'Medical AI' },
+              { href: '/ai-vision', icon: '👁️', label: 'AI Vision', color: 'from-rose-500 to-red-500', desc: 'Image analysis' },
+              { href: '/pill-scanner', icon: '📷', label: 'Pill Scanner', color: 'from-green-500 to-emerald-500', desc: 'Verify meds' },
+              { href: '/medicine-verify', icon: '🔒', label: 'Verify Medicine', color: 'from-teal-500 to-cyan-500', desc: 'Check authenticity' },
+              { href: '/symptoms', icon: '🤒', label: 'Symptoms', color: 'from-orange-500 to-amber-500', desc: 'Symptom checker' },
+              { href: '/first-aid', icon: '🚑', label: 'First Aid', color: 'from-red-500 to-orange-500', desc: 'Emergency help' },
+              { href: '/health-risk', icon: '❤️', label: 'Health Risk', color: 'from-rose-500 to-pink-500', desc: 'Risk assessment' },
+              { href: '/medications', icon: '⏰', label: 'Medications', color: 'from-blue-500 to-indigo-500', desc: 'Reminders' },
+              { href: '/wearables', icon: '⌚', label: 'Wearables', color: 'from-violet-500 to-indigo-500', desc: 'Device sync' },
+              { href: '/wellness', icon: '🌿', label: 'Wellness', color: 'from-green-500 to-teal-500', desc: 'Holistic health' },
+              { href: '/schemes', icon: '📜', label: 'Schemes', color: 'from-amber-500 to-yellow-500', desc: 'Govt schemes' },
+              { href: '/corporate-wellness', icon: '🏢', label: 'Corporate', color: 'from-slate-500 to-gray-500', desc: 'Employee health' },
+              { href: '/womens-health', icon: '🌸', label: "Women's Health", color: 'from-pink-500 to-rose-500', desc: 'Specialized care' },
+              { href: '/family-care', icon: '👨‍👩‍👧', label: 'Family Care', color: 'from-teal-500 to-green-500', desc: 'Family records' },
+              { href: '/communities', icon: '👥', label: 'Communities', color: 'from-indigo-500 to-blue-500', desc: 'Support groups' },
+              { href: '/pets', icon: '🐾', label: 'Pet Care', color: 'from-amber-500 to-orange-500', desc: 'Animal health' },
+              { href: '/epidemic-radar', icon: '🌍', label: 'Epidemic Radar', color: 'from-red-500 to-yellow-500', desc: 'Disease tracking' },
+              { href: '/lab-booking', icon: '📋', label: 'Lab Booking', color: 'from-purple-500 to-violet-500', desc: 'Book tests' },
+              { href: '/multilingual', icon: '🌐', label: 'Multilingual', color: 'from-blue-500 to-sky-500', desc: '20+ languages' },
+              { href: '/rewards', icon: '🏆', label: 'Rewards', color: 'from-yellow-500 to-amber-500', desc: 'Earn points' },
+              { href: '/dementia-voice', icon: '🧠', label: 'Elder Voice', color: 'from-slate-500 to-blue-500', desc: 'Senior care' },
+              { href: '/organ-matching', icon: '🔗', label: 'Organ Chain', color: 'from-red-500 to-pink-500', desc: 'Donor matching' },
+              { href: '/clinical-scribe', icon: '📝', label: 'AI Scribe', color: 'from-cyan-500 to-blue-500', desc: 'Auto documentation' },
+              { href: '/eye-control', icon: '👁️', label: 'Eye Control', color: 'from-teal-500 to-cyan-500', desc: 'Accessibility' },
+              { href: '/drone-network', icon: '🚁', label: 'Drone Network', color: 'from-gray-500 to-slate-500', desc: 'Emergency delivery' },
+              { href: '/accessibility-mode', icon: '♿', label: 'Accessibility', color: 'from-purple-500 to-pink-500', desc: 'Universal design' },
+              { href: '/admin/god-mode', icon: '🛡️', label: 'God Mode', color: 'from-amber-500 to-red-500', desc: 'Admin panel' },
+              { href: '/chain-reaction', icon: '⚡', label: 'Chain Demo', color: 'from-blue-500 to-teal-500', desc: 'Blockchain demo' },
+              { href: '/digital-twin', icon: '🔮', label: 'Digital Twin', color: 'from-violet-500 to-purple-500', desc: 'Virtual health' },
+              { href: '/outbreak-radar', icon: '🎯', label: 'Outbreak Radar', color: 'from-red-500 to-orange-500', desc: 'Alert system' },
             ].map((feature, idx) => (
               <motion.div
                 key={feature.href}
@@ -1247,18 +1508,39 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.03 }}
-                whileHover={{ y: -4 }}
+                whileHover={{ y: -6, scale: 1.02 }}
               >
                 <Link
                   href={feature.href}
-                  className="flex flex-col items-center gap-2 p-4 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl hover:border-teal-500/40 hover:bg-white/[0.06] transition-all duration-300 group"
+                  className="block relative p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl hover:border-transparent transition-all duration-300 group overflow-hidden"
                 >
-                  <span className="text-2xl">{feature.icon}</span>
-                  <span className="text-xs font-semibold text-slate-300 group-hover:text-white text-center">{feature.label}</span>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                  <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-20 blur-2xl rounded-full transition-opacity duration-300`} />
+                  
+                  <div className="relative z-10">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center text-2xl mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      {feature.icon}
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1 group-hover:text-white transition-colors">{feature.label}</h3>
+                    <p className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">{feature.desc}</p>
+                  </div>
+                  
+                  <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-white/50 text-xs">→</span>
+                  </div>
                 </Link>
               </motion.div>
             ))}
           </div>
+          
+          <motion.div 
+            className="mt-12 text-center"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-slate-500 text-sm">And many more features coming soon...</p>
+          </motion.div>
         </div>
       </section>
 

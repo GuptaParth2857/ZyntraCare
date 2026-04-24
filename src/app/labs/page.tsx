@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiMapPin, FiSearch, FiPhone, FiClock, FiNavigation, FiActivity, FiCheckCircle } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { FiMapPin, FiSearch, FiPhone, FiClock, FiNavigation, FiActivity, FiCheckCircle, FiArrowLeft } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FaFlask } from 'react-icons/fa';
+import Link from 'next/link';
+import DirectionsModal from '@/components/DirectionsModal';
 
 interface Lab {
   id: string;
@@ -12,11 +14,11 @@ interface Lab {
   city: string;
   phone: string;
   location: { lat: number; lng: number };
-  distance: number;
   tests: string[];
   homeCollection: boolean;
   reportsIn: string;
   rating: string;
+  distance?: number;
 }
 
 const POPULAR_TESTS = [
@@ -24,24 +26,67 @@ const POPULAR_TESTS = [
   'Kidney Function', 'ECG', 'X-Ray', 'MRI', 'CT Scan', 'COVID Test'
 ];
 
+const FALLBACK_LABS: Lab[] = [
+  { id: '1', name: 'Dr. Lal PathLabs', address: 'Near Metro Station', city: 'Delhi', phone: '+91-11-12345678', location: { lat: 28.6139, lng: 77.2090 }, tests: ['Blood Test', 'CBC', 'Thyroid', 'Diabetes'], homeCollection: true, reportsIn: '6 hours', rating: '4.8' },
+  { id: '2', name: 'Fortis Lab', address: 'Sector 16', city: 'Noida', phone: '+91-120-1234567', location: { lat: 28.5738, lng: 77.3211 }, tests: ['MRI', 'CT Scan', 'X-Ray', 'Blood Test'], homeCollection: true, reportsIn: '8 hours', rating: '4.6' },
+  { id: '3', name: 'SRL Diagnostics', address: 'Civil Lines', city: 'Delhi', phone: '+91-11-23456789', location: { lat: 28.6942, lng: 77.2086 }, tests: ['Blood Test', 'Urine Test', 'COVID Test', 'Dengue'], homeCollection: true, reportsIn: '4 hours', rating: '4.7' },
+  { id: '4', name: 'Metropolis Lab', address: 'Connaught Place', city: 'Delhi', phone: '+91-11-45678901', location: { lat: 28.6315, lng: 77.2197 }, tests: ['Thyroid', 'Diabetes', 'Liver Function', 'Kidney Function'], homeCollection: false, reportsIn: '5 hours', rating: '4.9' },
+  { id: '5', name: 'Apollo Diagnostics', address: 'Main Market', city: 'Gurgaon', phone: '+91-124-1234567', location: { lat: 28.4595, lng: 77.0266 }, tests: ['CBC', 'Lipid Profile', 'Diabetes', 'Thyroid'], homeCollection: false, reportsIn: '12 hours', rating: '4.5' },
+  { id: '6', name: 'Max Lab', address: 'Saket', city: 'Delhi', phone: '+91-11-34567890', location: { lat: 28.5244, lng: 77.2067 }, tests: ['MRI', 'CT Scan', 'ECG', 'Blood Test'], homeCollection: true, reportsIn: '10 hours', rating: '4.4' },
+];
+
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export default function LabsPage() {
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTest, setSelectedTest] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'detected' | 'error'>('loading');
+  const [showDirections, setShowDirections] = useState(false);
+  const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
+
+  const openDirections = (lab: Lab) => {
+    setSelectedLab(lab);
+    setShowDirections(true);
+  };
 
   useEffect(() => {
     const getUserLocation = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => {},
+          (pos) => {
+            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setLocationStatus('detected');
+          },
+          () => {
+            setUserLocation({ lat: 28.6139, lng: 77.2090 });
+            setLocationStatus('error');
+          },
           { enableHighAccuracy: true, timeout: 10000 }
         );
+      } else {
+        setUserLocation({ lat: 28.6139, lng: 77.2090 });
+        setLocationStatus('error');
       }
     };
     getUserLocation();
   }, []);
+
+  const labsWithDistance = useMemo(() => {
+    if (!userLocation) return FALLBACK_LABS;
+    return FALLBACK_LABS.map(lab => ({
+      ...lab,
+      distance: calculateDistance(userLocation.lat, userLocation.lng, lab.location.lat, lab.location.lng)
+    })).sort((a, b) => a.distance - b.distance);
+  }, [userLocation]);
 
   useEffect(() => {
     const fetchLabs = async () => {
@@ -52,21 +97,69 @@ export default function LabsPage() {
       try {
         const res = await fetch(`/api/labs?lat=${lat}&lng=${lng}&test=${selectedTest}`);
         const data = await res.json();
-        setLabs(data.labs || []);
+        
+        if (data.labs && data.labs.length > 0) {
+          const labsWithDist = data.labs.map((lab: any) => ({
+            ...lab,
+            distance: calculateDistance(lat, lng, lab.location.lat, lab.location.lng)
+          })).sort((a: any, b: any) => a.distance - b.distance);
+          setLabs(labsWithDist);
+        } else {
+          setLabs(labsWithDistance);
+        }
       } catch (err) {
         console.error('Failed to fetch labs:', err);
+        setLabs(labsWithDistance);
       }
       setLoading(false);
     };
     fetchLabs();
-  }, [userLocation, selectedTest]);
+  }, [userLocation, selectedTest, labsWithDistance]);
+
+  const filteredLabs = selectedTest 
+    ? labs.filter(lab => lab.tests.some(t => t.toLowerCase().includes(selectedTest.toLowerCase())))
+    : labs;
+
+  const displayLabs = labs.length > 0 ? filteredLabs : labsWithDistance.filter(lab => 
+    selectedTest ? lab.tests.some(t => t.toLowerCase().includes(selectedTest.toLowerCase())) : true
+  );
 
   return (
-    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-transparent to-pink-900/10" />
-        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-[20%] left-[-10%] w-[400px] h-[400px] bg-pink-500/10 rounded-full blur-[120px]" />
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white" style={{ background: 'linear-gradient(135deg, #020614 0%, #030a1e 50%, #020612 100%)' }}>
+      {/* Animated background orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/8 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-pink-500/6 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+
+      {/* Back button */}
+      <div className="absolute top-6 left-6 z-50">
+        <Link href="/" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-white/80 hover:text-white">
+          <FiArrowLeft size={18} />
+          <span className="text-sm font-medium">Back</span>
+        </Link>
+      </div>
+
+      {/* Location Status */}
+      <div className="absolute top-6 right-6 z-50">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+          {locationStatus === 'loading' ? (
+            <>
+              <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+              <span className="text-xs text-amber-400">Detecting location...</span>
+            </>
+          ) : locationStatus === 'detected' ? (
+            <>
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-xs text-emerald-400">Location detected</span>
+            </>
+          ) : (
+            <>
+              <div className="w-2 h-2 bg-slate-400 rounded-full" />
+              <span className="text-xs text-slate-400">Default location</span>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24">
@@ -112,13 +205,15 @@ export default function LabsPage() {
             <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-gray-400 mt-4">Finding labs near you...</p>
           </div>
-        ) : labs.length === 0 ? (
+        ) : filteredLabs.length === 0 ? (
           <div className="text-center py-20 bg-slate-900/30 rounded-3xl border border-white/5">
-            <p className="text-gray-400 text-lg">No labs found for selected test.</p>
+            <FaFlask className="w-16 h-16 text-purple-500/30 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg mb-2">No labs found for selected test.</p>
+            <p className="text-gray-500 text-sm">Try selecting a different test or check back later.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {labs.map((lab, idx) => (
+            {filteredLabs.map((lab, idx) => (
               <motion.div
                 key={lab.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -174,20 +269,31 @@ export default function LabsPage() {
                       <FiPhone size={14} /> Call
                     </a>
                   )}
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${lab.location.lat},${lab.location.lng}`}
-                    target="_blank"
-                    rel="noopener"
+                  <button
+                    onClick={() => openDirections(lab)}
                     className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center text-white transition"
                   >
                     <FiNavigation size={16} />
-                  </a>
+                  </button>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
       </div>
+
+      <DirectionsModal
+        key={selectedLab?.id || 'default'}
+        isOpen={showDirections}
+        onClose={() => { setShowDirections(false); setSelectedLab(null); }}
+        destination={selectedLab ? {
+          name: selectedLab.name,
+          address: selectedLab.address,
+          lat: selectedLab.location.lat,
+          lng: selectedLab.location.lng,
+        } : { name: '', address: '', lat: 0, lng: 0 }}
+        userLocation={userLocation || { lat: 28.6139, lng: 77.2090 }}
+      />
     </div>
   );
 }

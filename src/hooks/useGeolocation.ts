@@ -1,88 +1,154 @@
-// src/hooks/useGeolocation.ts
-'use client';
+// useGeolocation.ts - Browser Geolocation Hook
+// Real-time location tracking with permission handling
 
 import { useState, useEffect, useCallback } from 'react';
 
-interface GeolocationState {
-  latitude: number | null;
-  longitude: number | null;
-  error: string | null;
-  loading: boolean;
-  permissionDenied: boolean;
+export interface GeolocationPosition {
+  lat: number;
+  lng: number;
+  accuracy: number;
 }
 
-// Delhi as the default fallback
-const FALLBACK_LAT = 28.6139;
-const FALLBACK_LNG = 77.2090;
+export interface UseGeolocationReturn {
+  position: GeolocationPosition | null;
+  loading: boolean;
+  error: string | null;
+  hasPermission: boolean | null;
+  requestLocation: () => void;
+  isWatching: boolean;
+  stopWatching: () => void;
+}
 
-/**
- * useGeolocation — requests the user's current position.
- * Falls back to Delhi coordinates if permission is denied or unsupported.
- * Returns refreshLocation() to manually re-request location.
- */
-export function useGeolocation() {
-  const [state, setState] = useState<GeolocationState>({
-    latitude: null,
-    longitude: null,
-    error: null,
-    loading: true,
-    permissionDenied: false,
-  });
+const DEFAULT_POSITION: GeolocationPosition = {
+  lat: 28.6139,  // Delhi as default
+  lng: 77.2090,
+  accuracy: 0,
+};
 
-  const getLocation = useCallback(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) {
-      setState({
-        latitude: FALLBACK_LAT,
-        longitude: FALLBACK_LNG,
-        error: 'Geolocation is not supported by your browser',
-        loading: false,
-        permissionDenied: false,
-      });
+export function useGeolocation(options?: {
+  enableHighAccuracy?: boolean;
+  timeout?: number;
+  maximumAge?: number;
+  watchPosition?: boolean;
+}): UseGeolocationReturn {
+  const [position, setPosition] = useState<GeolocationPosition | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [watchId, setWatchId] = useState<number | null>(null);
+  const [isWatching, setIsWatching] = useState(false);
+
+  const geoOptions = {
+    enableHighAccuracy: options?.enableHighAccuracy ?? true,
+    timeout: options?.timeout ?? 10000,
+    maximumAge: options?.maximumAge ?? 0,
+  };
+
+  const handleSuccess = useCallback((pos: GeolocationPosition) => {
+    setPosition(pos);
+    setLoading(false);
+    setError(null);
+    setHasPermission(true);
+  }, []);
+
+  const handleError = useCallback((err: GeolocationPositionError) => {
+    setLoading(false);
+    setHasPermission(false);
+    
+    switch (err.code) {
+      case err.PERMISSION_DENIED:
+        setError('Location permission denied. Using default location.');
+        setPosition(DEFAULT_POSITION);
+        break;
+      case err.POSITION_UNAVAILABLE:
+        setError('Location unavailable. Using default location.');
+        setPosition(DEFAULT_POSITION);
+        break;
+      case err.TIMEOUT:
+        setError('Location request timed out. Using default location.');
+        setPosition(DEFAULT_POSITION);
+        break;
+      default:
+        setError('Unknown location error. Using default location.');
+        setPosition(DEFAULT_POSITION);
+    }
+  }, []);
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setError('Geolocation not supported by your browser.');
+      setPosition(DEFAULT_POSITION);
+      setLoading(false);
       return;
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setLoading(true);
+    setError(null);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setState({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          error: null,
-          loading: false,
-          permissionDenied: false,
+      (pos) => {
+        handleSuccess({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
         });
       },
-      (error) => {
-        const isDenied = error.code === error.PERMISSION_DENIED;
-        setState({
-          latitude: FALLBACK_LAT,
-          longitude: FALLBACK_LNG,
-          error: isDenied
-            ? 'Location access denied — showing Delhi hospitals'
-            : 'Could not determine location, using Delhi as default',
-          loading: false,
-          permissionDenied: isDenied,
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes cache
-      }
+      handleError,
+      geoOptions
     );
-  }, []);
+  }, [handleSuccess, handleError, geoOptions]);
+
+  const startWatching = useCallback(() => {
+    if (!navigator.geolocation) return;
+
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        handleSuccess({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+      },
+      handleError,
+      geoOptions
+    );
+
+    setWatchId(id);
+    setIsWatching(true);
+  }, [handleSuccess, handleError, geoOptions]);
+
+  const stopWatching = useCallback(() => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
+      setIsWatching(false);
+    }
+  }, [watchId]);
 
   useEffect(() => {
-    getLocation();
-  }, [getLocation]);
+    // Request location on mount
+    requestLocation();
+
+    // Start watching if enabled
+    if (options?.watchPosition) {
+      startWatching();
+    }
+
+    return () => {
+      stopWatching();
+    };
+  }, []);
 
   return {
-    latitude: state.latitude,
-    longitude: state.longitude,
-    error: state.error,
-    loading: state.loading,
-    permissionDenied: state.permissionDenied,
-    refreshLocation: getLocation,
+    position,
+    loading,
+    error,
+    hasPermission,
+    requestLocation,
+    isWatching,
+    stopWatching,
   };
 }
+
+// Default export
+export default useGeolocation;

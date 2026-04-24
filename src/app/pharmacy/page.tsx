@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiUpload, FiCheck, FiArrowRight, FiShield, FiCamera, FiFileText } from 'react-icons/fi';
+import { FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiUpload, FiCheck, FiArrowRight, FiShield, FiCamera, FiFileText, FiMapPin, FiNavigation, FiArrowLeft } from 'react-icons/fi';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import DirectionsModal from '@/components/DirectionsModal';
+
+const LiveHealthMap = dynamic(() => import('@/components/LiveHealthMap'), { ssr: false });
 
 interface Medicine {
   id: string;
@@ -51,6 +56,9 @@ export default function PharmacyPage() {
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', address: '', city: '', pincode: '', payment: 'cod' });
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'detected' | 'error'>('loading');
+  const [showMap, setShowMap] = useState(false);
 
   const filtered = MOCK_MEDICINES.filter(m => {
     const matchesSearch = !search || m.name.toLowerCase().includes(search.toLowerCase());
@@ -80,6 +88,21 @@ export default function PharmacyPage() {
   const cartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const needsPrescription = cart.some(item => item.requiresPrescription);
 
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setLocationStatus('detected');
+        },
+        () => {
+          setUserLocation({ lat: 28.6139, lng: 77.2090 });
+          setLocationStatus('error');
+        }
+      );
+    }
+  }, []);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -101,24 +124,95 @@ export default function PharmacyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen text-white relative" style={{ background: 'linear-gradient(135deg, #020614 0%, #030a1e 50%, #020612 100%)' }}>
+      {/* Animated background orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/8 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-emerald-500/6 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+
+      {/* Back button */}
+      <div className="absolute top-6 left-6 z-50">
+        <Link href="/" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-white/80 hover:text-white">
+          <FiArrowLeft size={18} />
+          <span className="text-sm font-medium">Back</span>
+        </Link>
+      </div>
+
+      {/* Location Status */}
+      <div className="absolute top-6 right-6 z-50 flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+          {locationStatus === 'loading' ? (
+            <>
+              <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+              <span className="text-xs text-amber-400">Detecting...</span>
+            </>
+          ) : locationStatus === 'detected' ? (
+            <>
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-xs text-emerald-400">Location on</span>
+            </>
+          ) : (
+            <>
+              <div className="w-2 h-2 bg-slate-400 rounded-full" />
+              <span className="text-xs text-slate-400">Default</span>
+            </>
+          )}
+        </div>
+        <button 
+          onClick={() => setShowMap(!showMap)}
+          className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+        >
+          <FiMapPin size={18} />
+        </button>
+      </div>
+
+      {/* Map Modal */}
+      <AnimatePresence>
+        {showMap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowMap(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-slate-900 rounded-3xl p-4 w-full max-w-2xl h-[500px] overflow-hidden border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg">Nearby Pharmacies</h3>
+                <button onClick={() => setShowMap(false)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+              <div className="h-[420px] rounded-2xl overflow-hidden">
+                <LiveHealthMap />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="relative z-10 pt-24 pb-6 px-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center">
-              <span className="text-white text-xl">💊</span>
+            <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(20,184,166,0.3)]">
+              <span className="text-white text-2xl">💊</span>
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900">ZyntraPharmacy</h1>
-              <p className="text-xs text-slate-500">Fast delivery • Genuine medicines</p>
+              <h1 className="text-2xl font-black text-white">Zyntra<span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Pharmacy</span></h1>
+              <p className="text-xs text-slate-400">Fast delivery • Genuine medicines</p>
             </div>
           </div>
           <button
             onClick={() => setShowCart(true)}
-            className="relative p-3 bg-slate-100 rounded-xl"
+            className="relative p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
           >
-            <FiShoppingCart className="text-slate-700 text-xl" />
+            <FiShoppingCart className="text-white text-xl" />
             {cartItems > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                 {cartItems}
@@ -129,20 +223,20 @@ export default function PharmacyPage() {
       </div>
 
       {/* Search */}
-      <div className="bg-white border-b border-slate-200 py-4 px-4">
+      <div className="relative z-10 px-4 pb-4">
         <div className="max-w-7xl mx-auto">
           <input
             type="text"
             placeholder="Search medicines..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-100 border-0 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 backdrop-blur-xl"
           />
         </div>
       </div>
 
       {/* Categories */}
-      <div className="bg-white border-b border-slate-200 py-3 px-4 overflow-x-auto">
+      <div className="relative z-10 px-4 pb-6 overflow-x-auto">
         <div className="max-w-7xl mx-auto flex gap-2">
           {CATEGORIES.map(cat => (
             <button
@@ -150,8 +244,8 @@ export default function PharmacyPage() {
               onClick={() => setCategory(cat)}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition ${
                 category === cat
-                  ? 'bg-teal-500 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white'
+                  : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
               }`}
             >
               {cat}
@@ -169,32 +263,32 @@ export default function PharmacyPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-lg transition"
+              className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:border-teal-500/30 hover:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all"
             >
               <div className="text-4xl mb-3">{medicine.image}</div>
               {medicine.requiresPrescription && (
-                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-medium">
                   Rx Required
                 </span>
               )}
-              <h3 className="font-bold text-slate-900 mt-2">{medicine.name}</h3>
-              <p className="text-xs text-slate-500">{medicine.company}</p>
+              <h3 className="font-bold text-white mt-2">{medicine.name}</h3>
+              <p className="text-xs text-slate-400">{medicine.company}</p>
               <div className="flex items-center gap-1 mt-1">
                 <span className="text-amber-500">★</span>
-                <span className="text-sm font-medium">{medicine.rating}</span>
-                <span className="text-xs text-slate-400">({medicine.reviews})</span>
+                <span className="text-sm font-medium text-white">{medicine.rating}</span>
+                <span className="text-xs text-slate-500">({medicine.reviews})</span>
               </div>
               <div className="flex items-center justify-between mt-3">
                 <div>
-                  <span className="font-black text-lg text-slate-900">₹{medicine.price}</span>
-                  <span className="text-xs text-slate-400 line-through ml-1">₹{medicine.originalPrice}</span>
+                  <span className="font-black text-lg text-white">₹{medicine.price}</span>
+                  <span className="text-xs text-slate-500 line-through ml-1">₹{medicine.originalPrice}</span>
                 </div>
-                <span className="text-xs text-emerald-600 font-medium">{medicine.discount}% off</span>
+                <span className="text-xs text-emerald-400 font-medium">{medicine.discount}% off</span>
               </div>
               <button
                 onClick={() => addToCart(medicine)}
                 disabled={!medicine.inStock}
-                className="w-full mt-3 py-2 bg-teal-500 text-white rounded-lg font-medium text-sm disabled:opacity-50"
+                className="w-full mt-3 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg font-medium text-sm disabled:opacity-50 hover:shadow-[0_0_15px_rgba(20,184,166,0.3)] transition-all"
               >
                 {medicine.inStock ? 'Add to Cart' : 'Out of Stock'}
               </button>

@@ -24,11 +24,12 @@ interface Synapse {
 }
 
 const NODE_DEFS = [
-  { c: '#818cf8', r: 129, g: 140, b: 248 },
-  { c: '#a78bfa', r: 167, g: 139, b: 250 },
-  { c: '#c084fc', r: 192, g: 132, b: 252 },
-  { c: '#38bdf8', r: 56,  g: 189, b: 248 },
-  { c: '#e879f9', r: 232, g: 121, b: 249 },
+  // Teal + Gold BEAST palette
+  { c: '#14b8a6', r: 20, g: 184, b: 166 }, // teal
+  { c: '#0d9488', r: 13, g: 148, b: 136 }, // dark teal
+  { c: '#5eead4', r: 94, g: 234, b: 212 }, // light teal
+  { c: '#d4a574', r: 212, g: 165, b: 116 }, // gold
+  { c: '#ca8a04', r: 202, g: 138, b: 4 },   // amber
 ];
 
 const clamp = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, isNaN(v) ? 0 : v));
