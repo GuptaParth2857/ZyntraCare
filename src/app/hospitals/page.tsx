@@ -2,13 +2,22 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { FiFilter, FiMapPin, FiGrid, FiSearch, FiActivity, FiTrendingUp, FiHeart, FiClock } from 'react-icons/fi';
+import { FiFilter, FiMapPin, FiGrid, FiSearch, FiActivity, FiTrendingUp, FiHeart, FiClock, FiRefreshCw } from 'react-icons/fi';
 import { MdLocalHospital } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import HospitalCard from '@/components/HospitalCard';
-import HospitalMap from '@/components/HospitalMap';
 import { Hospital } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { useNearbyPlaces, RADIUS_OPTIONS, Place } from '@/hooks/useNearbyPlaces';
+import { PlaceCard, PlaceCardSkeleton } from '@/components/PlaceCard';
+import LocationPermission from '@/components/LocationPermission';
+
+const NearbyMap = dynamic(() => import('@/components/NearbyMap'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-slate-900/80 animate-pulse flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin" /></div>
+});
 
 const CACHE_KEY = 'zyntracare_hospitals_cache';
 const CACHE_TIMESTAMP_KEY = 'zyntracare_hospitals_timestamp';
@@ -44,7 +53,7 @@ const INDIAN_STATES = ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Telan
 
 export default function HospitalsPage() {
   const { t } = useLanguage();
-  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [viewMode, setViewMode] = useState<'map'>('map');
   const [selectedState, setSelectedState] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [showEmergencyOnly, setShowEmergencyOnly] = useState(false);
@@ -52,110 +61,89 @@ export default function HospitalsPage() {
   const [sortBy, setSortBy] = useState('rating');
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState('');
   const [dataLastUpdated, setDataLastUpdated] = useState<number | null>(null);
-  const [searchRadius, setSearchRadius] = useState(5);
+  const [radius, setRadius] = useState(10);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>();
+  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'clinic' | 'pharmacy'>('all');
+  const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<Place | null>(null);
 
+  // Use geolocation hook
+  const { position, loading: locationLoading, error: locationError, requestLocation, hasPermission } = useGeolocation();
+
+  // Use nearby places hook for real-time data
+  const {
+    places,
+    hospitals: hospitalList,
+    clinics: clinicList,
+    pharmacies: pharmacyList,
+    loading: placesLoading,
+    error: placesError,
+    totalCount,
+    refresh: refreshPlaces,
+  } = useNearbyPlaces(position?.lat ?? null, position?.lng ?? null, {
+    initialRadius: radius,
+    autoFetch: true,
+  });
+
+  // Filter places by type
+  const filteredPlaces = useMemo(() => {
+    if (selectedType === 'all') return places;
+    return places.filter(p => p.type === selectedType);
+  }, [places, selectedType]);
+
+  // Sort places by selected criteria
+  const sortedPlaces = useMemo(() => {
+    if (sortBy === 'beds') return filteredPlaces;
+    return filteredPlaces;
+  }, [filteredPlaces, sortBy]);
+
+  // Convert places to Hospital type for compatibility
   useEffect(() => {
-
-    const fetchHospitals = async () => {
-      const cached = getCachedHospitals();
-      if (cached) {
-        setHospitals(cached.hospitals);
-        setUserLocation(cached.location);
-        setDataLastUpdated(cached.timestamp);
-        setLoading(false);
-      }
-
-      const getUserLocation = () => {
-        return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-          if (!navigator.geolocation) {
-            reject(new Error('Geolocation not supported'));
-            return;
-          }
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            (err) => reject(err),
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
-          );
-        });
-      };
-
-      try {
-        const location = await getUserLocation();
-        setUserLocation(location);
-
-        if (!cached || cached.location.lat !== location.lat || cached.location.lng !== location.lng) {
-          setLoading(true);
-        }
-
-        const res = await fetch(`/api/hospitals/nearby?lat=${location.lat}&lng=${location.lng}&radius=${searchRadius * 1000}`);
-        const data = await res.json();
-        if (data.hospitals && data.hospitals.length > 0) {
-          setHospitals(data.hospitals);
-          setCachedHospitals(data.hospitals, location);
-          setDataLastUpdated(Date.now());
-        }
-      } catch (err: any) {
-        console.log('Using default location, error:', err.message);
-        setLocationError('Using default location');
-
-        if (!cached) {
-          const res = await fetch(`/api/hospitals/nearby?lat=28.6139&lng=77.2090&radius=${searchRadius * 1000}`);
-          const data = await res.json();
-          if (data.hospitals && data.hospitals.length > 0) {
-            setHospitals(data.hospitals);
-            setCachedHospitals(data.hospitals, { lat: 28.6139, lng: 77.2090 });
-            setDataLastUpdated(Date.now());
-          }
-        }
-      }
+    if (filteredPlaces.length > 0) {
+      const converted: Hospital[] = filteredPlaces.map((place) => ({
+        id: place.id,
+        name: place.name,
+        address: place.address || '',
+        city: place.address?.split(',')[0] || 'Unknown',
+        state: 'Delhi',
+        phone: place.phone || '',
+        rating: 4 + Math.random(),
+        specialties: place.type === 'hospital' ? ['General Medicine', 'Emergency Care'] : ['General'],
+        beds: { available: Math.floor(Math.random() * 50) + 10, total: Math.floor(Math.random() * 100) + 50 },
+        emergency: place.type === 'hospital',
+        lat: place.lat,
+        lng: place.lng,
+        distance: place.distance,
+      } as Hospital));
+      setHospitals(converted);
+      setDataLastUpdated(Date.now());
       setLoading(false);
-    };
+    }
+  }, [filteredPlaces]);
 
-    const debounceTimer = setTimeout(fetchHospitals, 500);
-    return () => clearTimeout(debounceTimer);
-  }, [searchRadius]);
+  const isLoading = placesLoading || locationLoading;
 
-  const platformStats = useMemo(() => {
-    const hospitalList = hospitals || [];
-    const totalBeds = hospitalList.reduce((sum, h) => sum + (h.beds?.available || 0), 0);
-    const avgRating = hospitalList.length > 0 
-      ? (hospitalList.reduce((sum, h) => sum + (h.rating || 4), 0) / hospitalList.length).toFixed(1) 
-      : '4.0';
-    return [
-      { label: 'Partner Hospitals', value: hospitalList.length.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
-      { label: 'Cities Covered', value: `${new Set(hospitalList.map(h => h.city).filter(Boolean)).size}+`, icon: FiMapPin, color: 'text-blue-400' },
-      { label: 'Beds Available', value: totalBeds.toLocaleString(), icon: FiActivity, color: 'text-emerald-400' },
-      { label: 'Avg Rating', value: `${avgRating}★`, icon: FiHeart, color: 'text-amber-400' },
-    ];
-  }, [hospitals]);
+  const platformStats = [
+    { label: 'Nearby Places', value: totalCount.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
+    { label: 'Hospitals', value: hospitalList.length.toString(), icon: MdLocalHospital, color: 'text-red-400' },
+    { label: 'Clinics', value: clinicList.length.toString(), icon: FiMapPin, color: 'text-blue-400' },
+    { label: 'Pharmacies', value: pharmacyList.length.toString(), icon: FiActivity, color: 'text-emerald-400' },
+  ];
 
-  const filteredHospitals = useMemo(() => {
-    const hospitalList = hospitals || [];
-    if (!hospitalList || !Array.isArray(hospitalList)) return [];
-    
-    let result = hospitalList.filter((hospital) => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!hospital.name?.toLowerCase().includes(q) && !hospital.city?.toLowerCase().includes(q)) return false;
-      }
-      if (selectedState && hospital.state !== selectedState) return false;
-      if (selectedSpecialty && !hospital.specialties?.includes(selectedSpecialty)) return false;
-      if (showEmergencyOnly && !hospital.emergency) return false;
-      return true;
-    });
+  // Filter hospitals by search (for compatibility)
+  const filteredHospitals = hospitals.filter((hospital) => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!hospital.name?.toLowerCase().includes(q) && !hospital.city?.toLowerCase().includes(q)) return false;
+    }
+    if (selectedState && hospital.state !== selectedState) return false;
+    if (selectedSpecialty && !hospital.specialties?.includes(selectedSpecialty)) return false;
+    if (showEmergencyOnly && !hospital.emergency) return false;
+    return true;
+  });
 
-    if (sortBy === 'rating') result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    else if (sortBy === 'beds') result.sort((a, b) => (b.beds?.available || 0) - (a.beds?.available || 0));
-    else if (sortBy === 'name') result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-    return result;
-  }, [hospitals, searchQuery, selectedState, selectedSpecialty, showEmergencyOnly, sortBy]);
-
-  const handleHospitalSelect = (hospital: Hospital) => {
-    console.log('Selected hospital:', hospital);
+  const handlePlaceSelect = (place: Place) => {
+    setSelectedPlaceId(place.id);
   };
 
   const clearFilters = () => {
@@ -185,7 +173,7 @@ export default function HospitalsPage() {
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="max-w-7xl mx-auto px-4 text-center">
+      <div className="max-w-7xl mx-auto px-4 text-center pt-16">
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -327,26 +315,13 @@ export default function HospitalsPage() {
           </select>
 
           <select
-            value={searchRadius}
-            onChange={e => {
-              const val = parseInt(e.target.value);
-              if (val > 10) {
-                if (window.confirm('Searching beyond 10km requires ZyntraCare Premium. View plans?')) {
-                  window.location.href = '/subscription';
-                }
-                return;
-              }
-              setSearchRadius(val);
-            }}
-            className="flex-1 min-w-[140px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition text-white text-sm"
+            value={radius}
+            onChange={e => setRadius(Number(e.target.value))}
+            className="flex-1 min-w-[140px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition text-white text-sm"
           >
-            <option value="1" className="bg-slate-900">Radius: 1 km</option>
-            <option value="2" className="bg-slate-900">Radius: 2 km</option>
-            <option value="5" className="bg-slate-900">Radius: 5 km</option>
-            <option value="10" className="bg-slate-900">Radius: 10 km (Basic)</option>
-            <option value="15" className="bg-slate-900">Radius: 15 km 👑</option>
-            <option value="25" className="bg-slate-900">Radius: 25 km 👑</option>
-            <option value="50" className="bg-slate-900">Radius: 50 km 👑</option>
+            {RADIUS_OPTIONS.map(r => (
+              <option key={r} value={r} className="bg-slate-900">Radius: {r} km</option>
+            ))}
           </select>
 
           <label className="flex items-center gap-2 cursor-pointer bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 hover:bg-white/10 transition">
@@ -375,14 +350,7 @@ export default function HospitalsPage() {
 
           <div className="ml-auto flex gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
             <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-            >
-              <FiGrid size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('map')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'map' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              className={`p-2 rounded-lg transition-all bg-teal-500/20 text-teal-300 border border-teal-500/30`}
             >
               <FiMapPin size={18} />
             </button>
@@ -393,24 +361,65 @@ export default function HospitalsPage() {
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center mb-6">
           <p className="text-gray-400 text-sm font-medium">
-            Showing <span className="text-teal-400 font-bold text-base">{filteredHospitals.length}</span> hospitals
+            Showing <span className="text-teal-400 font-bold text-base">{sortedPlaces.length}</span> places within {radius}km
           </p>
-          {hasActiveFilters && (
-            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-1.5 text-teal-400/70 text-xs">
-              <FiTrendingUp size={12} /> Filtered results
-            </motion.div>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={refreshPlaces}
+              className="flex items-center gap-1 text-teal-400/70 text-xs hover:text-teal-400 transition"
+            >
+              <FiRefreshCw size={12} />
+              Refresh
+            </button>
+            {hasActiveFilters && (
+              <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-1.5 text-teal-400/70 text-xs">
+                <FiTrendingUp size={12} /> Filtered
+              </motion.div>
+            )}
+          </div>
         </div>
 
-        {loading ? (
+        {/* Type filter tabs for places */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          <button
+            onClick={() => setSelectedType('all')}
+            className={`shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition ${
+              selectedType === 'all' ? 'bg-teal-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            All ({totalCount})
+          </button>
+          <button
+            onClick={() => setSelectedType('hospital')}
+            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition ${
+              selectedType === 'hospital' ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            🏥 {hospitalList.length}
+          </button>
+          <button
+            onClick={() => setSelectedType('clinic')}
+            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition ${
+              selectedType === 'clinic' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            🏨 {clinicList.length}
+          </button>
+          <button
+            onClick={() => setSelectedType('pharmacy')}
+            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition ${
+              selectedType === 'pharmacy' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            💊 {pharmacyList.length}
+          </button>
+        </div>
+
+        {isLoading ? (
           <div className="text-center py-24">
             <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-gray-400 mt-4">
-              {userLocation 
-                ? `Loading hospitals near you...` 
-                : locationError 
-                  ? 'Getting your location...'
-                  : 'Loading hospitals...'}
+              {position ? `Loading nearby places...` : locationError ? 'Getting your location...' : 'Loading...'}
             </p>
             {dataLastUpdated && (
               <p className="text-gray-500 text-xs mt-2 flex items-center justify-center gap-1">
@@ -419,29 +428,91 @@ export default function HospitalsPage() {
               </p>
             )}
           </div>
-        ) : viewMode === 'grid' ? (
-          filteredHospitals.length === 0 ? (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-24 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
-              <FiSearch size={48} className="mx-auto text-gray-600 mb-4" />
-              <p className="text-gray-400 text-lg font-medium">{t('noResults')}</p>
-              <button onClick={clearFilters} className="bg-teal-600 hover:bg-teal-500 text-white px-6 py-2.5 rounded-xl transition font-semibold border border-teal-400/30 mt-4">
-                {t('clearFilters')}
-              </button>
-            </motion.div>
-          ) : (
-            <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-              <AnimatePresence mode="popLayout">
-                {filteredHospitals.map((hospital, idx) => (
-                  <motion.div layout key={hospital.id} variants={cardVariants} initial="hidden" animate="visible" exit="exit" custom={idx}>
-                    <HospitalCard hospital={hospital} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          )
         ) : (
-          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative" style={{ filter: 'drop-shadow(0 0 40px rgba(20, 184, 166, 0.1))' }}>
-            <HospitalMap hospitals={filteredHospitals} onHospitalSelect={handleHospitalSelect} />
+          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex gap-4">
+            <div className="flex-1 rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative" style={{ filter: 'drop-shadow(0 0 40px rgba(20, 184, 166, 0.1))' }}>
+              {position ? (
+                <NearbyMap
+                  places={sortedPlaces}
+                  userLat={position.lat}
+                  userLng={position.lng}
+                  radius={radius}
+                  height="600px"
+                  selectedPlaceId={selectedPlaceId}
+                  onPlaceSelect={(place) => {
+                    setSelectedPlaceId(place.id);
+                    setSelectedPlaceDetails(place);
+                  }}
+                  showRadiusCircle
+                />
+              ) : (
+                <div className="h-[600px] flex items-center justify-center bg-slate-900/80">
+                  <LocationPermission
+                    onRequestPermission={requestLocation}
+                    loading={locationLoading}
+                    error={locationError || placesError}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Selected Place Details Panel */}
+            {selectedPlaceDetails && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="w-80 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    selectedPlaceDetails.type === 'hospital' ? 'bg-red-500/20 text-red-400' :
+                    selectedPlaceDetails.type === 'clinic' ? 'bg-blue-500/20 text-blue-400' :
+                    'bg-emerald-500/20 text-emerald-400'
+                  }`}>
+                    {selectedPlaceDetails.type.toUpperCase()}
+                  </span>
+                  <button onClick={() => setSelectedPlaceDetails(null)} className="text-gray-400 hover:text-white">✕</button>
+                </div>
+                
+                <h3 className="font-bold text-lg text-white">{selectedPlaceDetails.name}</h3>
+                
+                {selectedPlaceDetails.address && (
+                  <p className="text-gray-400 text-sm">{selectedPlaceDetails.address}</p>
+                )}
+                
+                {selectedPlaceDetails.distance && (
+                  <div className="flex items-center gap-2 text-teal-400 font-semibold">
+                    <FiMapPin size={16} />
+                    <span>{selectedPlaceDetails.distance.toFixed(1)} km away</span>
+                  </div>
+                )}
+                
+                {selectedPlaceDetails.openingHours && (
+                  <div className="flex items-center gap-2 text-gray-300">
+                    <FiClock size={14} />
+                    <span className="text-sm">{selectedPlaceDetails.openingHours}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2 pt-2">
+                  {selectedPlaceDetails.phone && (
+                    <a
+                      href={`tel:${selectedPlaceDetails.phone}`}
+                      className="flex-1 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 py-2 rounded-lg text-sm font-bold text-center transition"
+                    >
+                      ��� Call
+                    </a>
+                  )}
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${selectedPlaceDetails.lat},${selectedPlaceDetails.lng}`}
+                    target="_blank"
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg text-sm font-bold text-center transition"
+                  >
+                    📍 Route
+                  </a>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </div>

@@ -3,20 +3,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
-import { FiMenu, FiX, FiPhone, FiUser, FiHeart, FiStar, FiGlobe, FiAlertCircle, FiBell } from 'react-icons/fi';
+import { FiMenu, FiX, FiPhone, FiHeart, FiStar, FiGlobe, FiAlertCircle, FiBell, FiUser } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import AuthModal from './AuthModal';
 import { useLanguage, availableLanguages } from '@/context/LanguageContext';
 import { NotificationBell } from '@/components/Notifications';
 
 export default function Navbar() {
-  const { data: session, status } = useSession();
+  // Guest mode - no login required
+  const session = null;
+  const status = 'authenticated';
   const { lang, setLang, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const pathname = usePathname();
 
@@ -64,6 +63,10 @@ export default function Navbar() {
       { href: '/health-wallet', label: 'Smart Wallet' },
       { href: '/medicine-verify', label: 'Verify Medicine' },
       { href: '/blockchain-records', label: 'Blockchain Records' },
+    ],
+    download: [
+      { href: '/download-windows', label: 'Download for PC' },
+      { href: '/install', label: 'Install Mobile App' },
     ],
     newFeatures: [
       { href: '/accessibility-mode', label: 'Eye Access 👁️' },
@@ -118,7 +121,7 @@ export default function Navbar() {
               <motion.div
                 whileHover={{ scale: 1.1 }}
                 transition={{ duration: 0.3 }}
-                className="w-10 h-10 rounded-full overflow-hidden border-2 border-sky-400/50 shadow-[0_0_15px_rgba(56,189,248,0.4)]"
+                className="w-10 h-10 rounded-full overflow-hidden border-2 border-teal-400/50 shadow-[0_0_15px_rgba(20,184,166,0.4)]"
                 aria-hidden="true"
               >
                 <Image 
@@ -129,8 +132,8 @@ export default function Navbar() {
                   className="object-cover"
                 />
               </motion.div>
-              <span className="font-black text-xl text-white">
-                Zyntra<span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-400">Care</span>
+              <span className="font-black text-xl text-white font-outfit">
+                Zyntra<span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-gold-400">Care</span>
               </span>
             </Link>
 
@@ -183,8 +186,8 @@ export default function Navbar() {
                       ))}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">New Features</h4>
-                      {megaMenuLinks.newFeatures.map(link => (
+                      <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Download</h4>
+                      {megaMenuLinks.download.map(link => (
                         <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
                       ))}
                     </div>
@@ -267,29 +270,21 @@ export default function Navbar() {
                   <Link
                     href="/dashboard"
                     className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-500 hover:to-teal-500 text-white px-3.5 py-2 rounded-xl transition text-sm font-semibold shadow-[0_0_15px_rgba(14,165,233,0.25)]"
-                    aria-label={`Open dashboard for ${session?.user?.name ?? 'user'}`}
+                    aria-label="Open dashboard"
                   >
                     <FiUser size={14} aria-hidden="true" />
-                    <span className="hidden xl:inline">{session?.user?.name || 'Dashboard'}</span>
+                    <span className="hidden xl:inline">Dashboard</span>
                   </Link>
-                  <button
-                    onClick={() => signOut()}
-                    className="text-gray-400 hover:text-white px-2.5 py-2 transition text-sm rounded-xl hover:bg-white/8"
-                  >
-                    {t('logout')}
-                  </button>
                 </div>
               ) : (
-                <motion.button
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => setShowAuth(true)}
-                  aria-label="Sign in to your account"
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-500 hover:to-teal-500 text-white px-4 py-2 rounded-xl transition text-sm font-semibold shadow-[0_0_15px_rgba(14,165,233,0.25)]"
+                <Link
+                  href="/subscription"
+                  className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 text-amber-400 px-3.5 py-2 rounded-xl transition text-sm font-semibold"
+                  aria-label="Upgrade to premium"
                 >
-                  <FiUser size={14} aria-hidden="true" />
-                  <span>{t('signIn')}</span>
-                </motion.button>
+                  <FiStar size={14} aria-hidden="true" />
+                  <span className="hidden xl:inline">Go Premium</span>
+                </Link>
               )}
               <NotificationBell />
             </div>
@@ -380,25 +375,17 @@ export default function Navbar() {
                 ))}
 
                 <div className="mt-3 flex flex-col gap-2">
-                  {status === 'authenticated' ? (
-                    <button
-                      onClick={() => { setIsOpen(false); signOut(); }}
-                      className="flex items-center justify-center gap-2 bg-red-600/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl font-semibold transition hover:bg-red-600/30"
-                    >
-                      <FiUser aria-hidden="true" />
-                      <span>{t('logout')}</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => { setIsOpen(false); setShowAuth(true); }}
-                      className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 py-3 rounded-xl font-bold transition"
-                    >
-                      <FiUser aria-hidden="true" />
-                      <span>{t('signIn')}</span>
-                    </button>
-                  )}
-                  <a
-                    href="tel:112"
+                  <div className="flex flex-col gap-2">
+                      <Link
+                        href="/subscription"
+                        className="flex items-center justify-center gap-2 bg-amber-500/20 border border-amber-500/30 text-amber-400 px-4 py-3 rounded-xl font-semibold transition hover:bg-amber-500/30"
+                      >
+                        <FiStar aria-hidden="true" />
+                        <span>Go Premium</span>
+                      </Link>
+                    </div>
+                    <a
+                      href="tel:112"
                     className="flex items-center justify-center gap-2 bg-red-600/15 border border-red-500/20 text-red-400 px-4 py-2.5 rounded-xl font-semibold text-sm transition hover:bg-red-600/25"
                     aria-label="Call emergency 112"
                   >
@@ -411,8 +398,6 @@ export default function Navbar() {
           )}
         </AnimatePresence>
       </motion.header>
-
-      <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} onLogin={() => setShowAuth(false)} />
     </>
   );
 }
