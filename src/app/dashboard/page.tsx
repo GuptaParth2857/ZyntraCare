@@ -17,24 +17,34 @@ const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap
 
 const LazyLineChart = dynamic(
   () => import('recharts').then(mod => {
-    const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = mod;
+    // Handle recharts v3.8.1 module structure
+    const { 
+      AreaChart: AreaChartComp, 
+      Area: AreaComp, 
+      XAxis: XAxisComp, 
+      YAxis: YAxisComp, 
+      CartesianGrid: CartesianGridComp, 
+      Tooltip: TooltipComp, 
+      ResponsiveContainer: ResponsiveContainerComp 
+    } = mod.default || mod;
+    
     return function Chart({ data }: { data: any[] }) {
       return (
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
+        <ResponsiveContainerComp width="100%" height="100%">
+          <AreaChartComp data={data}>
             <defs>
               <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
                 <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="hour" stroke="rgba(255,255,255,0.2)" tickFormatter={(hr: number) => `${hr}:00`} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 'bold' }} />
-            <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 'bold' }} />
-            <Tooltip contentStyle={{ backgroundColor: 'rgba(2,6,23,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', backdropFilter: 'blur(12px)' }} />
-            <Area type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" activeDot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} />
-          </AreaChart>
-        </ResponsiveContainer>
+            <CartesianGridComp strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxisComp dataKey="hour" stroke="rgba(255,255,255,0.2)" tickFormatter={(hr: number) => `${hr}:00`} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 'bold' }} />
+            <YAxisComp stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 'bold' }} />
+            <TooltipComp contentStyle={{ backgroundColor: 'rgba(2,6,23,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', backdropFilter: 'blur(12px)' }} />
+            <AreaComp type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" activeDot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} />
+          </AreaChartComp>
+        </ResponsiveContainerComp>
       );
     };
   }),
@@ -70,7 +80,7 @@ const HEALTH_METRICS = [
 export default function DashboardPage() {
   // No login required - Guest mode (no session needed)
   const status = 'authenticated'; // Skip loading state
-  const session = null; // Mock guest user
+  const session: { user: { image?: string } } | null = null;
   const [activeTab, setActiveTab] = useState('appointments');
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);

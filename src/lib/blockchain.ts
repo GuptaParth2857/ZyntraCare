@@ -15,17 +15,15 @@ import { useCallback, useEffect } from 'react';
 
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
-function sha256(data: string): string {
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(64, '0').slice(0, 64);
+async function sha256(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function calculateHash(index: number, previousHash: string, timestamp: number, data: string): string {
+async function calculateHash(index: number, previousHash: string, timestamp: number, data: string): Promise<string> {
   const payload = `${index}${previousHash}${timestamp}${data}`;
   return sha256(payload);
 }
@@ -34,14 +32,14 @@ export function generateRecordId(): string {
   return `REC_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
-export function createRecord(
+export async function createRecord(
   type: string,
   data: string,
   previousHash: string = GENESIS_HASH
-): BlockchainRecord {
+): Promise<BlockchainRecord> {
   const timestamp = Date.now();
   const index = 0;
-  const hash = calculateHash(index, previousHash, timestamp, data);
+  const hash = await calculateHash(index, previousHash, timestamp, data);
   
   return {
     id: generateRecordId(),
@@ -53,13 +51,13 @@ export function createRecord(
   };
 }
 
-export function verifyChain(records: BlockchainRecord[]): boolean {
+export async function verifyChain(records: BlockchainRecord[]): Promise<boolean> {
   if (records.length === 0) return true;
   
   let previousHash = GENESIS_HASH;
   
   for (const record of records) {
-    const expectedHash = calculateHash(0, previousHash, record.timestamp, record.data);
+    const expectedHash = await calculateHash(0, previousHash, record.timestamp, record.data);
     
     if (record.dataHash !== expectedHash) {
       console.error('Chain verification failed:', record.id);
@@ -75,18 +73,18 @@ export function verifyChain(records: BlockchainRecord[]): boolean {
 export function useBlockchain() {
   const { blockchainRecords, addBlockchainRecord } = useAppStore();
 
-  const addRecord = useCallback((type: string, data: string) => {
+  const addRecord = useCallback(async (type: string, data: string) => {
     const previousHash = blockchainRecords.length > 0
       ? blockchainRecords[blockchainRecords.length - 1].dataHash
       : GENESIS_HASH;
     
-    const record = createRecord(type, data, previousHash);
+    const record = await createRecord(type, data, previousHash);
     addBlockchainRecord(record);
     
     return record;
   }, [blockchainRecords, addBlockchainRecord]);
 
-  const addHealthRecord = useCallback((record: {
+  const addHealthRecord = useCallback(async (record: {
     patientId: string;
     type: string;
     content: string;
@@ -105,7 +103,7 @@ export function useBlockchain() {
     return addRecord('health_record', data);
   }, [addRecord]);
 
-  const addPrescription = useCallback((prescription: {
+  const addPrescription = useCallback(async (prescription: {
     patientId: string;
     medicines: string[];
     dosage: string;
@@ -124,7 +122,7 @@ export function useBlockchain() {
     return addRecord('prescription', data);
   }, [addRecord]);
 
-  const addSupplyChainRecord = useCallback((record: {
+  const addSupplyChainRecord = useCallback(async (record: {
     medicineId: string;
     batchNumber: string;
     manufacturer: string;
@@ -145,27 +143,27 @@ export function useBlockchain() {
     return addRecord('supply_chain', data);
   }, [addRecord]);
 
-  const verifyRecord = useCallback((recordId: string): boolean => {
+  const verifyRecord = useCallback(async (recordId: string): Promise<boolean> => {
     const record = blockchainRecords.find(r => r.id === recordId);
     if (!record) return false;
     
     const index = blockchainRecords.findIndex(r => r.id === recordId);
     const previousHash = index === 0 ? GENESIS_HASH : blockchainRecords[index - 1].dataHash;
     
-    const expectedHash = calculateHash(0, previousHash, record.timestamp, record.data);
+    const expectedHash = await calculateHash(0, previousHash, record.timestamp, record.data);
     return record.dataHash === expectedHash;
   }, [blockchainRecords]);
 
-  const getChainStats = useCallback(() => {
-    const recordsByType = blockchainRecords.reduce((acc, record) => {
+const getChainStats = useCallback(async () => {
+    const recordsByType = blockchainRecords.reduce<Record<string, number>>((acc, record) => {
       acc[record.type] = (acc[record.type] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
     
     return {
       totalRecords: blockchainRecords.length,
       recordsByType,
-      isValid: verifyChain(blockchainRecords),
+      isValid: await verifyChain(blockchainRecords),
       latestHash: blockchainRecords.length > 0
         ? blockchainRecords[blockchainRecords.length - 1].dataHash
         : GENESIS_HASH
@@ -184,6 +182,6 @@ export function useBlockchain() {
   };
 }
 
-export function hashData(data: Record<string, unknown>): string {
+export async function hashData(data: Record<string, unknown>): Promise<string> {
   return sha256(JSON.stringify(data));
 }

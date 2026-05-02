@@ -50,8 +50,7 @@ const plans = [
 ];
 
 export default function SubscriptionPage() {
-  // Guest mode - no login required
-  const session = null;
+  const session: { user: { subscription?: { plan: string } } } | null = null;
   const update = async () => {};
   const [loading, setLoading] = useState(false);
 

@@ -1,0 +1,4 @@
+{
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": ["**/*.test.ts", "**/*.spec.ts", "node_modules/", ".next/", "librechat/", "vane/", "ZyntraCare/"]
+}

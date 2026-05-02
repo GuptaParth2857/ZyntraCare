@@ -5,13 +5,12 @@ const config: CapacitorConfig = {
   appName: 'ZyntraCare',
   webDir: 'out',
   server: {
-    url: 'https://zyntracare.vercel.app',
-    androidScheme: 'https',
-    cleartext: false,
+    url: 'http://localhost:3000',
+    androidScheme: 'http',
+    cleartext: true,
   },
   android: {
     backgroundColor: '#0f172a',
-    allowMixedContent: true,
     webContentsDebuggingEnabled: false,
     captureInput: true,
   },
@@ -24,7 +23,7 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
-CapacitorCookies: {
+    CapacitorCookies: {
       enabled: true,
     },
   },

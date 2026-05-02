@@ -1,8 +1,8 @@
 import './globals.css';
 import ClientProviders from '@/components/ClientProviders';
+import AIChatWidgetWithOCR from '@/components/AIChatWidgetWithOCR';
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { Metadata, Viewport } from 'next';
-
-// Removed dynamic imports from Server Component
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -84,7 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="image/png"
         />
 
-{/* Apple touch icon */}
+        {/* Apple touch icon */}
         <link
           rel="apple-touch-icon"
           href="/images/publiczyntracare-logo.png"
@@ -106,7 +106,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
 
         <ClientProviders>
+          <ServiceWorkerRegistration />
           {children}
+          <AIChatWidgetWithOCR />
         </ClientProviders>
       </body>
     </html>
