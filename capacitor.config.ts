@@ -5,9 +5,7 @@ const config: CapacitorConfig = {
   appName: 'ZyntraCare',
   webDir: 'out',
   server: {
-    url: 'http://localhost:3000',
-    androidScheme: 'http',
-    cleartext: true,
+    // Removed server URL - app will load from local assets (offline capable)
   },
   android: {
     backgroundColor: '#0f172a',

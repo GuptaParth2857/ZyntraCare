@@ -1,0 +1,214 @@
+import 'package:flutter/material.dart';
+import '../../../core/constants/app_constants.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          // Header
+          SliverAppBar(
+            expandedHeight: 200,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              title: const Text('Profile'),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 40, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Guest User',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text(
+                          'Sign In / Register',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Quick Stats
+                  _buildQuickStats(),
+                  const SizedBox(height: 24),
+                  
+                  // Menu Items
+                  _buildSection('My Health'),
+                  _buildMenuItem(Icons.calendar_today, 'Appointments', 'View and manage appointments'),
+                  _buildMenuItem(Icons.folder, 'Health Records', 'Medical reports and documents'),
+                  _buildMenuItem(Icons.monitor_heart, 'Health Tracker', 'Track your vitals'),
+                  _buildMenuItem(Icons.medication, 'Medicines', 'Your prescriptions'),
+                  
+                  const SizedBox(height: 16),
+                  _buildSection('My Account'),
+                  _buildMenuItem(Icons.person, 'Edit Profile', 'Update your information'),
+                  _buildMenuItem(Icons.location_on, 'Addresses', 'Manage saved locations'),
+                  _buildMenuItem(Icons.payment, 'Payment Methods', 'UPI, Cards, Wallets'),
+                  _buildMenuItem(Icons.notifications, 'Notifications', 'Manage alerts'),
+                  
+                  const SizedBox(height: 16),
+                  _buildSection('Support'),
+                  _buildMenuItem(Icons.help, 'Help Center', 'FAQs and support'),
+                  _buildMenuItem(Icons.chat, 'Chat with Us', '24/7 customer support'),
+                  _buildMenuItem(Icons.description, 'Terms & Privacy', 'Legal information'),
+                  
+                  const SizedBox(height: 16),
+                  _buildSection('App'),
+                  _buildMenuItem(Icons.dark_mode, 'Dark Mode', 'Toggle dark theme'),
+                  _buildMenuItem(Icons.language, 'Language', 'Change language'),
+                  _buildMenuItem(Icons.info, 'About', 'App version and info'),
+                  
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Text(
+                      'ZyntraCare v1.0.0',
+                      style: TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStats() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem('Appointments', '3', Icons.calendar_today),
+          _buildStatItem('Records', '12', Icons.folder),
+          _buildStatItem('Prescriptions', '5', Icons.medication),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppColors.accent),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textTertiary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem(IconData icon, String title, String subtitle) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: AppColors.accent, size: 20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+        onTap: () {},
+      ),
+    );
+  }
+}

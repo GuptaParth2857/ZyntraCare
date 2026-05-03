@@ -50,7 +50,7 @@ const plans = [
 ];
 
 export default function SubscriptionPage() {
-  const session: { user: { subscription?: { plan: string } } } | null = null;
+  const session = { user: { subscription: { plan: 'Free' } } } as { user: { subscription: { plan: string } } };
   const update = async () => {};
   const [loading, setLoading] = useState(false);
 

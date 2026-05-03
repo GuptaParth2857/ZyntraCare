@@ -1,23 +1,35 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { prisma } from '@/lib/prisma';
 
-const subscriptions = new Map<string, { plan: string; status: string; startDate: Date; endDate: Date; autoRenew: boolean }>();
+async function requireAuth(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return token;
+}
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   return NextResponse.json({ 
-    message: 'Subscription API - Use POST to manage subscription',
+    message: 'Subscription API',
     plans: ['Free', 'Premium Monthly', 'Premium Yearly'],
     actions: ['subscribe', 'upgrade', 'downgrade', 'cancel', 'reactivate']
   });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const body = await req.json();
-    const { action, plan, userId } = body;
-    
-    const userKey = userId || 'demo_user';
-    const currentSub = subscriptions.get(userKey);
-    
+    const { action, plan } = body;
+    const userId = token.id as string;
+
     switch (action) {
       case 'subscribe':
       case 'upgrade': {
@@ -37,40 +49,35 @@ export async function POST(req: Request) {
           endDate.setFullYear(endDate.getFullYear() + 1);
         }
         
-        subscriptions.set(userKey, {
-          plan,
-          status: 'active',
-          startDate,
-          endDate,
-          autoRenew: plan !== 'Free',
+        const subscription = await prisma.subscription.upsert({
+          where: { userId },
+          update: { plan, status: 'active', startDate, endDate },
+          create: { userId, plan, status: 'active', startDate, endDate }
         });
         
         return NextResponse.json({
           success: true,
           action: action === 'upgrade' ? 'upgraded' : 'subscribed',
-          plan,
-          status: 'active',
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-          message: action === 'upgrade' ? `Successfully upgraded to ${plan}` : `Successfully subscribed to ${plan}`
+          plan: subscription.plan,
+          status: subscription.status,
+          startDate: subscription.startDate.toISOString(),
+          endDate: subscription.endDate?.toISOString(),
+          message: action === 'upgrade' ? `Upgraded to ${plan}` : `Subscribed to ${plan}`
         });
       }
       
       case 'downgrade': {
+        const currentSub = await prisma.subscription.findUnique({ where: { userId } });
         if (!currentSub) {
           return NextResponse.json({ error: 'No active subscription' }, { status: 400 });
         }
         
-        const startDate = new Date();
         const endDate = new Date();
         endDate.setFullYear(endDate.getFullYear() + 100);
         
-        subscriptions.set(userKey, {
-          plan: 'Free',
-          status: 'active',
-          startDate,
-          endDate,
-          autoRenew: false,
+        const subscription = await prisma.subscription.update({
+          where: { userId },
+          data: { plan: 'Free', status: 'active', endDate }
         });
         
         return NextResponse.json({
@@ -78,19 +85,19 @@ export async function POST(req: Request) {
           action: 'downgraded',
           plan: 'Free',
           status: 'active',
-          message: 'Successfully downgraded to Free plan'
+          message: 'Downgraded to Free plan'
         });
       }
       
       case 'cancel': {
+        const currentSub = await prisma.subscription.findUnique({ where: { userId } });
         if (!currentSub) {
           return NextResponse.json({ error: 'No active subscription' }, { status: 400 });
         }
         
-        subscriptions.set(userKey, {
-          ...currentSub,
-          status: 'cancelled',
-          autoRenew: false,
+        const subscription = await prisma.subscription.update({
+          where: { userId },
+          data: { status: 'cancelled' }
         });
         
         return NextResponse.json({
@@ -98,27 +105,26 @@ export async function POST(req: Request) {
           action: 'cancelled',
           status: 'cancelled',
           currentPlan: currentSub.plan,
-          message: 'Subscription cancelled. You will have access until the end of your billing period.',
-          endDate: currentSub.endDate.toISOString()
+          message: 'Subscription cancelled'
         });
       }
       
       case 'reactivate': {
+        const currentSub = await prisma.subscription.findUnique({ where: { userId } });
         if (!currentSub || currentSub.status !== 'cancelled') {
           return NextResponse.json({ error: 'No cancelled subscription to reactivate' }, { status: 400 });
         }
         
-        subscriptions.set(userKey, {
-          ...currentSub,
-          status: 'active',
-          autoRenew: true,
+        const subscription = await prisma.subscription.update({
+          where: { userId },
+          data: { status: 'active' }
         });
         
         return NextResponse.json({
           success: true,
           action: 'reactivated',
           status: 'active',
-          message: 'Subscription reactivated successfully'
+          message: 'Subscription reactivated'
         });
       }
       

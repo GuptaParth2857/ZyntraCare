@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="84d62826-17d4-4818-a273-317e00231b1f" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/ZyntraCare.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ZyntraCare.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ZyntraCare/capacitor.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/ZyntraCare/capacitor.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ZyntraCare/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/ZyntraCare/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/android/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/android/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/capacitor.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/capacitor.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lint.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lint2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lint3.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/next.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/next.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/postcss.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/postcss.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/dev.db" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/dev.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/seed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/seed.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/admin/active-users/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/admin/active-users/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/admin/users/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/admin/users/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/ai/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/ai/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/ambulance/track/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/ambulance/track/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/auth/[...nextauth]/options.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/auth/[...nextauth]/options.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/beds/manage/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/beds/manage/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/beds/realtime/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/beds/realtime/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/beds/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/beds/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/blood-donors/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/blood-donors/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/chat/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/chat/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/doctors/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/doctors/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/emergency/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/emergency/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/feedback/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/feedback/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/health/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/health/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/hospital-admin/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/hospital-admin/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/hospitals/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/hospitals/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/labs/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/labs/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/pharmacies/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/pharmacies/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/predict-flow/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/predict-flow/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/scribe/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/scribe/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/send-otp/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/send-otp/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/subscribe/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/subscribe/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/triage/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/triage/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/vision/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/vision/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/hospitals/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/hospitals/[id]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/install/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/install/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/specialists/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/specialists/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/subscription/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/subscription/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/Chatbot.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/Chatbot.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ClientProviders.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ClientProviders.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/DirectionsModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/DirectionsModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/DoctorCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/DoctorCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/EmergencyCallWidget.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/EmergencyCallWidget.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/EmergencyScrollMonitor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/EmergencyScrollMonitor.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/Footer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/Footer.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/HeroWith3DAnimation.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/HeroWith3DAnimation.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/HospitalCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/HospitalCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/HospitalMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/HospitalMap.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/MedicalIDWidget.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/MedicalIDWidget.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/Navbar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/Navbar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/NearbyHospitalsMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/NearbyHospitalsMap.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/NearbyMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/NearbyMap.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/SplashScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/SplashScreen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hooks/useActiveUserHeartbeat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/hooks/useActiveUserHeartbeat.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hooks/useNearbyPlaces.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/hooks/useNearbyPlaces.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hooks/useRealtime.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/hooks/useRealtime.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/aiEngine.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/aiEngine.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/email.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/email.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/prisma.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/prisma.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/tsconfig.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tsconfig.tsbuildinfo" beforeDir="false" afterPath="$PROJECT_DIR$/tsconfig.tsbuildinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vercel.json" beforeDir="false" afterPath="$PROJECT_DIR$/vercel.json" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 8,
+  "fromUser": false
+}]]></component>
+  <component name="ProjectId" id="3DCwlFRX3CRXQwVhB1apwiQnpg7" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "com.google.services.firebase.aqiPopupShown": "true",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/latag/OneDrive/Desktop/ZyntraCare",
+    "show.migrate.to.gradle.popup": "false"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="84d62826-17d4-4818-a273-317e00231b1f" name="Changes" comment="" />
+      <created>1777799509918</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1777799509918</updated>
+    </task>
+    <servers />
+  </component>
+</project>

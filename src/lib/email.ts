@@ -1,12 +1,22 @@
 import nodemailer from 'nodemailer';
 
+const EMAIL_HOST = process.env.EMAIL_HOST;
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
+const EMAIL_PORT = process.env.EMAIL_PORT;
+const EMAIL_FROM = process.env.EMAIL_FROM;
+
+if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASSWORD) {
+  console.warn('[Email] WARNING: Email credentials not configured. Email sending will be mocked.');
+}
+
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '587'),
+  host: EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(EMAIL_PORT || '587'),
   secure: false,
   auth: {
-    user: process.env.EMAIL_USER || '',
-    pass: process.env.EMAIL_PASSWORD || '',
+    user: EMAIL_USER || 'dummy@dummy.com',
+    pass: EMAIL_PASSWORD || 'dummy',
   },
 });
 
@@ -18,9 +28,14 @@ interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+  if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASSWORD) {
+    console.log(`[Email] Mock send to ${to}: ${subject}`);
+    return { success: true, messageId: `mock_${Date.now()}` };
+  }
+  
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"ZyntraCare" <noreply@zyntracare.com>',
+      from: EMAIL_FROM || '"ZyntraCare" <noreply@zyntracare.com>',
       to,
       subject,
       html,

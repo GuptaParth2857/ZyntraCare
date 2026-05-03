@@ -36,12 +36,12 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-"exclude": [
-  "node_modules",
-  "capacitor.config.ts",
-  "librechat",
-  "vane",
-  "ZyntraCare",
-  "k6-tests"
-]
+  "exclude": [
+    "node_modules",
+    "capacitor.config.ts",
+    "librechat",
+    "vane",
+    "ZyntraCare",
+    "k6-tests"
+  ]
 }

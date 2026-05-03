@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+
+async function requireAdmin(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+  if (!token || token.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+  return null;
+}
 
 // Feedback storage API
 export async function POST(req: NextRequest) {
@@ -29,7 +38,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await requireAdmin(req);
+  if (authError) return authError;
+  
   // Admin only - return recent feedback (mock data for now)
   const mockFeedback = [
     { id: 'FB_001', rating: 5, category: 'AI Diagnosis Tool', message: 'Incredibly accurate diagnosis suggestions!', name: 'Rahul S', createdAt: '2026-04-05T10:30:00Z' },

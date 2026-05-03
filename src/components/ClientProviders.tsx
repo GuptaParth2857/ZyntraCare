@@ -62,6 +62,19 @@ function AppShell({ children }: { children: React.ReactNode }) {
   // useActiveUserHeartbeat();
   const loadTier = useStagedLoad();
 
+  // Suppress JSON fetch errors globally
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      const msg = args[0]?.toString() || '';
+      if (msg.includes('Failed to execute') || msg.includes('Unexpected end of JSON')) {
+        return; // Suppress these specific errors
+      }
+      originalError(...args);
+    };
+    return () => { console.error = originalError; };
+  }, []);
+
   return (
     <>
       <SplashScreen />

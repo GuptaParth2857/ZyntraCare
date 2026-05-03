@@ -13,7 +13,7 @@ import { usePathname } from 'next/navigation';
  * Sends a DELETE on component unmount (tab close).
  */
 export function useActiveUserHeartbeat() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const sessionIdRef = useRef<string>('');
 
@@ -34,7 +34,7 @@ export function useActiveUserHeartbeat() {
 
   useEffect(() => {
     const sid = sessionIdRef.current;
-    if (!sid) return;
+    if (!sid || status === 'loading') return;
 
     const payload = {
       sessionId: sid,

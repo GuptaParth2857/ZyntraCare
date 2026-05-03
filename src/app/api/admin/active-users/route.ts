@@ -1,87 +1,89 @@
 /**
- * /api/admin/active-users — tracks active sessions.
- *
- * Uses a simple in-memory Map for demo (use Redis or DB in production).
+ * /api/admin/active-users — tracks active sessions using database.
  * POST → register user heartbeat
- * GET  → return current active user count + list
+ * GET  → return current active user count + list (admin only)
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { prisma } from '@/lib/prisma';
 
-/* -------------------------------------------------------------------------- */
-/*  In-memory store (resets on cold start — use Redis in production)           */
-/* -------------------------------------------------------------------------- */
-declare global {
-  // eslint-disable-next-line no-var
-  var _activeUsersStore: Map<string, { name: string; email: string; lastSeen: number; page: string }> | undefined;
+async function requireAdmin(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+  if (!token || token.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+  return null;
 }
-
-// Persist across hot-reloads in dev
-const store: Map<string, { name: string; email: string; lastSeen: number; page: string }> =
-  global._activeUsersStore ?? (global._activeUsersStore = new Map());
 
 const SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-function pruneExpired() {
-  const now = Date.now();
-  store.forEach((data, id) => {
-    if (now - data.lastSeen > SESSION_TTL_MS) {
-      store.delete(id);
-    }
+async function pruneExpired() {
+  const cutoff = new Date(Date.now() - SESSION_TTL_MS);
+  await prisma.userSession.deleteMany({
+    where: { expiresAt: { lt: cutoff } }
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/*  GET — list active users                                                    */
-/* -------------------------------------------------------------------------- */
-export async function GET() {
-  pruneExpired();
-  const users: Array<{ name: string; email: string; page: string; lastSeen: string }> = [];
-  store.forEach((u) => {
-    users.push({
-      name:     u.name,
-      email:    u.email,
-      page:     u.page,
-      lastSeen: new Date(u.lastSeen).toISOString(),
-    });
+export async function GET(req: NextRequest) {
+  const authError = await requireAdmin(req);
+  if (authError) return authError;
+
+  await pruneExpired();
+  
+  const sessions = await prisma.userSession.findMany({
+    select: { id: true, device: true, ipAddress: true, expiresAt: true },
+    orderBy: { createdAt: 'desc' },
+    take: 100
   });
+
   return NextResponse.json({
-    count: store.size,
-    users,
-    timestamp: new Date().toISOString(),
+    count: sessions.length,
+    users: sessions.map(s => ({
+      id: s.id,
+      device: s.device,
+      ipAddress: s.ipAddress,
+      lastSeen: s.expiresAt.toISOString()
+    })),
+    timestamp: new Date().toISOString()
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/*  POST — heartbeat from client                                               */
-/* -------------------------------------------------------------------------- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sessionId, name, email, page } = body as {
-      sessionId: string;
-      name: string;
-      email: string;
-      page: string;
-    };
+    const { userId, name, email, page, device, ipAddress } = body;
 
-    if (!sessionId) {
-      return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'userId required' }, { status: 400 });
     }
 
-    store.set(sessionId, { name: name || 'Anonymous', email: email || '', page: page || '/', lastSeen: Date.now() });
-    pruneExpired();
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
-    return NextResponse.json({ ok: true, activeCount: store.size });
-  } catch {
+    await prisma.userSession.upsert({
+      where: { id: userId },
+      update: { expiresAt, device, ipAddress },
+      create: {
+        userId,
+        token: `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        device: device || 'web',
+        ipAddress: ipAddress || 'unknown',
+        expiresAt
+      }
+    });
+
+    const count = await prisma.userSession.count({ where: { expiresAt: { gt: new Date() } } });
+
+    return NextResponse.json({ ok: true, activeCount: count });
+  } catch (error) {
+    console.error('Session error:', error);
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/*  DELETE — explicit sign-out                                                  */
-/* -------------------------------------------------------------------------- */
 export async function DELETE(req: NextRequest) {
   const { sessionId } = await req.json();
-  if (sessionId) store.delete(sessionId);
+  if (sessionId) {
+    await prisma.userSession.delete({ where: { id: sessionId } }).catch(() => {});
+  }
   return NextResponse.json({ ok: true });
 }

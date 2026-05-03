@@ -83,10 +83,32 @@ function getHospitalsFromCache(): RealHospital[] | null {
 /* ------------------------------------------------------------------ */
 /*  Component                                                           */
 /* ------------------------------------------------------------------ */
-export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadius?: number }) {
+interface RouteDestination {
+  lat: number;
+  lng: number;
+  name: string;
+  address: string;
+  mode: 'driving' | 'walking' | 'cycling';
+}
+
+interface NearbyHospitalsMapProps {
+  initialRadius?: number;
+  routeDestination?: RouteDestination | null;
+  userLat?: number;
+  userLng?: number;
+}
+
+export default function NearbyHospitalsMap({ 
+  initialRadius = 5,
+  routeDestination,
+  userLat,
+  userLng
+}: NearbyHospitalsMapProps) {
   const { position, loading: geoLoading, requestLocation } = useGeolocation();
-  const latitude = position?.lat;
-  const longitude = position?.lng;
+  
+  const useProvidedLocation = userLat !== undefined && userLng !== undefined && userLat !== 0 && userLng !== 0;
+  const latitude = useProvidedLocation ? userLat : position?.lat;
+  const longitude = useProvidedLocation ? userLng : position?.lng;
 
   const [mounted, setMounted] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -152,12 +174,13 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
   /* ---------------------------------------------------------------- */
   const loadMockHospitals = useCallback((lat: number, lng: number) => {
     const withDist = mockHospitals
+      .filter(h => h.location?.lat && h.location?.lng)
       .map(h => ({
         ...h,
-        distance: parseFloat(calcDistance(lat, lng, h.location.lat, h.location.lng).toFixed(2)),
+        distance: parseFloat(calcDistance(lat, lng, h.location!.lat, h.location!.lng).toFixed(2)),
         source: 'mock' as const,
         website: '',
-        directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`,
+        directionsUrl: h.location ? `https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}` : '#',
         googleMapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(h.name)}`,
         address: h.address || '',
       }))
@@ -196,7 +219,9 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
         { signal: controller.signal }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const text = await res.text();
+      if (!text) throw new Error('Empty response');
+      const data = JSON.parse(text);
 
       if (data.hospitals && data.hospitals.length > 0) {
         const processed = data.hospitals.map((h: RealHospital, idx: number) => ({ 
@@ -207,10 +232,11 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
         setIsRealData(true);
         
         // Fetch footfall data for nearby hospitals
-        const ids = processed.map(h => h.id).join(',');
+        const ids = processed.map((h: { id: string }) => h.id).join(',');
         try {
           const ffRes = await fetch(`/api/hospitals/footfall?ids=${ids}`);
-          const ffData = await ffRes.json();
+          const ffText = await ffRes.text();
+          const ffData = ffText ? JSON.parse(ffText) : {};
           if (ffData.footfall) {
             setFootfallData(ffData.footfall);
           }
@@ -301,6 +327,95 @@ export default function NearbyHospitalsMap({ initialRadius = 5 }: { initialRadiu
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     setMapInstance(map);
+
+    // Add route if destination is provided
+    if (routeDestination && latitude && longitude) {
+      // Draw straight line first (fallback)
+      const routeLine = L.polyline([
+        [latitude, longitude],
+        [routeDestination.lat, routeDestination.lng]
+      ], {
+        color: '#8b5cf6',
+        weight: 5,
+        opacity: 0.8,
+        dashArray: '10, 10'
+      }).addTo(map);
+
+      // Try to get actual route from OSRM
+      fetch(`https://router.project-osrm.org/route/v1/driving/${longitude},${latitude};${routeDestination.lng},${routeDestination.lat}?overview=full&geometries=geojson`)
+        .then(res => {
+          if (!res.ok) throw new Error('OSRM error');
+          return res.text();
+        })
+        .then(text => {
+          if (!text || text.trim() === '') throw new Error('Empty response');
+          const data = JSON.parse(text);
+          if (!data.routes) throw new Error('No routes');
+          if (data.code === 'Ok' && data.routes?.[0]?.geometry?.coordinates) {
+            routeLine.setLatLngs(data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]));
+            routeLine.setStyle({ color: '#22c55e', dashArray: null, opacity: 0.9 });
+            
+            // Add destination marker
+            const destIcon = L.divIcon({
+              className: '',
+              html: `<div style="width:40px;height:40px;background:linear-gradient(135deg,#22c55e,#16a34a);border:3px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px #22c55e80;">🏥</div>`,
+              iconSize: [40, 40],
+              iconAnchor: [20, 20]
+            });
+            L.marker([routeDestination.lat, routeDestination.lng], { icon: destIcon }).addTo(map)
+              .bindPopup(`<div style="padding:8px;"><strong>${routeDestination.name}</strong><br/><span style="color:#666;">${routeDestination.address || 'Hospital'}</span><br/><a href="https://www.google.com/maps/dir/${latitude},${longitude}/${routeDestination.lat},${routeDestination.lng}" target="_blank" style="color:#22c55e;font-weight:bold;">🧭 Navigate</a></div>`)
+              .openPopup();
+
+            // Add user location marker
+            const userIcon = L.divIcon({
+              className: '',
+              html: `<div style="width:32px;height:32px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 4px 12px #3b82f680;display:flex;align-items:center;justify-content:center;font-size:16px;">📍</div>`,
+              iconSize: [32, 32],
+              iconAnchor: [16, 16]
+            });
+            L.marker([latitude, longitude], { icon: userIcon }).addTo(map)
+              .bindPopup('<div style="padding:8px;"><strong>Your Location</strong><br/><span style="color:#666;">Current position</span></div>');
+          }
+        })
+        .catch(() => {
+          // Keep the simple line if OSRM fails
+        });
+
+      const bounds = L.latLngBounds([
+        [latitude, longitude],
+        [routeDestination.lat, routeDestination.lng]
+      ]);
+      map.fitBounds(bounds, { padding: [50, 50] });
+
+      // Add destination marker
+      const destIcon = L.divIcon({
+        className: '',
+        html: `
+          <div style="
+            width:40px;height:40px;
+            background:linear-gradient(135deg, #8b5cf6, #6366f1);
+            border:3px solid white;
+            border-radius:50%;
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 4px 16px #8b5cf660;
+            font-size:18px;
+          ">🏥</div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+
+      L.marker([routeDestination.lat, routeDestination.lng], { icon: destIcon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="min-width:200px;font-family:Inter,system-ui,sans-serif;padding:4px;">
+            <h3 style="font-weight:900;font-size:14px;margin:0;color:#1e293b;">${routeDestination.name}</h3>
+            <p style="color:#64748b;font-size:11px;margin:4px 0;">${routeDestination.address || 'Destination'}</p>
+            <p style="color:#8b5cf6;font-size:11px;font-weight:600;">📍 Route Selected</p>
+          </div>
+        `)
+        .openPopup();
+    }
 
     return () => {
       map.remove();

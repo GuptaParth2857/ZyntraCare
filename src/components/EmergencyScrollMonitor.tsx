@@ -62,7 +62,8 @@ export default function EmergencyScrollMonitor() {
         let minDist = Infinity;
         let closest = hospitals[0];
         hospitals.forEach(h => {
-          const d = Math.hypot(h.location.lat - latitude, h.location.lng - longitude);
+          if (!h.location?.lat || !h.location?.lng) return;
+          const d = Math.hypot((h.location?.lat || 0) - latitude, (h.location?.lng || 0) - longitude);
           if (d < minDist) { minDist = d; closest = h; }
         });
         setNearestHospital(closest);

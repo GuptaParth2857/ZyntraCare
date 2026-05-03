@@ -155,13 +155,14 @@ export default function SplashScreen() {
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               className="w-full h-full relative"
             >
-              <Image 
-                src="/images/publiczyntracare-logo.png" 
-                alt="ZyntraCare" 
-                fill 
-                className="object-cover" 
-                priority 
-              />
+<Image 
+                  src="/images/publiczyntracare-logo.png" 
+                  alt="ZyntraCare" 
+                  fill 
+                  sizes="100vw"
+                  className="object-contain" 
+                  priority 
+                />
             </motion.div>
 
             {/* Scan line effect */}

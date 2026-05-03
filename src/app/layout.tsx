@@ -1,6 +1,5 @@
 import './globals.css';
 import ClientProviders from '@/components/ClientProviders';
-import AIChatWidgetWithOCR from '@/components/AIChatWidgetWithOCR';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { Metadata, Viewport } from 'next';
 
@@ -56,7 +55,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning={true}>
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning={true}>
       <head>
         {/* Critical resource hints */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -108,7 +107,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ClientProviders>
           <ServiceWorkerRegistration />
           {children}
-          <AIChatWidgetWithOCR />
         </ClientProviders>
       </body>
     </html>

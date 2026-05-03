@@ -1,87 +1,132 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processAIRequest, isEmergencyQuery, getHealthTips, AI_CONFIG } from '@/lib/aiEngine';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+async function callOllama(prompt: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages: [{
+          role: 'user',
+          content: `You are ZyntraCare AI Health Assistant. Provide accurate medical information. Keep it brief. Response: ${prompt}`
+        }],
+        stream: false
+      })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.message?.content || null;
+  } catch {
+    return null;
+  }
+}
+
+async function callGemini(prompt: string): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
+  
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text() || null;
+  } catch {
+    return null;
+  }
+}
+
+function getMockResponse(query: string): string {
+  const lower = query.toLowerCase();
+  
+  if (lower.includes('emergency') || lower.includes('ambulance')) {
+    return '🚨 For emergencies: Call 102 or 108 immediately!';
+  }
+  if (lower.includes('heart') || lower.includes('chest pain')) {
+    return '❤️ Chest pain could be serious. Please call 108 or visit nearest hospital immediately!';
+  }
+  if (lower.includes('diabetes') || lower.includes('sugar')) {
+    return '💉 Diabetes symptoms: Frequent urination, thirst, fatigue. Consult a doctor for proper diagnosis.';
+  }
+  if (lower.includes('fever')) {
+    return '🌡️ Fever: Rest, drink fluids, take paracetamol. If persists >3 days, see a doctor.';
+  }
+  if (lower.includes('headache')) {
+    return '🤕 Headache: Rest, drink water, avoid screen. If severe or persistent, consult doctor.';
+  }
+  if (lower.includes('cough') || lower.includes('cold')) {
+    return '😷 Cough/Cold: Steam inhalation, warm fluids, rest. Consult doctor if >1 week.';
+  }
+  if (lower.includes('doctor') || lower.includes('specialist')) {
+    return '👨‍⚕️ Find specialists on the Specialists page. Book appointment online!';
+  }
+  if (lower.includes('hospital')) {
+    return '🏥 Find hospitals on Hospitals page with real-time bed availability!';
+  }
+  if (lower.includes('appointment') || lower.includes('book')) {
+    return '📅 Book appointments on Specialists page - choose doctor, date & time!';
+  }
+  
+  return '🤖 I\'m here to help with health questions! Ask about symptoms, medicines, doctors, hospitals, or emergency services.';
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { query, context, mode, language, userSymptoms } = body;
-    
-    if (!query || typeof query !== 'string') {
-      return NextResponse.json(
-        { success: false, response: 'Query is required' },
-        { status: 400 }
-      );
+    const { query, language } = body;
+
+    if (!query) {
+      return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
-    
-    // Check for emergency first
-    if (isEmergencyQuery(query)) {
-      return NextResponse.json({
-        success: true,
-        response: `🚨 EMERGENCY DETECTED\n\nPlease call emergency services IMMEDIATELY: 108\n\nDo not wait. Every minute counts in a medical emergency.\n\nWhile waiting for help:\n- Stay calm\n- If trained, provide first aid\n- Do not give food or water if unconscious\n- Keep the person comfortable`,
-        sources: [],
-        suggestions: ['Call 108 immediately', 'Stay with person', 'Prepare for CPR if needed'],
-        isEmergency: true,
-        mode: 'emergency'
-      });
+
+    // Priority 1: Try Ollama (local, free, fast)
+    let response = await callOllama(query);
+    let source = 'ollama';
+
+    // Priority 2: Try Google Gemini (if Ollama fails)
+    if (!response && GEMINI_API_KEY) {
+      response = await callGemini(`Health question: ${query}`);
+      source = 'gemini';
     }
-    
-    // Process the AI request
-    const result = await processAIRequest({
-      query: query.trim(),
-      context,
-      mode,
-      language,
-      userSymptoms
+
+    // Priority 3: Fallback to smart mock
+    if (!response) {
+      response = getMockResponse(query);
+      source = 'mock';
+    }
+
+    return NextResponse.json({
+      success: true,
+      response,
+      source,
+      suggestions: ['Consult a doctor', 'Call 108 for emergencies'],
+      isEmergency: query.toLowerCase().includes('emergency')
     });
-    
-    return NextResponse.json(result);
-    
   } catch (error) {
-    console.error('AI API Error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        response: AI_CONFIG.fallbackResponses[0],
-        sources: [],
-        suggestions: ['Please try again', 'Consult a doctor if symptoms persist'],
-        isEmergency: false,
-        mode: 'chat'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      response: getMockResponse('error'),
+      source: 'mock'
+    });
   }
 }
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const query = searchParams.get('query');
+export async function GET() {
+  const ollamaStatus = await fetch(`${OLLAMA_BASE_URL}/api/tags`, { method: 'GET' }).then(r => r.ok).catch(() => false);
   
-  if (!query) {
-    return NextResponse.json(
-      { 
-        success: false, 
-        response: 'Query parameter is required',
-        availableEndpoints: {
-          'POST /api/ai': 'Main AI endpoint - send JSON body with query',
-          'GET /api/ai?query=your_question': 'Simple GET request',
-          'GET /api/ai/health-tips': 'Get general health tips'
-        }
-      },
-      { status: 400 }
-    );
-  }
-  
-  // Check for emergency
-  if (isEmergencyQuery(query)) {
-    return NextResponse.json({
-      success: true,
-      response: `🚨 EMERGENCY: Call 108 IMMEDIATELY\n\nDo not delay. Every minute counts!`,
-      isEmergency: true,
-      mode: 'emergency'
-    });
-  }
-  
-  const result = await processAIRequest({ query });
-  
-  return NextResponse.json(result);
+  return NextResponse.json({
+    status: 'ok',
+    ai: {
+      ollama: ollamaStatus ? 'connected' : 'not running',
+      gemini: GEMINI_API_KEY ? 'configured' : 'not configured',
+      mock: 'always available'
+    }
+  });
 }

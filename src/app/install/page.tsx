@@ -154,12 +154,29 @@ export default function InstallPage() {
           </div>
         </motion.div>
 
-        {/* Direct APK/IPA Download Info */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-12 text-center">
-          <p className="text-slate-500 mb-4">Need a direct download link? Contact us for custom builds.</p>
-          <Link href="/contact" className="inline-flex items-center gap-2 text-sky-400 hover:text-sky-300 font-semibold">
-            Contact Support <FiArrowRight />
-          </Link>
+        {/* Direct APK Download */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-12">
+          <div className="bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-3xl p-8">
+            <h3 className="text-2xl font-bold text-white mb-4">📥 Download APK Directly</h3>
+            <p className="text-slate-400 mb-6">Install ZyntraCare on any Android device - no Play Store needed!</p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <a 
+                href="/apk/latest.apk" 
+                download
+                className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:shadow-[0_0_50px_rgba(16,185,129,0.6)]"
+              >
+                <FiDownload size={24} />
+                Download for Android
+              </a>
+            </div>
+            <p className="text-slate-500 text-sm mt-4">Version: 1.0.0 | Size: ~160 MB</p>
+          </div>
+        </motion.div>
+
+        {/* iOS Info */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="mt-8 text-center">
+          <p className="text-slate-400 mb-2">iOS (iPhone/iPad) coming soon!</p>
+          <p className="text-slate-500 text-sm">For iOS, please use our web app or contact us for TestFlight access.</p>
         </motion.div>
       </main>
 

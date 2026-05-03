@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiMenu, FiX, FiPhone, FiHeart, FiStar, FiGlobe, FiAlertCircle, FiBell, FiUser } from 'react-icons/fi';
+import { FiMenu, FiX, FiPhone, FiHeart, FiStar, FiGlobe, FiAlertCircle, FiBell, FiUser, FiPlus } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, availableLanguages } from '@/context/LanguageContext';
@@ -34,69 +34,54 @@ export default function Navbar() {
     return () => window.removeEventListener('click', close);
   }, [showLangMenu]);
 
-  const navLinks = useMemo(() => [
-    { href: '/', label: t('home') },
-    { href: '/hospitals', label: t('hospitals') },
-    { href: '/specialists', label: t('specialists') },
-    { href: '/pharmacies', label: 'Pharmacies' },
-    { href: '/labs', label: 'Labs' },
-    { href: '/emergency', label: t('emergency'), isEmergency: true },
-    { href: '/telehealth', label: 'Telehealth' },
-    { href: '/booking', label: 'Book Now' },
-    { href: '/dashboard', label: t('myHealth') },
-    { href: '/subscription', label: t('premium'), isPremium: true },
-  ], [t]);
+  const importantLinks = [
+    { href: '/', label: 'Home', icon: '🏠' },
+    { href: '/pharmacies', label: 'Pharmacy', icon: '💊' },
+    { href: '/labs', label: 'Lab', icon: '🧪' },
+    { href: '/emergency', label: t('emergency'), isEmergency: true, icon: '🚑' },
+    { href: '/hospitals', label: t('hospitals'), icon: '🏥' },
+    { href: '/specialists', label: t('specialists'), icon: '👨‍⚕️' },
+  ];
 
-  const megaMenuLinks = {
-    findCare: [
-      { href: '/health-tracker', label: 'Health Tracker' },
-      { href: '/blood-donors', label: 'Blood Donors' },
-      { href: '/wellness', label: 'Wellness' },
-      { href: '/first-aid', label: 'First Aid' },
-      { href: '/symptoms', label: 'Symptoms' },
-      { href: '/camps', label: t('healthCamps') },
-    ],
-    aiTech: [
-      { href: '/clinical-ai', label: 'Clinical AI' },
-      { href: '/ai-health-coach', label: 'AI Coach' },
-      { href: '/wearables', label: 'Wearables' },
-      { href: '/health-wallet', label: 'Smart Wallet' },
-      { href: '/medicine-verify', label: 'Verify Medicine' },
-      { href: '/blockchain-records', label: 'Blockchain Records' },
-    ],
-    download: [
-      { href: '/download-windows', label: 'Download for PC' },
-      { href: '/install', label: 'Install Mobile App' },
-    ],
-    newFeatures: [
-      { href: '/accessibility-mode', label: 'Eye Access 👁️' },
-      { href: '/epidemic-radar', label: 'Epidemic Radar 🌐' },
-      { href: '/organ-matching', label: 'Organ Chain 🔗' },
-      { href: '/drone-network', label: 'Drone Network 🚁' },
-      { href: '/dementia-voice', label: 'Elder Voice 🧠' },
-      { href: '/digital-twin', label: 'Digital Twin 🧬' },
-      { href: '/outbreak-radar', label: 'Outbreak Radar 🎯' },
-      { href: '/data-marketplace', label: 'Data Market 🛒' },
-      { href: '/micro-insurance', label: 'Micro Insurance 💰' },
-      { href: '/offline-mesh', label: 'Offline Mesh 📡' },
-    ],
-    moreCare: [
-      { href: '/rewards', label: 'Rewards 🏆' },
-      { href: '/family-care', label: 'Family Care 👨‍👩‍👧' },
-      { href: '/womens-health', label: "Women's Health 🌸" },
-      { href: '/communities', label: 'Communities 👥' },
-      { href: '/pill-scanner', label: 'Pill Scanner 📷' },
-      { href: '/pets', label: 'Pet Care 🐾' },
-    ],
-    adminPanel: [
-      { href: '/admin/god-mode', label: 'God Mode 🛡️' },
-      { href: '/clinical-scribe', label: 'AI Scribe 📝' },
-      { href: '/genomic-dashboard', label: 'Genomics 🧬' },
-      { href: '/eye-control', label: 'Eye Control 👁️' },
-      { href: '/chain-reaction', label: 'Chain Demo ⚡' },
-      { href: '/medications', label: 'Medications 💊' },
-    ],
-  };
+const moreMenuLinks = [
+    { header: '🩺 Quick Access', links: [
+      { href: '/telehealth', label: 'Video Consultation', icon: '📹' },
+      { href: '/booking', label: 'Book Appointment', icon: '📅' },
+      { href: '/map', label: 'Nearby Hospitals', icon: '🗺️' },
+      { href: '/pharmacies', label: 'Pharmacies', icon: '💊' },
+    ]},
+    { header: '💪 My Health', links: [
+      { href: '/dashboard', label: t('myHealth'), icon: '📊' },
+      { href: '/health-tracker', label: 'Health Tracker', icon: '❤️' },
+      { href: '/subscription', label: t('premium'), isPremium: true, icon: '⭐' },
+    ]},
+    { header: '🔍 Find Care', links: [
+      { href: '/specialists', label: 'Find Specialists', icon: '👨‍⚕️' },
+      { href: '/hospitals', label: 'Hospitals', icon: '🏥' },
+      { href: '/blood-donors', label: 'Blood Donors', icon: '🩸' },
+      { href: '/labs', label: 'Diagnostic Labs', icon: '🔬' },
+      { href: '/camps', label: t('healthCamps'), icon: '🎪' },
+      { href: '/symptoms', label: 'Symptom Checker', icon: '🤒' },
+    ]},
+    { header: '🤖 AI & Tech', links: [
+      { href: '/clinical-ai', label: 'Clinical AI', icon: '🧠' },
+      { href: '/ai-health-coach', label: 'AI Health Coach', icon: '🎯' },
+      { href: '/wearables', label: 'Wearables', icon: '⌚' },
+      { href: '/health-wallet', label: 'Health Wallet', icon: '💳' },
+      { href: '/medicine-verify', label: 'Verify Medicine', icon: '✅' },
+      { href: '/blockchain-records', label: 'Blockchain Records', icon: '🔗' },
+    ]},
+    { header: '✨ More Services', links: [
+      { href: '/rewards', label: 'Rewards', icon: '🏆' },
+      { href: '/family-care', label: 'Family Care', icon: '👨‍👩‍👧' },
+      { href: '/womens-health', label: "Women's Health", icon: '🌸' },
+      { href: '/communities', label: 'Communities', icon: '👥' },
+      { href: '/pill-scanner', label: 'Pill Scanner', icon: '📷' },
+      { href: '/pets', label: 'Pet Care', icon: '🐾' },
+      { href: '/wellness', label: 'Wellness', icon: '🧘' },
+      { href: '/first-aid', label: 'First Aid Guide', icon: '🚑' },
+    ]},
+  ];
 
   return (
     <>
@@ -138,8 +123,8 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden lg:flex items-center gap-1" role="navigation" aria-label="Main navigation">
-              {navLinks.map(link => (
+            <nav className="hidden xl:flex items-center gap-1" role="navigation" aria-label="Main navigation">
+              {importantLinks.map(link => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -155,8 +140,8 @@ export default function Navbar() {
                   {link.isEmergency && (
                     <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse mr-1 mb-0.5" aria-hidden="true" />
                   )}
+                  {link.icon && <span className="mr-1">{link.icon}</span>}
                   {link.label}
-                  {link.isPremium && <FiStar className="inline ml-1 text-amber-400" size={11} aria-hidden="true" />}
                   <span
                     className={`absolute bottom-1 left-3 right-3 h-0.5 rounded-full bg-gradient-to-r from-blue-400 to-teal-400 transition-all duration-300 ${
                       pathname === link.href ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'
@@ -166,43 +151,31 @@ export default function Navbar() {
                 </Link>
               ))}
               
-              {/* Mega Menu */}
+              {/* More Dropdown */}
               <div className="relative group">
-                <button className="px-3 py-2 rounded-xl font-medium text-sm text-gray-400 hover:text-white hover:bg-white/8 transition-all">
-                  More ▾
+                <button className="px-3 py-1.5 rounded-lg font-bold text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 transition-all flex items-center gap-1.5 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105">
+                  ✨ More
                 </button>
-                <div className="absolute top-full left-0 mt-2 w-[700px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="grid grid-cols-5 gap-4">
-                    <div>
-                      <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2">Find Care</h4>
-                      {megaMenuLinks.findCare.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
-                      ))}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">AI & Tech</h4>
-                      {megaMenuLinks.aiTech.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
-                      ))}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Download</h4>
-                      {megaMenuLinks.download.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
-                      ))}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">More Care</h4>
-                      {megaMenuLinks.moreCare.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
-                      ))}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Admin</h4>
-                      {megaMenuLinks.adminPanel.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
-                      ))}
-                    </div>
+                <div className="absolute top-full left-0 mt-2 w-[480px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                  <div className="text-xs font-bold text-gray-500 mb-2 px-1">EXPLORE ZYNNTRA CARE</div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {moreMenuLinks.flatMap(section => section.links).map((link: any, idx: number) => (
+                      <Link key={idx} href={link.href} className={`group flex flex-col items-center gap-1 px-2 py-3 rounded-xl transition-all duration-200 hover:scale-105 ${
+                        link.isPremium 
+                          ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30' 
+                          : 'bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20'
+                      }`}>
+                        <span className="text-2xl filter group-hover:scale-110 transition-transform duration-200">{link.icon}</span>
+                        <span className={`text-[10px] text-center font-medium ${
+                          link.isPremium ? 'text-amber-400' : 'text-gray-300'
+                        }`}>{link.label}</span>
+                        {link.isPremium && <span className="text-[8px] text-amber-500/70">★</span>}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between px-1">
+                    <span className="text-[10px] text-gray-500">🎉 24/7 Emergency</span>
+                    <span className="text-[10px] text-blue-400 hover:text-blue-300 cursor-pointer">View All →</span>
                   </div>
                 </div>
               </div>
@@ -346,7 +319,7 @@ export default function Navbar() {
                   ))}
                 </div>
 
-                {navLinks.map((link, idx) => (
+                {importantLinks.map((link, idx) => (
                   <motion.div
                     key={link.href}
                     initial={{ opacity: 0, x: -20 }}
@@ -368,11 +341,33 @@ export default function Navbar() {
                       {link.isEmergency && (
                         <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-hidden="true" />
                       )}
+                      {link.icon && <span>{link.icon}</span>}
                       {link.label}
-                      {link.isPremium && <FiStar className="text-amber-400 ml-auto" size={13} aria-hidden="true" />}
                     </Link>
                   </motion.div>
                 ))}
+
+                {/* More section in mobile */}
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <h4 className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">More</h4>
+                  {moreMenuLinks.flatMap(s => s.links).map((link: any, idx) => (
+                    <motion.div
+                      key={link.href}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + idx * 0.02 }}
+                    >
+                      <Link
+                        href={link.href}
+                        onClick={() => setIsOpen(false)}
+                        className={`py-2.5 px-4 rounded-xl font-medium flex items-center gap-2 transition text-gray-400 hover:text-white hover:bg-white/5`}
+                      >
+                        {link.label}
+                        {link.isPremium && <FiStar className="text-amber-400 ml-auto" size={13} />}
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
 
                 <div className="mt-3 flex flex-col gap-2">
                   <div className="flex flex-col gap-2">

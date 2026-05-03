@@ -78,9 +78,8 @@ const HEALTH_METRICS = [
 ];
 
 export default function DashboardPage() {
-  // No login required - Guest mode (no session needed)
-  const status = 'authenticated'; // Skip loading state
-  const session: { user: { image?: string } } | null = null;
+  const status = 'authenticated';
+  const session = { user: { image: undefined, name: undefined } };
   const [activeTab, setActiveTab] = useState('appointments');
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);
@@ -130,7 +129,7 @@ export default function DashboardPage() {
               <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-sky-500 to-indigo-600 p-1 rounded-full shadow-[0_0_50px_rgba(14,165,233,0.3)]">
                 <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center border-4 border-[#020617] relative overflow-hidden">
                   {session?.user?.image ? (
-                    <img src={session.user.image} alt={userName} className="w-full h-full rounded-full object-cover" />
+                    <img src={session?.user?.image || ''} alt={userName} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     <FiUser size={48} className="text-white/80 z-10" />
                   )}
