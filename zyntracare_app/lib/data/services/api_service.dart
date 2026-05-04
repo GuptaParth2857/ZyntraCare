@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://zyntracare.vercel.app';
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -53,24 +53,24 @@ class ApiService {
   Future<dynamic> forgotPassword(String email) async => post('/api/auth/forgot-password', body: {'email': email});
 
   // Hospitals
-  Future<dynamic> getHospitals({String? city, String? search, int page = 1}) async => get('/api/hospitals', params: {'city': city, 'q': search, 'page': page.toString(), 'limit': '20'});
+  Future<dynamic> getHospitals({String? city, String? search, int page = 1}) async => get('/api/hospitals', params: {'city': city ?? '', 'q': search ?? '', 'page': page.toString(), 'limit': '20'});
   Future<dynamic> getNearbyHospitals(double lat, double lng, {double radius = 10}) async => get('/api/hospitals/nearby', params: {'lat': lat.toString(), 'lng': lng.toString(), 'radius': radius.toString()});
 
   // Doctors
-  Future<dynamic> getDoctors({String? specialty, String? search, int page = 1}) async => get('/api/doctors', params: {'specialty': specialty, 'q': search, 'page': page.toString()});
+  Future<dynamic> getDoctors({String? specialty, String? search, int page = 1}) async => get('/api/doctors', params: {'specialty': specialty ?? '', 'q': search ?? '', 'page': page.toString()});
 
   // Beds
-  Future<dynamic> getBedsRealtime({String? hospitalId}) async => get('/api/beds/realtime', params: {'hospitalId': hospitalId});
+  Future<dynamic> getBedsRealtime({String? hospitalId}) async => get('/api/beds/realtime', params: {'hospitalId': hospitalId ?? ''});
   Future<dynamic> getAllBeds() async => get('/api/beds');
 
   // Blood Donors
-  Future<dynamic> getBloodDonors({String? city, String? bloodType}) async => get('/api/blood-donors', params: {'city': city, 'bloodType': bloodType});
+  Future<dynamic> getBloodDonors({String? city, String? bloodType}) async => get('/api/blood-donors', params: {'city': city ?? '', 'bloodType': bloodType ?? ''});
 
   // Pharmacies
-  Future<dynamic> getPharmacies({String? city, String? search}) async => get('/api/pharmacies', params: {'city': city, 'q': search});
+  Future<dynamic> getPharmacies({String? city, String? search}) async => get('/api/pharmacies', params: {'city': city ?? '', 'q': search ?? ''});
 
   // Labs
-  Future<dynamic> getLabs({String? city, String? search}) async => get('/api/labs', params: {'city': city, 'q': search});
+  Future<dynamic> getLabs({String? city, String? search}) async => get('/api/labs', params: {'city': city ?? '', 'q': search ?? ''});
 
   // Emergency
   Future<dynamic> createEmergencyCase(Map<String, dynamic> data) async => post('/api/emergency', body: data);
@@ -102,7 +102,7 @@ class ApiService {
   Future<dynamic> assessHealthRisk(Map<String, dynamic> data) async => post('/api/health-risk', body: data);
 
   // Camps
-  Future<dynamic> getCamps({String? city}) async => get('/api/camps', params: {'city': city});
+  Future<dynamic> getCamps({String? city}) async => get('/api/camps', params: {'city': city ?? ''});
 
   // Feedback
   Future<dynamic> submitFeedback(Map<String, dynamic> feedback) async => post('/api/feedback', body: feedback);

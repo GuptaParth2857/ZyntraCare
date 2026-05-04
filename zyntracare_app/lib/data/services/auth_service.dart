@@ -1,66 +1,54 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// AuthService — updated for google_sign_in ^7.x singleton API
 class AuthService {
-  // Web Client ID used as serverClientId to allow backend verification
   static const String _webClientId =
       '215804605539-58ro90ld1l2shpck20asu3pqpqf9cuej.apps.googleusercontent.com';
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: _webClientId,
-    scopes: [
-      'email',
-      'profile',
-    ],
-  );
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
 
+  /// Call once at app startup before using any other methods.
   Future<void> init() async {
-    _googleSignIn.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
-      _currentUser = account;
-    });
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _webClientId,
+    );
     try {
-      await _googleSignIn.signInSilently();
-    } catch (error) {
-      print('Silent sign in error: $error');
+      // v7: attemptLightweightAuthentication replaces signInSilently
+      final account = await GoogleSignIn.instance.attemptLightweightAuthentication();
+      _currentUser = account;
+    } catch (e) {
+      // Silent sign-in failed — user not previously signed in, that's fine
     }
   }
 
   Future<GoogleSignInAccount?> signInWithGoogle() async {
     try {
-      final account = await _googleSignIn.signIn();
-      if (account != null) {
-        _currentUser = account;
-        
-        // Save login state
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('is_logged_in', true);
-        await prefs.setString('user_email', account.email);
-        await prefs.setString('user_name', account.displayName ?? 'User');
-        await prefs.setString('user_photo', account.photoUrl ?? '');
-        
-        // In a real app, send account.authentication.idToken to Next.js backend
-        // final auth = await account.authentication;
-        // print('ID Token: ${auth.idToken}');
-      }
+      // v7: authenticate() replaces signIn()
+      final account = await GoogleSignIn.instance.authenticate();
+      _currentUser = account;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_logged_in', true);
+      await prefs.setString('user_email', account.email);
+      await prefs.setString('user_name', account.displayName ?? 'User');
+      await prefs.setString('user_photo', account.photoUrl ?? '');
+
       return account;
-    } catch (error) {
-      print('Sign in error: $error');
+    } catch (e) {
       return null;
     }
   }
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn.disconnect();
+      await GoogleSignIn.instance.signOut();
       _currentUser = null;
-      
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-    } catch (error) {
-      print('Sign out error: $error');
+    } catch (e) {
+      // ignore
     }
   }
 

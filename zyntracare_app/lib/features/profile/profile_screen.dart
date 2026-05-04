@@ -85,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Colors.white,
                           ),
                         ),
-                        if (isLoggedIn && user.email != null)
+                        if (isLoggedIn)
                           Text(
                             user.email,
                             style: const TextStyle(
