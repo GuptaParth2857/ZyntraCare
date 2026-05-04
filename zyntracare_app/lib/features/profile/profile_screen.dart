@@ -1,11 +1,47 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../data/services/auth_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authService.init().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _handleSignIn() async {
+    setState(() => _isLoading = true);
+    await _authService.signInWithGoogle();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    setState(() => _isLoading = true);
+    await _authService.signOut();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = _authService.currentUser;
+    final isLoggedIn = user != null;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -27,27 +63,58 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 40, color: AppColors.primary),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Guest User',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      if (_isLoading)
+                        const CircularProgressIndicator(color: Colors.white)
+                      else ...[
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.white,
+                          backgroundImage: isLoggedIn && user.photoUrl != null
+                              ? NetworkImage(user.photoUrl!)
+                              : null,
+                          child: !isLoggedIn || user.photoUrl == null
+                              ? const Icon(Icons.person, size: 40, color: AppColors.primary)
+                              : null,
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'Sign In / Register',
-                          style: TextStyle(color: Colors.white70),
+                        const SizedBox(height: 8),
+                        Text(
+                          isLoggedIn ? (user.displayName ?? 'User') : 'Guest User',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
+                        if (isLoggedIn && user.email != null)
+                          Text(
+                            user.email,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        TextButton(
+                          onPressed: isLoggedIn ? _handleSignOut : _handleSignIn,
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(isLoggedIn ? Icons.logout : Icons.login, 
+                                size: 16, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Text(
+                                isLoggedIn ? 'Sign Out' : 'Sign in with Google',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ]
                     ],
                   ),
                 ),
