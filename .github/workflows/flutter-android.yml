@@ -8,12 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -21,10 +20,14 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: cd ZyntraCare && npm ci --legacy-peer-deps
+        run: |
+          cd ZyntraCare
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Build web app
-        run: cd ZyntraCare && npm run build
+        run: |
+          cd ZyntraCare
+          npm run build
         env:
           DATABASE_URL: "file:./dev.db"
           NEXTAUTH_SECRET: "dummy_secret_for_build"
@@ -35,6 +38,7 @@ jobs:
       - name: Build Android APK
         run: |
           cd ZyntraCare/android/App
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
