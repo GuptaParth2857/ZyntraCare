@@ -19,11 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ZyntraCare/package-lock.json
 
       - name: Install dependencies
-        run: cd ZyntraCare && npm ci
+        run: cd ZyntraCare && npm ci --legacy-peer-deps
 
       - name: Build web app
         run: cd ZyntraCare && npm run build
