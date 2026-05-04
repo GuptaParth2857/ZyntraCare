@@ -10,38 +10,45 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            ZyntraCare
+          sparse-checkout-cone-mode: false
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: ZyntraCare/ZyntraCare/package-lock.json
+      - name: Checkout ZyntraCare submodule
+        run: |
+          cd ZyntraCare
+          git submodule update --init --recursive
 
-    - name: Install dependencies
-      run: cd ZyntraCare/ZyntraCare && npm ci
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ZyntraCare/ZyntraCare/package-lock.json
 
-    - name: Build web app
-      run: cd ZyntraCare/ZyntraCare && npm run build
-      env:
-        DATABASE_URL: "file:./dev.db"
-        NEXTAUTH_SECRET: "dummy_secret_for_build"
+      - name: Install dependencies
+        run: cd ZyntraCare/ZyntraCare && npm ci
 
-    - name: Sync Capacitor iOS
-      run: cd ZyntraCare/ZyntraCare && npx cap sync ios
+      - name: Build web app
+        run: cd ZyntraCare/ZyntraCare && npm run build
+        env:
+          DATABASE_URL: "file:./dev.db"
+          NEXTAUTH_SECRET: "dummy_secret_for_build"
 
-    - name: Build iOS
-      run: |
-        cd ZyntraCare/ZyntraCare/ios/App
-        xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
+      - name: Sync Capacitor iOS
+        run: cd ZyntraCare/ZyntraCare && npx cap sync ios
 
-    - name: Upload iOS artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ios-build
-        path: ZyntraCare/ZyntraCare/ios/App/App/build/Debug-iphonesimulator/App.app
-        retention-days: 5
+      - name: Build iOS
+        run: |
+          cd ZyntraCare/ZyntraCare/ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: ZyntraCare/ZyntraCare/ios/App/App/build/Debug-iphonesimulator/App.app
+          retention-days: 5
