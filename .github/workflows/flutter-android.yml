@@ -13,40 +13,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Checkout ZyntraCare submodule
-        run: |
-          git clone https://github.com/GuptaParth2857/ZyntraCare.git ZyntraCare-temp
-          rm -rf ZyntraCare
-          mv ZyntraCare-temp ZyntraCare
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: ZyntraCare/ZyntraCare/package-lock.json
+          cache-dependency-path: ZyntraCare/package-lock.json
 
       - name: Install dependencies
-        run: cd ZyntraCare/ZyntraCare && npm ci
+        run: cd ZyntraCare && npm ci
 
       - name: Build web app
-        run: cd ZyntraCare/ZyntraCare && npm run build
+        run: cd ZyntraCare && npm run build
         env:
           DATABASE_URL: "file:./dev.db"
           NEXTAUTH_SECRET: "dummy_secret_for_build"
 
       - name: Sync Capacitor Android
-        run: cd ZyntraCare/ZyntraCare && npx cap sync android
+        run: cd ZyntraCare && npx cap sync android
 
       - name: Build Android APK
         run: |
-          cd ZyntraCare/ZyntraCare/android/App
+          cd ZyntraCare/android/App
           ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ZyntraCare-debug.apk
-          path: ZyntraCare/ZyntraCare/android/App/build/outputs/apk/debug/App-debug.apk
+          path: ZyntraCare/android/App/build/outputs/apk/debug/App-debug.apk
