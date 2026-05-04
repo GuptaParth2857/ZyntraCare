@@ -24,6 +24,9 @@ jobs:
 
     - name: Build web app
       run: npm run build
+      env:
+        DATABASE_URL: "file:./dev.db"
+        NEXTAUTH_SECRET: "dummy_secret_for_build"
 
     - name: Sync Capacitor iOS
       run: npx cap sync ios

@@ -31,6 +31,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate
 
 # Build the Next.js application
+ENV DATABASE_URL="file:./dev.db"
+ENV NEXTAUTH_SECRET="dummy_secret_for_build"
 RUN npm run build
 
 # =============================================================================
