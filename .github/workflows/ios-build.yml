@@ -13,14 +13,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            ZyntraCare
-          sparse-checkout-cone-mode: false
+          fetch-depth: 0
 
       - name: Checkout ZyntraCare
         run: |
-          cd ZyntraCare
-          git checkout main
+          git clone https://github.com/GuptaParth2857/ZyntraCare.git ZyntraCare-temp
+          rm -rf ZyntraCare
+          mv ZyntraCare-temp ZyntraCare
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
