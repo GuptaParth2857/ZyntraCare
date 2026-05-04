@@ -29,8 +29,9 @@ jobs:
           cd ZyntraCare
           npm run build
         env:
-          DATABASE_URL: "file:./dev.db"
-          NEXTAUTH_SECRET: "this_is_a_very_long_dummy_secret_for_build_purpose_32_chars"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
 
       - name: Sync Capacitor Android
         run: cd ZyntraCare && npx cap sync android
