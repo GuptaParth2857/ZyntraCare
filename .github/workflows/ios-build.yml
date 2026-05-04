@@ -30,7 +30,7 @@ jobs:
           npm run build
         env:
           DATABASE_URL: "file:./dev.db"
-          NEXTAUTH_SECRET: "dummy_secret_for_build"
+          NEXTAUTH_SECRET: "this_is_a_very_long_dummy_secret_for_build_purpose_32_chars"
 
       - name: Sync Capacitor iOS
         run: cd ZyntraCare && npx cap sync ios
