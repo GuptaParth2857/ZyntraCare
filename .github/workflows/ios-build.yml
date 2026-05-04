@@ -10,35 +10,38 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
+        cache-dependency-path: ZyntraCare/ZyntraCare/package-lock.json
 
     - name: Install dependencies
-      run: npm ci
+      run: cd ZyntraCare/ZyntraCare && npm ci
 
     - name: Build web app
-      run: npm run build
+      run: cd ZyntraCare/ZyntraCare && npm run build
       env:
         DATABASE_URL: "file:./dev.db"
         NEXTAUTH_SECRET: "dummy_secret_for_build"
 
     - name: Sync Capacitor iOS
-      run: npx cap sync ios
+      run: cd ZyntraCare/ZyntraCare && npx cap sync ios
 
     - name: Build iOS
       run: |
-        cd ios/App
+        cd ZyntraCare/ZyntraCare/ios/App
         xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 
     - name: Upload iOS artifact
       uses: actions/upload-artifact@v4
       with:
         name: ios-build
-        path: ios/App/App/build/Debug-iphonesimulator/App.app
+        path: ZyntraCare/ZyntraCare/ios/App/App/build/Debug-iphonesimulator/App.app
         retention-days: 5
