@@ -17,10 +17,10 @@ jobs:
             ZyntraCare
           sparse-checkout-cone-mode: false
 
-      - name: Checkout ZyntraCare submodule
+      - name: Checkout ZyntraCare
         run: |
           cd ZyntraCare
-          git submodule update --init --recursive
+          git checkout main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
