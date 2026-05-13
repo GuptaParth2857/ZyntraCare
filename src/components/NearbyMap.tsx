@@ -14,7 +14,7 @@ interface NearbyMapProps {
   centerLat?: number;
   centerLng?: number;
   radius?: number;
-  height?: string;
+  height?: string | number;
   onPlaceSelect?: (place: Place) => void;
   selectedPlaceId?: string;
   showRadiusCircle?: boolean;

@@ -219,7 +219,7 @@ function HeroNearbyMap() {
           userLat={mapPosition.lat}
           userLng={mapPosition.lng}
           radius={radius}
-          height="100%"
+          height={220}
           compact
           showRadiusCircle
         />
