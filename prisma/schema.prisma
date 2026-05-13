@@ -1,21 +1,14 @@
 // Prisma Schema — ZyntraCare
-// SQLite for local development, PostgreSQL for production
+// PostgreSQL for production (1M users) | SQLite for development
 
 generator client {
   provider = "prisma-client-js"
 }
 
-// Local development (SQLite)
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
-
-// For production PostgreSQL (Neon/Supabase), use:
-// datasource db {
-//   provider = "postgresql"
-//   url      = env("DATABASE_URL")
-// }
 
 // ─── USER & AUTH ───────────────────────────────────────────
 

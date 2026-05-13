@@ -83,8 +83,8 @@ const specialtyIcons: Record<string, React.ReactNode> = {
     );
   }
 
-  const occupancyPercent = bedData?.beds?.occupancyPercent || Math.round((hospital.beds.occupied / hospital.beds.total) * 100);
-  const icuOccupancyPercent = bedData?.beds?.icu?.occupancyPercent || Math.round(((hospital.beds.icu - hospital.beds.icuAvailable) / hospital.beds.icu) * 100);
+  const occupancyPercent = bedData?.beds?.occupancyPercent || (hospital.beds ? Math.round(((hospital.beds.occupied || 0) / (hospital.beds.total || 1)) * 100) : 0);
+  const icuOccupancyPercent = bedData?.beds?.icu?.occupancyPercent || (hospital.beds?.icu ? Math.round(((hospital.beds.icu - (hospital.beds.icuAvailable || 0)) / hospital.beds.icu) * 100) : 0);
 
   const getOccupancyColor = (percent: number) => {
     if (percent > 80) return 'text-red-500';
@@ -93,7 +93,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
   };
 
   const getDirectionsUrl = () => {
-    return `https://www.google.com/maps/dir/?api=1&destination=${hospital.location.lat},${hospital.location.lng}`;
+    return hospital.location ? `https://www.google.com/maps/dir/?api=1&destination=${hospital.location.lat},${hospital.location.lng}` : '#';
   };
 
   return (
@@ -210,7 +210,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                <p className="text-3xl font-black text-emerald-400">{bedData?.beds?.available || hospital.beds.available}</p>
+                <p className="text-3xl font-black text-emerald-400">{bedData?.beds?.available || hospital.beds?.available || 0}</p>
                 <p className="text-sm text-gray-400 mt-1">General Beds Available</p>
                 <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
                   <div 
@@ -221,7 +221,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
               </div>
               
               <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                <p className="text-3xl font-black text-sky-400">{bedData?.beds?.icu?.available || hospital.beds.icuAvailable}</p>
+                <p className="text-3xl font-black text-sky-400">{bedData?.beds?.icu?.available || hospital.beds?.icuAvailable || 0}</p>
                 <p className="text-sm text-gray-400 mt-1">ICU Beds Available</p>
                 <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
                   <div 
@@ -299,7 +299,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
             >
               <h3 className="text-xl font-bold text-white mb-4">Specialties & Services</h3>
               <div className="grid grid-cols-2 gap-3">
-                {hospital.specialties.map((specialty, idx) => (
+                {(hospital.specialties || []).map((specialty, idx) => (
                   <div key={idx} className="flex items-center gap-2 bg-slate-800/50 px-3 py-2 rounded-xl">
                     {specialtyIcons[specialty] || specialtyIcons.default}
                     <span className="text-white text-sm">{specialty}</span>
@@ -361,9 +361,9 @@ const specialtyIcons: Record<string, React.ReactNode> = {
         onClose={() => setShowDirections(false)}
         destination={hospital ? {
           name: hospital.name,
-          address: hospital.address,
-          lat: hospital.location.lat,
-          lng: hospital.location.lng,
+          address: hospital.address || '',
+          lat: hospital.location?.lat || 0,
+          lng: hospital.location?.lng || 0,
         } : { name: '', address: '', lat: 0, lng: 0 }}
         userLocation={userLocation || { lat: 28.6139, lng: 77.2090 }}
       />

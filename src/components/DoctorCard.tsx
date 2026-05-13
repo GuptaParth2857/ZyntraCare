@@ -45,9 +45,10 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
   }, []);
 
   const isLight = variant === 'light';
+  const doctorSpecialty = doctor.specialty || 'default';
   const specColor = isLight 
-      ? (specialtyColorsLight[doctor.specialty] ?? specialtyColorsLight.default)
-      : (specialtyColorsDark[doctor.specialty] ?? specialtyColorsDark.default);
+      ? (specialtyColorsLight[doctorSpecialty] ?? specialtyColorsLight.default)
+      : (specialtyColorsDark[doctorSpecialty] ?? specialtyColorsDark.default);
 
   const handleBook = () => {
     setBooking(true);
@@ -89,7 +90,7 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
                 className={`relative w-20 h-20 rounded-[1rem] overflow-hidden border-2 ${isLight ? 'border-slate-100 shadow-sm' : 'border-white/10'}`}
               >
                 <Image
-                  src={doctor.image}
+                  src={doctor.image || '/placeholder-doctor.jpg'}
                   alt={`Dr. ${doctor.name}`}
                   fill
                   sizes="80px"
@@ -160,14 +161,14 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
             </p>
           </div>
           <div className="text-right">
-            <p className={`text-xl font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>₹{doctor.consultationFee.toLocaleString()}</p>
+            <p className={`text-xl font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>₹{doctor.consultationFee?.toLocaleString() || 0}</p>
             <p className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>per consult</p>
           </div>
         </div>
 
         {/* Languages */}
         <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Languages spoken">
-          {doctor.languages.map(lang => (
+          {(doctor.languages || []).map(lang => (
             <span
               key={lang}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${

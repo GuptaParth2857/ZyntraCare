@@ -30,12 +30,16 @@ git push -u origin main
 ```
 NEXTAUTH_URL=https://your-project.vercel.app
 NEXTAUTH_SECRET=any-random-secret-min-32-chars
+ADMIN_SECRET=your-secure-admin-promotion-secret
 GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_SECRET
 NEXT_PUBLIC_APP_URL=https://your-project.vercel.app
 
 # Database (for production)
 # DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require
+
+# Optional: Gemini AI
+# GEMINI_API_KEY=your-gemini-api-key
 ```
 
 4. **Deploy**
@@ -102,9 +106,11 @@ healthcare-platform/
 
 ## Build Status
 
-✅ 37 routes generated
-✅ TypeScript: Passed
+✅ 123 routes generated (90+ pages)
+✅ TypeScript: Passed (non-blocking warnings only)
 ✅ Build: Successful
+✅ PWA: Offline support enabled
+✅ Security: Fixed critical issues
 
 ---
 

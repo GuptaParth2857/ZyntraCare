@@ -85,20 +85,20 @@ function SpecialistsContent() {
       const q = searchQuery.toLowerCase();
       result = result.filter(d =>
         d.name.toLowerCase().includes(q) ||
-        d.specialty.toLowerCase().includes(q) ||
-        d.hospitalName.toLowerCase().includes(q)
+        (d.specialty?.toLowerCase().includes(q) ?? false) ||
+        (d.hospitalName?.toLowerCase().includes(q) ?? false)
       );
     }
 
     const spec = activeSpecialtyTab || selectedSpecialty;
-    if (spec) result = result.filter(d => d.specialty === spec);
+    if (spec) result = result.filter(d => d.specialty === spec || d.specialty === undefined);
 
-    if (selectedLocation) result = result.filter(d => d.hospitalName.toLowerCase().includes(selectedLocation.toLowerCase()));
-    if (showAvailableOnly) result = result.filter(d => d.available);
+    if (selectedLocation) result = result.filter(d => (d.hospitalName?.toLowerCase().includes(selectedLocation.toLowerCase()) ?? false));
+    if (showAvailableOnly) result = result.filter(d => d.available === true);
 
-    if (sortBy === 'rating') result.sort((a, b) => b.rating - a.rating);
-    else if (sortBy === 'experience') result.sort((a, b) => b.experience - a.experience);
-    else if (sortBy === 'fee') result.sort((a, b) => a.consultationFee - b.consultationFee);
+    if (sortBy === 'rating') result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    else if (sortBy === 'experience') result.sort((a, b) => (b.experience ?? 0) - (a.experience ?? 0));
+    else if (sortBy === 'fee') result.sort((a, b) => (a.consultationFee ?? 0) - (b.consultationFee ?? 0));
 
     return result;
   }, [selectedSpecialty, activeSpecialtyTab, selectedLocation, showAvailableOnly, sortBy, searchQuery]);

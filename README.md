@@ -113,6 +113,73 @@ npm run lint     # Run ESLint
 npm run db:seed  # Seed database
 ```
 
+## LibreChat Integration
+
+This project includes an embedded LibreChat interface accessible via the `/chat` route. The chat interface loads from a configurable URL, making it work both in development and production environments.
+
+### Configuration
+
+The LibreChat URL is configured via the `NEXT_PUBLIC_LIBRECHAT_BASE_URL` environment variable:
+
+**For Local Development (with separate LibreChat instance):**
+1. Clone the LibreChat repository:
+```bash
+git clone https://github.com/danny-avila/LibreChat.git
+cd LibreChat
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Configure environment variables (copy from `.env.example`):
+```bash
+cp .env.example .env
+# Edit .env with your API keys and settings
+```
+
+4. Start LibreChat:
+```bash
+npm run dev
+# LibreChat will be available at http://localhost:3001
+```
+
+5. Set the environment variable in ZyntraCare:
+```env
+# In your .env.local file
+NEXT_PUBLIC_LIBRECHAT_BASE_URL=http://localhost:3001
+```
+
+**For Production Deployment (Single Vercel Monorepo Attempt):**
+If you wish to deploy both ZyntraCare and LibreChat together in a single Vercel project (advanced, requires external datastores), follow these steps:
+
+1. **Ensure required datastores are available** (MongoDB, Meilisearch, etc.) because LibreChat's API depends on them.
+   - You can use MongoDB Atlas, Meilisearch Cloud, or self-hosted instances.
+   - Set the necessary environment variables in your Vercel project (see LibreChat's `.env.example` for a full list).
+
+2. **Configure environment variables in Vercel (for ZyntraCare project):**
+   - `NEXT_PUBLIC_LIBRECHAT_BASE_URL`: Set to `/librechat` (so the iframe loads LibreChat from the same domain under `/librechat`).
+   - All required LibreChat backend environment variables (e.g., `MONGO_URI`, `MEILI_HOST`, `MEILI_MASTER_KEY`, `UID`, `GID`, `PORT`, etc.).
+   - Refer to LibreChat's documentation for the complete list: https://docs.librechat.ai/configuration/librechat_yaml
+
+3. **Vercel Build Configuration:**
+   - The provided `vercel.json` attempts to build both projects and route traffic accordingly.
+   - A custom build script (`npm run vercel-build`) is defined in `package.json` to build LibreChat's client during the Vercel build.
+
+4. **Deploy:**
+   - Push your changes to Vercel.
+   - Vercel will run the build script, build both Next.js (ZyntraCare) and LibreChat client, and set up the Node.js server for LibreChat's API.
+   - Access the chat at `/chat` in your deployed ZyntraCare app.
+
+### ⚠️ Important Notes on Monorepo Approach
+- LibreChat is not optimized for Vercel's serverless functions; the API route (`/api/librechat/*`) will be served as a Vercel Node.js function, which has limitations (e.g., execution time, cold starts, lack of persistent filesystem for uploads unless using external storage).
+- File uploads in LibreChat will need to be configured to use an external service (e.g., S3) because Vercel's filesystem is ephemeral.
+- For production reliability, deploying LibreChat separately (as a Docker container, on Railway, etc.) is still recommended.
+- The iframe in `/src/app/chat/page.tsx` uses `NEXT_PUBLIC_LIBRECHAT_BASE_URL` to construct the src URL. It defaults to `/librechat` when the variable is unset (useful for the monorepo deploy) or can be set to a full URL (e.g., `http://localhost:3001`) for local development with a separate LibreChat instance.
+
+Once configured, you can access the chat interface in ZyntraCare by navigating to `/chat` in your application.
+
 ## Key Pages
 
 | Route | Description |

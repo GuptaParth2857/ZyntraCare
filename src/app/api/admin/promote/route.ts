@@ -7,7 +7,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { email, secretKey } = body;
 
-    const ADMIN_SECRET = process.env.ADMIN_SECRET || 'zyntracare-admin-2024';
+    const ADMIN_SECRET = process.env.ADMIN_SECRET;
+    
+    if (!ADMIN_SECRET) {
+      console.error('[Admin] ADMIN_SECRET not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
     
     if (secretKey !== ADMIN_SECRET) {
       return NextResponse.json({ error: 'Invalid secret key' }, { status: 401 });

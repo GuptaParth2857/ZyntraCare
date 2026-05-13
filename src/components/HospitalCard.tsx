@@ -50,7 +50,9 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
 
   const imageSrc = hospital.image || '';
 
-  const occupancyPercentage = Math.round((hospital.beds.occupied / hospital.beds.total) * 100);
+  const occupancyPercentage = hospital.beds 
+    ? Math.round(((hospital.beds.occupied ?? 0) / hospital.beds.total) * 100) 
+    : 0;
   const isLight = variant === 'light';
 
   const occupancyColor =
@@ -160,7 +162,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               viewport={{ once: true }}
               transition={{ delay: 0.2, type: 'spring' }}
             >
-              <AnimatedNumber value={hospital.beds.available} />
+              <AnimatedNumber value={hospital.beds?.available || 0} />
             </motion.p>
             <p className={`text-[10px] ${isLight ? 'text-emerald-700/70' : 'text-emerald-300/70'} font-bold uppercase tracking-wide relative z-10`}>Beds Free</p>
           </motion.div>
@@ -183,7 +185,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               viewport={{ once: true }}
               transition={{ delay: 0.3, type: 'spring' }}
             >
-              <AnimatedNumber value={hospital.beds.icuAvailable} />
+              <AnimatedNumber value={hospital.beds?.icuAvailable || 0} />
             </motion.p>
             <p className={`text-[10px] ${isLight ? 'text-sky-700/70' : 'text-sky-300/70'} font-bold uppercase tracking-wide relative z-10`}>ICU Free</p>
           </motion.div>
@@ -206,7 +208,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               viewport={{ once: true }}
               transition={{ delay: 0.4, type: 'spring' }}
             >
-              <AnimatedNumber value={hospital.doctors} />
+              <AnimatedNumber value={hospital.doctors || 0} />
             </motion.p>
             <p className={`text-[10px] ${isLight ? 'text-violet-700/70' : 'text-violet-300/70'} font-bold uppercase tracking-wide relative z-10`}>Doctors</p>
           </motion.div>
@@ -254,7 +256,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
 
         {/* Specialties */}
         <div className="flex flex-wrap gap-1.5" aria-label="Specialties">
-          {hospital.specialties.slice(0, 3).map(specialty => (
+          {(hospital.specialties || []).slice(0, 3).map(specialty => (
             <span
               key={specialty}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -266,9 +268,9 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               {specialty}
             </span>
           ))}
-          {hospital.specialties.length > 3 && (
+          {(hospital.specialties || []).length > 3 && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isLight ? 'text-slate-500 bg-slate-50' : 'text-gray-500 bg-white/5'}`}>
-              +{hospital.specialties.length - 3} more
+              +{(hospital.specialties || []).length - 3} more
             </span>
           )}
         </div>

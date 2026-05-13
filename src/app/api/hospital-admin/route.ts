@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getToken } from 'next-auth/jwt';
+
+async function requireAdminOrHospitalAdmin(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (token.role !== 'admin' && token.role !== 'hospital_admin') {
+    return NextResponse.json({ error: 'Admin or Hospital Admin access required' }, { status: 403 });
+  }
+  return null;
+}
 
 export async function GET(req: NextRequest) {
+  const authError = await requireAdminOrHospitalAdmin(req);
+  if (authError) return authError;
   const { searchParams } = new URL(req.url);
   const hospitalId = searchParams.get('hospitalId');
   const userId = searchParams.get('userId');
@@ -24,6 +38,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await requireAdminOrHospitalAdmin(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
     const { userId, hospitalId, permissions } = body;
@@ -48,6 +65,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const authError = await requireAdminOrHospitalAdmin(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
     const { adminId, permissions, hospitalId } = body;
@@ -72,6 +92,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const authError = await requireAdminOrHospitalAdmin(req);
+  if (authError) return authError;
+
   const { searchParams } = new URL(req.url);
   const adminId = searchParams.get('adminId');
   

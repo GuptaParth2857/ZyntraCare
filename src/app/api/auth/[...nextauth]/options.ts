@@ -1,11 +1,31 @@
 import type { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 
 export const authOptions: NextAuthOptions = {
+  trustHost: true,
+  logger: {
+    error(code, metadata) {
+      console.error('[Auth] Error:', code, metadata);
+    },
+    warn(code) {
+      console.warn('[Auth] Warn:', code);
+    },
+    debug(code, metadata) {
+      console.debug('[Auth] Debug:', code, metadata);
+    },
+  },
   providers: [
+    // GitHub Provider (no API key needed for basic auth)
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? [
+      GitHubProvider({
+        clientId: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      })
+    ] : []),
     // Only add GoogleProvider if credentials exist
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       GoogleProvider({
@@ -63,7 +83,6 @@ export const authOptions: NextAuthOptions = {
           if (user && user.passwordHash) {
             const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
             if (!isValid) {
-              // Password incorrect - return specific error
               console.log('[Auth] Invalid password for:', credentials.email);
               return null;
             }
@@ -75,110 +94,67 @@ export const authOptions: NextAuthOptions = {
             };
           }
 
-          // User doesn't exist - for security, DON'T auto-create on login
-          // User must sign up first
           console.log('[Auth] Login denied - user not found:', credentials.email);
           return null;
-          
-          // Previous auto-create code removed for security
-          /*
-          const hashedPassword = await bcrypt.hash(credentials.password, 12);
-          const newUser = await prisma.user.upsert({
-            where: { email: credentials.email.toLowerCase() },
-            update: {},
-            create: {
-              email: credentials.email.toLowerCase(),
-              name: credentials.email.split('@')[0],
-              passwordHash: hashedPassword,
-              role: 'patient',
-            },
-            include: { subscription: true }
-          });
-
-          return {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
-          };
-          */
         } catch (error) {
           console.error('[Auth] Database error:', error);
-          // Fallback: allow login for demo
-          return {
-            id: `demo_${Date.now()}`,
-            name: credentials.email.split('@')[0],
-            email: credentials.email.toLowerCase(),
-            role: 'patient',
-          };
+          return null;
         }
       },
     }),
 
-    // Phone OTP provider
-    CredentialsProvider({
-      id: 'phone-otp',
-      name: 'Phone OTP',
-      credentials: {
-        phone: { label: 'Phone', type: 'text' },
-        otp: { label: 'OTP', type: 'text' },
-      },
-      async authorize(credentials) {
-        // For demo: accept any valid 10-digit phone + 6-digit OTP
-        if (credentials?.phone?.length === 10 && credentials?.otp?.length === 6) {
-          try {
-            // Check or create user by phone
-            let user = await prisma.user.findUnique({
-              where: { phone: credentials.phone },
-              include: { subscription: true }
-            });
+    // DISABLED: Phone OTP provider - causing errors
+    // CredentialsProvider({
+    //   id: 'phone-otp',
+    //   name: 'Phone OTP',
+    //   credentials: {
+    //     phone: { label: 'Phone', type: 'text' },
+    //     otp: { label: 'OTP', type: 'text' },
+    //   },
+    //   async authorize(credentials) {
+    //     console.log('[Auth] Phone OTP authorize called with:', typeof credentials, credentials);
+    //     if (!credentials) return null;
+    //     
+    //     // For demo: accept any valid 10-digit phone + 6-digit OTP
+    //     if (credentials?.phone?.length === 10 && credentials?.otp?.length === 6) {
+    //       try {
+    //         // Check or create user by phone
+    //         let user = await prisma.user.findUnique({
+    //           where: { phone: credentials.phone },
+    //           include: { subscription: true }
+    //         });
 
-            if (!user) {
-              user = await prisma.user.create({
-                data: {
-                  phone: credentials.phone,
-                  name: `User ${credentials.phone.slice(-4)}`,
-                  email: `${credentials.phone}@zyntracare.com`,
-                  role: 'patient',
-                },
-                include: { subscription: true }
-              });
+    //         if (!user) {
+    //           user = await prisma.user.create({
+    //             data: {
+    //               phone: credentials.phone,
+    //               name: `User ${credentials.phone.slice(-4)}`,
+    //               email: `${credentials.phone}@zyntracare.com`,
+    //               role: 'patient',
+    //             },
+    //             include: { subscription: true }
+    //           });
+    //         }
 
-              // Send email notification to Admin
-              import('@/lib/email').then(({ sendEmail }) => {
-                sendEmail({
-                  to: process.env.EMAIL_USER || 'admin@zyntracare.com', // Admin's email
-                  subject: '🎉 New User Registration (Phone) - ZyntraCare',
-                  html: `
-                    <div style="font-family: sans-serif; padding: 20px;">
-                      <h2 style="color: #0ea5e9;">New Phone User Signed Up!</h2>
-                      <p><strong>Phone:</strong> ${user?.phone || credentials.phone}</p>
-                      <p>Login to admin dashboard to view more details.</p>
-                    </div>
-                  `
-                }).catch(e => console.error('Admin email error:', e));
-              });
-            }
-
-            return {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-            };
-          } catch (error) {
-            console.error('[Auth] Phone OTP error:', error);
-            return {
-              id: `phone_${credentials.phone}`,
-              name: `User ${credentials.phone.slice(-4)}`,
-              email: `${credentials.phone}@sms.zyntracare.com`,
-              role: 'patient',
-            };
-          }
-        }
-        return null;
-      },
-    }),
+    //         return {
+    //           id: user.id,
+    //           name: user.name,
+    //           email: user.email,
+    //           role: user.role,
+    //         };
+    //       } catch (error) {
+    //         console.error('[Auth] Phone OTP error:', error);
+    //         return {
+    //           id: `phone_${credentials.phone}`,
+    //           name: `User ${credentials.phone.slice(-4)}`,
+    //           email: `${credentials.phone}@sms.zyntracare.com`,
+    //           role: 'patient',
+    //         };
+    //       }
+    //     }
+    //     return null;
+    //   },
+    // }),
   ],
 
   pages: {
@@ -188,7 +164,16 @@ export const authOptions: NextAuthOptions = {
 
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
 
-  secret: process.env.NEXTAUTH_SECRET || 'development-secret-key-change-in-production',
+  secret: (() => {
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      throw new Error('NEXTAUTH_SECRET environment variable is required');
+    }
+    if (secret.length < 32) {
+      throw new Error('NEXTAUTH_SECRET must be at least 32 characters');
+    }
+    return secret;
+  })(),
 
   callbacks: {
     async jwt({ token, user, trigger, session }) {
@@ -212,8 +197,8 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
-      // Handle session update
-      if (trigger === 'update' && session) {
+      // Handle session update - verify trigger is a valid string
+      if (typeof trigger === 'string' && trigger === 'update' && session) {
         token.subscription = session.subscription;
       }
       

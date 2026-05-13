@@ -1,4 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+
+async function requireAdminOrHospitalAdmin(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (token.role !== 'admin' && token.role !== 'hospital_admin') {
+    return NextResponse.json({ error: 'Admin or Hospital Admin access required' }, { status: 403 });
+  }
+  return null;
+}
 
 const EMERGENCY_NUMBERS = [
   { type: 'ambulance', number: '102', name: 'National Ambulance', state: 'All India', available: true },
@@ -114,6 +126,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await requireAdminOrHospitalAdmin(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
     const newAlert = {

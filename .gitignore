@@ -8,3 +8,5 @@ node_modules
 .next
 healthcare-platform
 my-app
+*.apk
+

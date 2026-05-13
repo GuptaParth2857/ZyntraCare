@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getToken } from 'next-auth/jwt';
+import { validateBody, patientRecordSchema } from '@/lib/validations';
+
+async function authenticateRequest(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return null;
+}
 
 export async function GET(req: NextRequest) {
+  const authError = await authenticateRequest(req);
+  if (authError) return authError;
+
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
   
@@ -10,6 +23,14 @@ export async function GET(req: NextRequest) {
   }
   
   try {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+    const requestingUserId = token?.id as string;
+    const role = token?.role as string;
+
+    if (role !== 'admin' && requestingUserId !== userId) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
     const record = await prisma.patientRecord.findUnique({
       where: { userId },
     });
@@ -22,12 +43,24 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await authenticateRequest(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
-    const { userId, bloodType, allergies, medicalHistory, emergencyContact, emergencyContactPhone, dateOfBirth, gender } = body;
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    const validation = validateBody(patientRecordSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const { userId, bloodType, allergies, medicalHistory, emergencyContact, emergencyContactPhone, dateOfBirth, gender } = validation.data;
+
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+    const requestingUserId = token?.id as string;
+    const role = token?.role as string;
+
+    if (role !== 'admin' && requestingUserId !== userId) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
     
     const record = await prisma.patientRecord.upsert({
@@ -61,12 +94,24 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const authError = await authenticateRequest(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
-    const { userId, bloodType, allergies, medicalHistory, emergencyContact, emergencyContactPhone, dateOfBirth, gender } = body;
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    const validation = validateBody(patientRecordSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const { userId, bloodType, allergies, medicalHistory, emergencyContact, emergencyContactPhone, dateOfBirth, gender } = validation.data;
+
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
+    const requestingUserId = token?.id as string;
+    const role = token?.role as string;
+
+    if (role !== 'admin' && requestingUserId !== userId) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
     
     const record = await prisma.patientRecord.update({

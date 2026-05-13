@@ -76,6 +76,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
+      isDemoData: true,
+      demoNote: "This data is simulated for demonstration purposes. Real bed availability requires integration with hospital systems.",
       totalHospitals: filtered.length,
       summary: {
         totalBeds: filtered.reduce((a: number, h: any) => a + h.beds.total, 0),

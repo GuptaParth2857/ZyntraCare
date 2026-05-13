@@ -17,6 +17,7 @@ export interface Place {
   website?: string;
   openingHours?: string;
   distance?: number;
+  photos?: string[]; // Array of photo URLs for the facility
 }
 
 export interface UseNearbyPlacesReturn {
@@ -87,7 +88,12 @@ export function useNearbyPlaces(
         throw new Error(`API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        throw new Error('Empty response from API');
+      }
+      
+      const data = JSON.parse(text);
 
       // Transform Overpass data to our Place format
       const transformedPlaces: Place[] = data.elements
@@ -151,10 +157,10 @@ export function useNearbyPlaces(
       setPlaces(sortedPlaces);
     } catch (err) {
       console.error('Error fetching places:', err);
-      setError('Failed to fetch nearby places. Please try again.');
+      setError('Using sample data');
       
-      // Provide sample data as fallback for demo purposes
-      setPlaces(getSamplePlaces(userLat, userLng));
+      // Always provide sample data as fallback
+      setPlaces(getSamplePlaces(userLat || 28.6139, userLng || 77.2090));
     } finally {
       setLoading(false);
     }
@@ -199,6 +205,10 @@ function getSamplePlaces(userLat: number, userLng: number): Place[] {
       phone: '+91-120-234-5678',
       openingHours: '24/7',
       distance: 1.2,
+      photos: [
+        'https://images.unsplash.com/photo-1580344147038-8704517c566b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMGluZGV4fGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400',
+        'https://images.unsplash.com/photo-1576091160550-2173dba999ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMGludGVyaW9yfGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400'
+      ]
     },
     {
       id: 'sample_2',
@@ -210,6 +220,10 @@ function getSamplePlaces(userLat: number, userLng: number): Place[] {
       phone: '+91-120-458-9000',
       openingHours: 'Open 24/7',
       distance: 2.1,
+      photos: [
+        'https://images.unsplash.com/photo-1559757148-5c350d0d3c96?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMHRyYWlsfGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400',
+        'https://images.unsplash.com/photo-1576091160358-7fbba8934b5a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxob3NwaXRhbCUyMHRyYWlzfGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400'
+      ]
     },
     {
       id: 'sample_3',
@@ -221,6 +235,10 @@ function getSamplePlaces(userLat: number, userLng: number): Place[] {
       phone: '+91-120-345-6789',
       openingHours: '8:00 AM - 8:00 PM',
       distance: 0.5,
+      photos: [
+        'https://images.unsplash.com/photo-1576091160358-7fbbb8934b5a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxob3NwaXRhbCUyMGNsaW5pY3xlbnwwfHx8fDE2NzkzMDA0NTI&ixlib=rb-4.0.3&q=80&w=400',
+        'https://images.unsplash.com/photo-1576091160358-7fbbb8934b5b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxob3NwaXRhbCUyMGNsaW5pY3xlbnwwfHx8fDE2NzkzMDA0NTM&ixlib=rb-4.0.3&q=80&w=400'
+      ]
     },
     {
       id: 'sample_4',
@@ -232,6 +250,10 @@ function getSamplePlaces(userLat: number, userLng: number): Place[] {
       phone: '+91-120-456-7890',
       openingHours: '7:00 AM - 11:00 PM',
       distance: 0.8,
+      photos: [
+        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTR8&ixlib=rb-4.0.3&q=80&w=400',
+        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTV8&ixlib=rb-4.0.3&q=80&w=400'
+      ]
     },
     {
       id: 'sample_5',
@@ -243,6 +265,10 @@ function getSamplePlaces(userLat: number, userLng: number): Place[] {
       phone: '+91-120-678-9012',
       openingHours: '8:00 AM - 10:00 PM',
       distance: 3.5,
+      photos: [
+        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTZ8&ixlib=rb-4.0.3&q=80&w=400',
+        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTd8&ixlib=rb-4.0.3&q=80&w=400'
+      ]
     },
     {
       id: 'sample_6',
@@ -254,6 +280,10 @@ function getSamplePlaces(userLat: number, userLng: number): Place[] {
       phone: '+91-124-456-7000',
       openingHours: '24/7',
       distance: 4.2,
+      photos: [
+        'https://images.unsplash.com/photo-1559757148-5c350d0d3c97?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTh8&ixlib=rb-4.0.3&q=80&w=400',
+        'https://images.unsplash.com/photo-1559757148-5c350d0d3c98?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDAwNTh8&ixlib=rb-4.0.3&q=80&w=400'
+      ]
     },
   ];
 }

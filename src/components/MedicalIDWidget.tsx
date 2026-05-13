@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiPhone, FiHeart, FiAlertCircle, FiPlus, FiX, FiDownload, FiShare2, FiEdit2, FiActivity, FiClock, FiShield } from 'react-icons/fi';
 import QRCode from 'qrcode';
 
-function debounce<T extends (...args: unknown[]) => unknown>(fn: T, delay: number) {
+function debounce<T extends (...args: MedicalInfo[]) => Promise<void>>(fn: T, delay: number) {
   let timeoutId: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
