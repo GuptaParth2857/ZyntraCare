@@ -3,7 +3,8 @@
 import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, Sparkles, Float } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+// EffectComposer temporarily removed due to three.js r184 incompatibility
+// import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 const PAIRS = 30;
@@ -258,16 +259,7 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
             zoomSpeed={0.8}
           />
 
-          {/* Optimized Bloom */}
-          <EffectComposer>
-            <Bloom
-              luminanceThreshold={0.4}
-              mipmapBlur
-              intensity={bloomIntensity}
-              levels={6}
-              luminanceSmoothing={0.3}
-            />
-          </EffectComposer>
+          {/* Optimized Bloom — removed: EffectComposer crashes with three.js r184 */}
         </Canvas>
       </Suspense>
     </div>

@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: overpassQuery,
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain', 'User-Agent': 'ZyntraCare/1.0' },
       next: { revalidate: 300 },
     });
     
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Pharmacy API error:', error);
+    console.warn('Pharmacy API unavailable, using fallback data:', (error as Error)?.message);
     const fallback = generateFallbackPharmacies(lat, lng);
     return NextResponse.json({
       pharmacies: fallback,

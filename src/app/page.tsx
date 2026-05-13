@@ -1363,6 +1363,7 @@ export default function Home() {
                               src={member.img} 
                               alt={member.name} 
                               fill 
+                              sizes="112px"
                               className="object-cover"
                             />
                           </div>

@@ -20,6 +20,18 @@ import { useState, useEffect } from 'react';
 
 import { NotificationProvider } from '@/components/Notifications';
 
+// Suppress harmless Three.js warnings (deprecations, shader precision, etc.)
+if (typeof console !== 'undefined') {
+  const _warn = console.warn;
+  console.warn = (...args) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (msg.includes('THREE.Clock: This module has been deprecated')) return;
+    if (msg.includes('THREE.WebGLProgram: Program Info Log')) return;
+    if (msg.includes('warning X4122')) return;
+    _warn(...args);
+  };
+}
+
 // AI Self-Healing System
 const SelfHealingSystem = dynamic(() => import('@/components/SelfHealingSystem'), { ssr: false });
 const GlobalErrorHandler = dynamic(() => import('@/components/GlobalErrorHandler'), { ssr: false });

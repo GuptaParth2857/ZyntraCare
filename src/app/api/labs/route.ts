@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: overpassQuery,
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain', 'User-Agent': 'ZyntraCare/1.0' },
       next: { revalidate: 300 },
     });
     
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Labs API error:', error);
+    console.warn('Labs API unavailable, using fallback data:', (error as Error)?.message);
     const fallback = generateFallbackLabs(lat, lng);
     return NextResponse.json({
       labs: test ? fallback.filter((l: any) => 

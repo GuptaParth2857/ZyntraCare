@@ -284,8 +284,8 @@ export default function NearbyMap({
   }
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-slate-900">
-      <div ref={mapRef} style={{ height }} className="w-full" />
+    <div className="relative rounded-2xl overflow-hidden bg-slate-900" style={{ height }}>
+      <div ref={mapRef} style={{ height: '100%' }} className="w-full" />
       
       {/* Map Legend */}
       {!compact && (
