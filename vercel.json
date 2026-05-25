@@ -1,34 +1,6 @@
 {
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": ".next" }
-    },
-    {
-      "src": "librechat/client/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    },
-    {
-      "src": "librechat/api/server/index.js",
-      "use": "@vercel/node",
-      "config": { "runtime": "nodejs20.x" }
-    },
-    {
-      "src": "vane/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": ".next" }
-    }
-  ],
-  "routes": [
-    { "src": "/_next/(.*)", "dest": "/_next/$1" },
-    { "src": "/librechat/_next/(.*)", "dest": "/librechat/client/.next/$1" },
-    { "src": "/librechat/(.*)", "dest": "/librechat/client/dist/$1" },
-    { "src": "/api/librechat/(.*)", "dest": "/librechat/api/server/index.js" },
-    { "src": "/vane-chat/_next/(.*)", "dest": "/vane/.next/$1" },
-    { "src": "/vane-chat/(.*)", "dest": "/vane/dist/$1" },
-    { "src": "/api/vane/(.*)", "dest": "/vane/server/index.js" },
-    { "src": "/(.*)", "dest": "/" }
-  ]
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs"
 }
