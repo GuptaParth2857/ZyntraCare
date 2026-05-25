@@ -3,8 +3,7 @@
 import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, Sparkles, Float } from '@react-three/drei';
-// EffectComposer temporarily removed due to three.js r184 incompatibility
-// import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 const PAIRS = 30;
@@ -58,23 +57,31 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
     }
   });
 
-  // Teal color palette for BEAST upgrade
   const tealColor = '#14b8a6';
-  const goldColor = '#d4a574';
+  const goldColor = '#f0c27a';
   const lightTeal = '#5eead4';
+  const brightTeal = '#2dd4bf';
 
   return (
     <group ref={groupRef} rotation={[0.2, 0.3, 0.12]}>
-      {/* Left backbone - teal tinted */}
+      {/* Left backbone */}
       <mesh>
-        <tubeGeometry args={[leftCurve, 140, 0.06, 10, false]} />
-        <meshStandardMaterial color={tealColor} emissive={tealColor} emissiveIntensity={0.4} metalness={0.95} roughness={0.08} envMapIntensity={4} />
+        <tubeGeometry args={[leftCurve, 140, 0.07, 10, false]} />
+        <meshStandardMaterial color={tealColor} emissive={brightTeal} emissiveIntensity={0.7} metalness={0.95} roughness={0.08} envMapIntensity={4} />
+      </mesh>
+      <mesh>
+        <tubeGeometry args={[leftCurve, 140, 0.14, 10, false]} />
+        <meshBasicMaterial color={tealColor} transparent opacity={0.08} />
       </mesh>
 
-      {/* Right backbone - teal tinted */}
+      {/* Right backbone */}
       <mesh>
-        <tubeGeometry args={[rightCurve, 140, 0.06, 10, false]} />
-        <meshStandardMaterial color={tealColor} emissive={tealColor} emissiveIntensity={0.4} metalness={0.95} roughness={0.08} envMapIntensity={4} />
+        <tubeGeometry args={[rightCurve, 140, 0.07, 10, false]} />
+        <meshStandardMaterial color={tealColor} emissive={brightTeal} emissiveIntensity={0.7} metalness={0.95} roughness={0.08} envMapIntensity={4} />
+      </mesh>
+      <mesh>
+        <tubeGeometry args={[rightCurve, 140, 0.14, 10, false]} />
+        <meshBasicMaterial color={tealColor} transparent opacity={0.08} />
       </mesh>
 
       {/* Rungs & Nodes */}
@@ -85,11 +92,10 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
         const dir = rp.clone().sub(lp).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
 
-        // Teal + Gold accent pattern (BEAST colors)
         const accentType = i % 8;
         const rungColor   = accentType === 3 ? goldColor : accentType === 7 ? lightTeal : '#5eead4';
-        const rungEmissive = accentType === 3 ? '#d4a574' : accentType === 7 ? '#14b8a6' : '#5eead4';
-        const rungIntensity = (accentType === 3 || accentType === 7) ? 2.0 * bloomIntensity : 0.3;
+        const rungEmissive = accentType === 3 ? '#f0c27a' : accentType === 7 ? '#14b8a6' : '#5eead4';
+        const rungIntensity = (accentType === 3 || accentType === 7) ? 2.5 * bloomIntensity : 0.4;
 
         return (
           <group key={`rung-${i}`}>
@@ -101,20 +107,34 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
                 metalness={1} roughness={0.04} envMapIntensity={5}
               />
             </mesh>
+            <mesh position={mid} quaternion={q}>
+              <cylinderGeometry args={[0.08, 0.08, dist * 0.86, 8]} />
+              <meshBasicMaterial color={rungEmissive} transparent opacity={0.06} />
+            </mesh>
 
-            {/* Left glowing ball - teal */}
+            {/* Left node glow aura */}
+            <mesh position={lp}>
+              <sphereGeometry args={[0.45, 24, 24]} />
+              <meshBasicMaterial color={lightTeal} transparent opacity={0.15} />
+            </mesh>
+            {/* Left glowing ball */}
             <Float speed={1.5} rotationIntensity={0} floatIntensity={0.04}>
               <mesh position={lp}>
                 <sphereGeometry args={[0.27, 24, 24]} />
-                <meshStandardMaterial color={lightTeal} emissive={lightTeal} emissiveIntensity={0.8} metalness={0.2} roughness={0.1} envMapIntensity={3} />
+                <meshStandardMaterial color={lightTeal} emissive={brightTeal} emissiveIntensity={1.2} metalness={0.2} roughness={0.1} envMapIntensity={3} toneMapped={false} />
               </mesh>
             </Float>
 
-            {/* Right glowing ball - gold */}
+            {/* Right node glow aura */}
+            <mesh position={rp}>
+              <sphereGeometry args={[0.45, 24, 24]} />
+              <meshBasicMaterial color={goldColor} transparent opacity={0.15} />
+            </mesh>
+            {/* Right glowing ball */}
             <Float speed={1.8} rotationIntensity={0} floatIntensity={0.04}>
               <mesh position={rp}>
                 <sphereGeometry args={[0.27, 24, 24]} />
-                <meshStandardMaterial color={goldColor} emissive={goldColor} emissiveIntensity={0.8} metalness={0.2} roughness={0.1} envMapIntensity={3} />
+                <meshStandardMaterial color={goldColor} emissive={goldColor} emissiveIntensity={1.2} metalness={0.2} roughness={0.1} envMapIntensity={3} toneMapped={false} />
               </mesh>
             </Float>
           </group>
@@ -123,21 +143,27 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
 
       {/* Flowing energy orbs */}
       <group ref={flowRef}>
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: 12 }).map((_, i) => (
           <mesh key={`flow-${i}`}>
-            <sphereGeometry args={[0.12, 12, 12]} />
-            <meshStandardMaterial
-              color={i % 2 === 0 ? tealColor : goldColor}
-              emissive={i % 2 === 0 ? '#14b8a6' : '#d4a574'}
-              emissiveIntensity={2.5 * bloomIntensity}
+            <sphereGeometry args={[0.1, 12, 12]} />
+            <meshBasicMaterial
+              color={i % 2 === 0 ? brightTeal : goldColor}
+              transparent
+              opacity={0.9}
               toneMapped={false}
             />
           </mesh>
         ))}
       </group>
 
-      {/* Floating dust sparkles - teal tinted */}
-      <Sparkles count={particleCount} scale={14} size={1.2} speed={0.15} color={lightTeal} opacity={0.25} />
+      {/* Center glow core */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[0.6, 16, 16]} />
+        <meshBasicMaterial color={brightTeal} transparent opacity={0.05} />
+      </mesh>
+
+      {/* Floating dust sparkles */}
+      <Sparkles count={particleCount} scale={14} size={1.5} speed={0.12} color={brightTeal} opacity={0.3} />
     </group>
   );
 }
@@ -259,7 +285,9 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
             zoomSpeed={0.8}
           />
 
-          {/* Optimized Bloom — removed: EffectComposer crashes with three.js r184 */}
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.1} luminanceSmoothing={0.06} intensity={1.8 * bloomIntensity} mipmapBlur />
+          </EffectComposer>
         </Canvas>
       </Suspense>
     </div>
