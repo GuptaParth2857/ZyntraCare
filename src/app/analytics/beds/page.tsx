@@ -63,7 +63,7 @@ export default function BedAnalyticsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8">
+    <div className="min-h-screen bg-transparent text-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

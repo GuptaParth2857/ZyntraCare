@@ -30,7 +30,7 @@ export default function WellnessPage() {
   const completedCount = missions.filter(m => m.completed).length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-transparent">
       {/* Header */}
       <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-6 pb-20">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

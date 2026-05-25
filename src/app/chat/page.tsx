@@ -88,7 +88,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 shrink-0">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">

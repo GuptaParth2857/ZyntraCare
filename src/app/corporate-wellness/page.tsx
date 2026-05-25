@@ -57,7 +57,7 @@ export default function CorporateWellnessPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-transparent">
       {/* Header */}
       <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 text-white p-6 pb-24">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

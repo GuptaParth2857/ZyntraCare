@@ -70,7 +70,7 @@ export default function VideoConsultPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       {!inCall ? (
         <div className="max-w-4xl mx-auto px-4 py-12">
           <motion.div

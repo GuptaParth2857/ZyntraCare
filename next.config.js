@@ -34,6 +34,7 @@ const nextConfig = {
       'react-icons',
       'recharts',
     ],
+    serverExternalPackages: ['bcryptjs'],
   },
 
   webpack: (config, { isServer }) => {

@@ -224,7 +224,7 @@ export default function GodModePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-4">
+    <div className="min-h-screen bg-transparent text-white p-4">
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

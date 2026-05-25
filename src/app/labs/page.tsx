@@ -125,7 +125,7 @@ export default function LabsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white" style={{ background: 'linear-gradient(135deg, #020614 0%, #030a1e 50%, #020612 100%)' }}>
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
       {/* Animated background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/8 rounded-full blur-[120px] animate-pulse" />

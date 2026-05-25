@@ -70,7 +70,7 @@ export default function BloodDonorsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-red-900 via-slate-900 to-slate-900">
         <div className="absolute inset-0 opacity-20">

@@ -91,7 +91,7 @@ export default function EpidemicRadarPage() {
   const criticalAreas = outbreakData.filter(d => d.severity === 'critical' || d.severity === 'high');
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden font-inter text-white">
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter text-white">
       <div className="max-w-7xl mx-auto px-4 pt-8 pb-24">
         
         <motion.div

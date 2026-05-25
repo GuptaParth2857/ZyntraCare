@@ -41,7 +41,7 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-transparent">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

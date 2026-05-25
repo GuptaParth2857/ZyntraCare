@@ -106,7 +106,7 @@ export default function MedicationReminderPage() {
   const todayTotal = medications.length * 2;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-transparent">
       {/* Header */}
       <div className="bg-gradient-to-br from-teal-600 to-emerald-700 text-white p-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

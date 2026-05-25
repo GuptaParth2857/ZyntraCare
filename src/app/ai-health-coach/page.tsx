@@ -71,7 +71,7 @@ export default function AIHealthCoachPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="max-w-2xl mx-auto h-screen flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-white/10">

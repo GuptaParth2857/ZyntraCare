@@ -110,7 +110,7 @@ export default function TelehealthPage() {
   const specialties = ['all', 'General Physician', 'Cardiologist', 'Dermatologist', 'Pediatrician', 'Psychiatrist', 'Orthopedic', 'Gynecologist'];
 
   return (
-    <div className="min-h-screen text-white relative" style={{ background: 'linear-gradient(135deg, #020614 0%, #030a1e 50%, #020612 100%)' }}>
+    <div className="min-h-screen bg-transparent text-white relative">
       {/* Animated background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/8 rounded-full blur-[120px] animate-pulse" />

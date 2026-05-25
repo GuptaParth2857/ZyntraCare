@@ -64,12 +64,72 @@ export default function CanvasBackground() {
       ringsColors = ['#f59e0b', '#d97706', '#f97316'];
       connColor = '251,191,36'; // Amber
       bgColor = 'rgba(15, 10, 2, 0.15)'; // dark amberish
+    } else if (pathname.includes('/labs') || pathname.includes('/lab') || pathname.includes('/diagnostics')) {
+      themeColors = ['#a78bfa', '#8b5cf6', '#7c3aed', '#c4b5fd', '#6d28d9'];
+      orbsColors = ['#a78bfa', '#8b5cf6', '#c4b5fd'];
+      ringsColors = ['#8b5cf6', '#7c3aed', '#6d28d9'];
+      connColor = '167,139,250'; // Violet
+      bgColor = 'rgba(12, 6, 22, 0.15)'; // dark violetish
+    } else if (pathname.includes('/telehealth') || pathname.includes('/telemedicine')) {
+      themeColors = ['#2dd4bf', '#14b8a6', '#0d9488', '#5eead4', '#0f766e'];
+      orbsColors = ['#2dd4bf', '#14b8a6', '#5eead4'];
+      ringsColors = ['#14b8a6', '#0d9488', '#0f766e'];
+      connColor = '45,212,191'; // Teal
+      bgColor = 'rgba(2, 12, 12, 0.15)'; // dark tealish
+    } else if (pathname.includes('/health-tracker') || pathname.includes('/health')) {
+      themeColors = ['#34d399', '#10b981', '#059669', '#6ee7b7', '#047857'];
+      orbsColors = ['#34d399', '#10b981', '#6ee7b7'];
+      ringsColors = ['#10b981', '#059669', '#047857'];
+      connColor = '52,211,153'; // Emerald
+      bgColor = 'rgba(2, 12, 10, 0.15)'; // dark greenish
     } else if (pathname.includes('/blood') || pathname.includes('/emergency')) {
       themeColors = ['#fb7185', '#f43f5e', '#e11d48', '#f87171', '#ef4444'];
       orbsColors = ['#fb7185', '#f43f5e', '#f87171'];
       ringsColors = ['#f43f5e', '#e11d48', '#ef4444'];
       connColor = '244,63,94'; // Rose
       bgColor = 'rgba(20, 4, 6, 0.15)'; // dark redish
+    } else if (pathname.includes('/ai-health-coach') || pathname.includes('/clinical-ai')) {
+      themeColors = ['#818cf8', '#6366f1', '#4f46e5', '#a5b4fc', '#4338ca'];
+      orbsColors = ['#818cf8', '#6366f1', '#a5b4fc'];
+      ringsColors = ['#6366f1', '#4f46e5', '#4338ca'];
+      connColor = '129,140,248'; // Indigo
+      bgColor = 'rgba(8, 6, 22, 0.15)'; // dark indigoish
+    } else if (pathname.includes('/dashboard') || pathname.includes('/admin')) {
+      themeColors = ['#38bdf8', '#818cf8', '#6366f1', '#22d3ee', '#a78bfa'];
+      orbsColors = ['#38bdf8', '#818cf8', '#a78bfa'];
+      ringsColors = ['#6366f1', '#22d3ee', '#818cf8'];
+      connColor = '129,140,248'; // Indigo/Sky
+      bgColor = 'rgba(6, 8, 22, 0.15)'; // dark blueish
+    } else if (pathname.includes('/first-aid') || pathname.includes('/symptoms')) {
+      themeColors = ['#fb923c', '#f97316', '#ea580c', '#fdba74', '#dc2626'];
+      orbsColors = ['#fb923c', '#f97316', '#fdba74'];
+      ringsColors = ['#f97316', '#ea580c', '#dc2626'];
+      connColor = '249,115,22'; // Orange
+      bgColor = 'rgba(18, 8, 4, 0.15)'; // dark orangeish
+    } else if (pathname.includes('/womens-health') || pathname.includes('/family-care') || pathname.includes('/communities')) {
+      themeColors = ['#f472b6', '#ec4899', '#db2777', '#f9a8d4', '#be185d'];
+      orbsColors = ['#f472b6', '#ec4899', '#f9a8d4'];
+      ringsColors = ['#ec4899', '#db2777', '#be185d'];
+      connColor = '244,114,182'; // Pink
+      bgColor = 'rgba(20, 4, 12, 0.15)'; // dark pinkish
+    } else if (pathname.includes('/pets') || pathname.includes('/rewards')) {
+      themeColors = ['#fb923c', '#f59e0b', '#d97706', '#fbbf24', '#f97316'];
+      orbsColors = ['#fb923c', '#f59e0b', '#fbbf24'];
+      ringsColors = ['#f59e0b', '#d97706', '#f97316'];
+      connColor = '251,146,60'; // Orange/Gold
+      bgColor = 'rgba(16, 10, 2, 0.15)'; // dark warm
+    } else if (pathname.includes('/booking') || pathname.includes('/install')) {
+      themeColors = ['#2dd4bf', '#14b8a6', '#0d9488', '#5eead4', '#0f766e'];
+      orbsColors = ['#2dd4bf', '#14b8a6', '#5eead4'];
+      ringsColors = ['#14b8a6', '#0d9488', '#0f766e'];
+      connColor = '45,212,191'; // Teal
+      bgColor = 'rgba(2, 12, 12, 0.15)'; // dark tealish
+    } else if (pathname.includes('/chat') || pathname.includes('/blogs') || pathname.includes('/contact')) {
+      themeColors = ['#94a3b8', '#64748b', '#475569', '#cbd5e1', '#334155'];
+      orbsColors = ['#94a3b8', '#64748b', '#cbd5e1'];
+      ringsColors = ['#64748b', '#475569', '#334155'];
+      connColor = '148,163,184'; // Slate
+      bgColor = 'rgba(10, 10, 12, 0.15)'; // dark slateish
     }
 
     // ── Responsive particle count - optimized

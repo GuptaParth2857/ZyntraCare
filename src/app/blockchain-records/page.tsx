@@ -26,7 +26,7 @@ export default function BlockchainRecordsPage() {
   const [selectedRecord, setSelectedRecord] = useState<RecordBlock | null>(null);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Header */}
