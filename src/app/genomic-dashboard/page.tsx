@@ -108,7 +108,7 @@ export default function GenomicDashboardPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white p-6 relative overflow-hidden">
       {/* 3D Globe Background */}
-      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
+      <div className="fixed inset-0 z-0 opacity-60 pointer-events-none">
         <Globe3D />
       </div>
       <div className="relative z-10">
