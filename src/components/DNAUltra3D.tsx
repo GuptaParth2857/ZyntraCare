@@ -21,16 +21,17 @@ function NodePulse({ pos, color, speed, delay }: { pos: THREE.Vector3; color: st
   });
   return (
     <mesh ref={meshRef} position={pos}>
-      <sphereGeometry args={[0.22, 20, 20]} />
+      <sphereGeometry args={[0.25, 20, 20]} />
       <meshPhysicalMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={0.4}
-        metalness={0.1}
-        roughness={0.2}
-        clearcoat={0.5}
+        emissiveIntensity={1.2}
+        metalness={0.05}
+        roughness={0.1}
+        clearcoat={0.6}
         transparent
-        opacity={0.85}
+        opacity={0.95}
+        toneMapped={false}
       />
     </mesh>
   );
@@ -54,8 +55,8 @@ function OrbitalRing({ radius, color, speed, tilt }: { radius: number; color: st
 
   return (
     <mesh ref={ref} rotation={[tilt ?? 0.3, 0, 0]}>
-      <ringGeometry args={[radius - 0.01, radius + 0.01, 64]} />
-      <meshBasicMaterial color={color} transparent opacity={0.12} side={THREE.DoubleSide} toneMapped={false} />
+      <ringGeometry args={[radius - 0.01, radius + 0.01, 80]} />
+      <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} toneMapped={false} />
     </mesh>
   );
 }
@@ -91,12 +92,12 @@ function makeTextCanvas(text: string, color: string): HTMLCanvasElement {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
-  ctx.globalAlpha = 0.6;
+  ctx.globalAlpha = 0.9;
   ctx.fillText(text, 32, 32);
   return c;
 }
 
-function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomIntensity?: number; particleCount?: number }) {
+function CinematicDNA({ bloomIntensity = 2.0, particleCount = 80 }: { bloomIntensity?: number; particleCount?: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const flowRef = useRef<THREE.Group>(null);
   const scanRef = useRef<THREE.Mesh>(null);
@@ -152,11 +153,11 @@ function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomInten
     }
   });
 
-  const cyan = '#06b6d4';
-  const blue = '#3b82f6';
-  const amber = '#f59e0b';
+  const cyan = '#22d3ee';
+  const blue = '#60a5fa';
+  const amber = '#fbbf24';
   const white = '#f0f9ff';
-  const purple = '#a78bfa';
+  const purple = '#c084fc';
 
   return (
     <group ref={groupRef} rotation={[0.15, 0, 0.1]}>
@@ -171,21 +172,21 @@ function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomInten
         return (
           <group key={`backbone-${sideIdx}`}>
             <mesh>
-              <tubeGeometry args={[curve, 140, 0.05, 8, false]} />
+              <tubeGeometry args={[curve, 140, 0.06, 8, false]} />
               <meshPhysicalMaterial
-                color={isLeft ? cyan : blue}
+                color={cyan}
                 emissive={isLeft ? cyan : blue}
-                emissiveIntensity={0.2}
-                metalness={0.3}
-                roughness={0.4}
+                emissiveIntensity={0.6}
+                metalness={0.2}
+                roughness={0.3}
                 transparent
-                opacity={0.7}
-                clearcoat={0.3}
+                opacity={0.9}
+                clearcoat={0.4}
               />
             </mesh>
             <mesh>
-              <tubeGeometry args={[curve, 140, 0.14, 8, false]} />
-              <meshBasicMaterial color={isLeft ? cyan : blue} transparent opacity={0.05} />
+              <tubeGeometry args={[curve, 140, 0.18, 8, false]} />
+              <meshBasicMaterial color={isLeft ? cyan : blue} transparent opacity={0.1} toneMapped={false} />
             </mesh>
           </group>
         );
@@ -206,15 +207,15 @@ function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomInten
         return (
           <group key={`rung-${i}`}>
             <mesh position={mid} quaternion={q}>
-              <cylinderGeometry args={[0.03, 0.03, dist * 0.8, 6]} />
+              <cylinderGeometry args={[0.04, 0.04, dist * 0.85, 6]} />
               <meshPhysicalMaterial
                 color={col}
                 emissive={emCol}
-                emissiveIntensity={0.25}
-                metalness={0.6}
-                roughness={0.2}
+                emissiveIntensity={0.6}
+                metalness={0.4}
+                roughness={0.15}
                 transparent
-                opacity={0.8}
+                opacity={0.9}
               />
             </mesh>
             {[lp, rp].map((pos, side) => {
@@ -222,10 +223,10 @@ function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomInten
               const baseColor = isLeft ? cyan : blue;
               return (
                 <group key={`node-${side}`}>
-                  <mesh position={pos}>
-                    <sphereGeometry args={[0.32, 20, 20]} />
-                    <meshBasicMaterial color={baseColor} transparent opacity={0.06} />
-                  </mesh>
+              <mesh position={pos}>
+                <sphereGeometry args={[0.4, 20, 20]} />
+                <meshBasicMaterial color={baseColor} transparent opacity={0.15} toneMapped={false} />
+              </mesh>
                   <NodePulse pos={pos} color={baseColor} speed={1.2 + i * 0.02} delay={i * 0.15} />
                   <mesh position={pos}>
                     <sphereGeometry args={[0.07, 12, 12]} />
@@ -243,19 +244,19 @@ function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomInten
 
       {/* Scan line */}
       <mesh ref={scanRef} position={[0, 0, 0]}>
-        <ringGeometry args={[0.05, RADIUS * 1.7, 48]} />
-        <meshBasicMaterial color={cyan} transparent opacity={0.15} side={THREE.DoubleSide} toneMapped={false} />
+        <ringGeometry args={[0.05, RADIUS * 1.9, 64]} />
+        <meshBasicMaterial color={cyan} transparent opacity={0.3} side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
 
       {/* Energy flow */}
       <group ref={flowRef}>
-        {Array.from({ length: 10 }).map((_, i) => (
+        {Array.from({ length: 14 }).map((_, i) => (
           <mesh key={`flow-${i}`}>
-            <sphereGeometry args={[0.07, 8, 8]} />
+            <sphereGeometry args={[0.09, 8, 8]} />
             <meshBasicMaterial
               color={i % 3 === 0 ? amber : i % 3 === 1 ? cyan : blue}
               transparent
-              opacity={0.6}
+              opacity={0.9}
               toneMapped={false}
             />
           </mesh>
@@ -264,11 +265,11 @@ function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomInten
 
       {/* Central axis glow */}
       <mesh position={[0, 0, 0]}>
-        <cylinderGeometry args={[0.02, 0.02, HEIGHT * PAIRS, 8]} />
-        <meshBasicMaterial color={cyan} transparent opacity={0.04} />
+        <cylinderGeometry args={[0.03, 0.03, HEIGHT * PAIRS, 8]} />
+        <meshBasicMaterial color={cyan} transparent opacity={0.15} toneMapped={false} />
       </mesh>
 
-      <Sparkles count={particleCount} scale={12} size={1} speed={0.06} color={cyan} opacity={0.12} />
+      <Sparkles count={particleCount} scale={14} size={1.5} speed={0.08} color={cyan} opacity={0.3} toneMapped={false} />
     </group>
   );
 }
@@ -290,15 +291,15 @@ function Loader() {
 export default function DNAUltra3D({ height = 600 }: { height?: number }) {
   const [isInteracting, setIsInteracting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [bloomIntensity, setBloomIntensity] = useState(0.8);
-  const [particleCount, setParticleCount] = useState(40);
+  const [bloomIntensity, setBloomIntensity] = useState(2.0);
+  const [particleCount, setParticleCount] = useState(80);
 
   useEffect(() => {
     const checkDevice = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setBloomIntensity(mobile ? 0.4 : 0.8);
-      setParticleCount(mobile ? 20 : 40);
+      setBloomIntensity(mobile ? 1.0 : 2.0);
+      setParticleCount(mobile ? 40 : 80);
     };
     checkDevice();
     window.addEventListener('resize', checkDevice, { passive: true });
@@ -308,8 +309,8 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (mq.matches) {
-      setBloomIntensity(0.2);
-      setParticleCount(15);
+      setBloomIntensity(0.5);
+      setParticleCount(30);
     }
   }, []);
 
@@ -322,23 +323,23 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0" style={{
           background: `
-            radial-gradient(ellipse 80% 50% at 50% 0%, rgba(6,182,212,0.03) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 80% at 20% 100%, rgba(59,130,246,0.03) 0%, transparent 50%),
-            radial-gradient(ellipse 60% 80% at 80% 100%, rgba(167,139,250,0.02) 0%, transparent 50%)
+            radial-gradient(ellipse 70% 40% at 50% 20%, rgba(6,182,212,0.15) 0%, transparent 60%),
+            radial-gradient(ellipse 50% 60% at 20% 80%, rgba(59,130,246,0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 60% at 80% 80%, rgba(192,132,252,0.06) 0%, transparent 50%)
           `,
         }} />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
+        <div className="absolute inset-0 opacity-[0.05]" style={{
           backgroundImage: `
-            linear-gradient(rgba(6,182,212,0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(6,182,212,0.3) 1px, transparent 1px)
+            linear-gradient(rgba(6,182,212,0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(6,182,212,0.5) 1px, transparent 1px)
           `,
-          backgroundSize: '60px 60px',
+          backgroundSize: '40px 40px',
         }} />
       </div>
 
       {/* Vignette */}
       <div className="absolute inset-0 z-10 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(6,13,18,0.7) 100%)',
+        background: 'radial-gradient(ellipse at center, transparent 35%, rgba(6,13,18,0.4) 100%)',
       }} />
 
       {/* Top/bottom fades */}
@@ -379,19 +380,20 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
       <Suspense fallback={<Loader />}>
         <Canvas
           camera={{ position: [0, 0.5, 8], fov: 38 }}
-          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
           dpr={isMobile ? [1, 1] : [1, 1.5]}
           onPointerDown={() => setIsInteracting(true)}
           onPointerUp={() => setIsInteracting(false)}
         >
           <color attach="background" args={['#060d12']} />
 
-          <ambientLight intensity={0.3} color="#a5f3fc" />
-          <directionalLight position={[4, 8, 6]} intensity={2.5} color="#f8fafc" />
-          <directionalLight position={[-4, -2, -6]} intensity={1.2} color="#67e8f9" />
-          <pointLight position={[0, 0, 5]} intensity={1.5} color="#06b6d4" distance={12} />
-          <pointLight position={[0, 6, 0]} intensity={0.8} color="#3b82f6" distance={12} />
-          <pointLight position={[0, -6, 0]} intensity={0.6} color="#06b6d4" distance={12} />
+          <ambientLight intensity={0.5} color="#a5f3fc" />
+          <directionalLight position={[4, 8, 6]} intensity={4} color="#f0fdfa" />
+          <directionalLight position={[-4, -2, -6]} intensity={2.5} color="#67e8f9" />
+          <pointLight position={[0, 0, 5]} intensity={3} color="#22d3ee" distance={15} />
+          <pointLight position={[0, 6, 0]} intensity={2} color="#60a5fa" distance={14} />
+          <pointLight position={[0, -6, 0]} intensity={1.5} color="#22d3ee" distance={14} />
+          <pointLight position={[3, 3, 3]} intensity={1.5} color="#fbbf24" distance={10} />
 
           <CinematicDNA bloomIntensity={bloomIntensity} particleCount={particleCount} />
 
@@ -410,7 +412,7 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
           />
 
           <EffectComposer>
-            <Bloom luminanceThreshold={0.12} luminanceSmoothing={0.06} intensity={0.9 * bloomIntensity} mipmapBlur />
+            <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.04} intensity={2.0 * bloomIntensity} mipmapBlur />
           </EffectComposer>
         </Canvas>
       </Suspense>
