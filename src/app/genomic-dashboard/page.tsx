@@ -10,6 +10,7 @@ import {
   FiUpload, FiRefreshCw, FiInfo, FiZap, FiTarget, FiArrowLeft
 } from 'react-icons/fi';
 
+const AdvancedScene3D = dynamic(() => import('@/components/AdvancedScene3D'), { ssr: false });
 const DNAUltra3D = dynamic(() => import('@/components/DNAUltra3D'), { ssr: false });
 
 interface GeneVariant {
@@ -106,9 +107,9 @@ export default function GenomicDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white p-6 relative overflow-hidden">
-      {/* 3D DNA Background Animation */}
-      <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
-        <DNAUltra3D />
+      {/* 3D Animated Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <AdvancedScene3D />
       </div>
       <div className="relative z-10">
       <motion.div 
