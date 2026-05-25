@@ -2,18 +2,19 @@
 
 import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, Sparkles, Float } from '@react-three/drei';
+import { OrbitControls, Environment, Sparkles, Float, Text } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-const PAIRS = 30;
-const RADIUS = 1.8;
-const HEIGHT = 0.6;
-const TWIST = 0.38;
+const PAIRS = 32;
+const RADIUS = 1.6;
+const HEIGHT = 0.55;
+const TWIST = 0.35;
 
-function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomIntensity?: number; particleCount?: number }) {
+function CinematicDNA({ bloomIntensity = 0.8, particleCount = 40 }: { bloomIntensity?: number; particleCount?: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const flowRef = useRef<THREE.Group>(null);
+  const scanRef = useRef<THREE.Mesh>(null);
 
   const { leftCurve, rightCurve, nodes } = useMemo(() => {
     const lPts: THREE.Vector3[] = [];
@@ -42,12 +43,11 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (groupRef.current) {
-      groupRef.current.rotation.y = t * 0.12;
-      groupRef.current.position.y = Math.sin(t * 0.35) * 0.25;
+      groupRef.current.rotation.y = t * 0.1;
     }
     if (flowRef.current) {
       flowRef.current.children.forEach((child, i) => {
-        const speed = 0.4;
+        const speed = 0.3;
         const offset = i * (1 / flowRef.current!.children.length);
         const phase = ((t * speed + offset) % 1 + 1) % 1;
         const curve = i % 2 === 0 ? leftCurve : rightCurve;
@@ -55,36 +55,46 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
         child.position.copy(pos);
       });
     }
+    if (scanRef.current) {
+      const scanY = (Math.sin(t * 0.5) * 0.5 + 0.5) * 2 - 1;
+      scanRef.current.position.y = scanY * HEIGHT * PAIRS * 0.5;
+    }
   });
 
-  const tealColor = '#14b8a6';
-  const goldColor = '#f0c27a';
-  const lightTeal = '#5eead4';
-  const brightTeal = '#2dd4bf';
+  const cyan = '#06b6d4';
+  const blue = '#3b82f6';
+  const amber = '#f59e0b';
+  const white = '#f0f9ff';
 
   return (
-    <group ref={groupRef} rotation={[0.2, 0.3, 0.12]}>
-      {/* Left backbone */}
-      <mesh>
-        <tubeGeometry args={[leftCurve, 140, 0.07, 10, false]} />
-        <meshStandardMaterial color={tealColor} emissive={brightTeal} emissiveIntensity={0.7} metalness={0.95} roughness={0.08} envMapIntensity={4} />
-      </mesh>
-      <mesh>
-        <tubeGeometry args={[leftCurve, 140, 0.14, 10, false]} />
-        <meshBasicMaterial color={tealColor} transparent opacity={0.08} />
-      </mesh>
+    <group ref={groupRef} rotation={[0.15, 0, 0.1]}>
+      {/* Backbones */}
+      {[leftCurve, rightCurve].map((curve, sideIdx) => {
+        const isLeft = sideIdx === 0;
+        return (
+          <group key={`backbone-${sideIdx}`}>
+            <mesh>
+              <tubeGeometry args={[curve, 140, 0.05, 8, false]} />
+              <meshPhysicalMaterial
+                color={isLeft ? cyan : blue}
+                emissive={isLeft ? cyan : blue}
+                emissiveIntensity={0.15}
+                metalness={0.3}
+                roughness={0.4}
+                transparent
+                opacity={0.7}
+                clearcoat={0.3}
+              />
+            </mesh>
+            <mesh>
+              <tubeGeometry args={[curve, 140, 0.12, 8, false]} />
+              <meshBasicMaterial color={isLeft ? cyan : blue} transparent opacity={0.04} />
+            </mesh>
+          </group>
+        );
+      })}
 
-      {/* Right backbone */}
-      <mesh>
-        <tubeGeometry args={[rightCurve, 140, 0.07, 10, false]} />
-        <meshStandardMaterial color={tealColor} emissive={brightTeal} emissiveIntensity={0.7} metalness={0.95} roughness={0.08} envMapIntensity={4} />
-      </mesh>
-      <mesh>
-        <tubeGeometry args={[rightCurve, 140, 0.14, 10, false]} />
-        <meshBasicMaterial color={tealColor} transparent opacity={0.08} />
-      </mesh>
-
-      {/* Rungs & Nodes */}
+      {/* Rungs + Nodes */}
       {nodes.m.map((mid, i) => {
         const lp = nodes.l[i];
         const rp = nodes.r[i];
@@ -92,88 +102,91 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
         const dir = rp.clone().sub(lp).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
 
-        const accentType = i % 8;
-        const rungColor   = accentType === 3 ? goldColor : accentType === 7 ? lightTeal : '#5eead4';
-        const rungEmissive = accentType === 3 ? '#f0c27a' : accentType === 7 ? '#14b8a6' : '#5eead4';
-        const rungIntensity = (accentType === 3 || accentType === 7) ? 2.5 * bloomIntensity : 0.4;
+        const isAmber = i % 7 === 3;
+        const col = isAmber ? amber : cyan;
+        const emCol = isAmber ? amber : cyan;
 
         return (
           <group key={`rung-${i}`}>
-            {/* Connecting rod */}
             <mesh position={mid} quaternion={q}>
-              <cylinderGeometry args={[0.04, 0.04, dist * 0.86, 8]} />
-              <meshStandardMaterial
-                color={rungColor} emissive={rungEmissive} emissiveIntensity={rungIntensity}
-                metalness={1} roughness={0.04} envMapIntensity={5}
+              <cylinderGeometry args={[0.03, 0.03, dist * 0.8, 6]} />
+              <meshPhysicalMaterial
+                color={col}
+                emissive={emCol}
+                emissiveIntensity={0.2}
+                metalness={0.6}
+                roughness={0.2}
+                transparent
+                opacity={0.8}
               />
             </mesh>
-            <mesh position={mid} quaternion={q}>
-              <cylinderGeometry args={[0.08, 0.08, dist * 0.86, 8]} />
-              <meshBasicMaterial color={rungEmissive} transparent opacity={0.06} />
-            </mesh>
-
-            {/* Left node glow aura */}
-            <mesh position={lp}>
-              <sphereGeometry args={[0.45, 24, 24]} />
-              <meshBasicMaterial color={lightTeal} transparent opacity={0.15} />
-            </mesh>
-            {/* Left glowing ball */}
-            <Float speed={1.5} rotationIntensity={0} floatIntensity={0.04}>
-              <mesh position={lp}>
-                <sphereGeometry args={[0.27, 24, 24]} />
-                <meshStandardMaterial color={lightTeal} emissive={brightTeal} emissiveIntensity={1.2} metalness={0.2} roughness={0.1} envMapIntensity={3} toneMapped={false} />
-              </mesh>
-            </Float>
-
-            {/* Right node glow aura */}
-            <mesh position={rp}>
-              <sphereGeometry args={[0.45, 24, 24]} />
-              <meshBasicMaterial color={goldColor} transparent opacity={0.15} />
-            </mesh>
-            {/* Right glowing ball */}
-            <Float speed={1.8} rotationIntensity={0} floatIntensity={0.04}>
-              <mesh position={rp}>
-                <sphereGeometry args={[0.27, 24, 24]} />
-                <meshStandardMaterial color={goldColor} emissive={goldColor} emissiveIntensity={1.2} metalness={0.2} roughness={0.1} envMapIntensity={3} toneMapped={false} />
-              </mesh>
-            </Float>
+            {[lp, rp].map((pos, side) => {
+              const isLeft = side === 0;
+              const baseColor = isLeft ? cyan : blue;
+              return (
+                <group key={`node-${side}`}>
+                  <mesh position={pos}>
+                    <sphereGeometry args={[0.3, 20, 20]} />
+                    <meshBasicMaterial color={baseColor} transparent opacity={0.08} />
+                  </mesh>
+                  <Float speed={1.2} rotationIntensity={0} floatIntensity={0.03}>
+                    <mesh position={pos}>
+                      <sphereGeometry args={[0.18, 20, 20]} />
+                      <meshPhysicalMaterial
+                        color={baseColor}
+                        emissive={baseColor}
+                        emissiveIntensity={0.4}
+                        metalness={0.1}
+                        roughness={0.2}
+                        clearcoat={0.5}
+                        transparent
+                        opacity={0.85}
+                      />
+                    </mesh>
+                  </Float>
+                  <mesh position={pos}>
+                    <sphereGeometry args={[0.06, 12, 12]} />
+                    <meshBasicMaterial color={white} transparent opacity={0.6} />
+                  </mesh>
+                </group>
+              );
+            })}
           </group>
         );
       })}
 
-      {/* Flowing energy orbs */}
+      {/* Scan line */}
+      <mesh ref={scanRef} position={[0, 0, 0]}>
+        <ringGeometry args={[0.1, RADIUS * 1.6, 48]} />
+        <meshBasicMaterial color={cyan} transparent opacity={0.15} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Energy flow */}
       <group ref={flowRef}>
-        {Array.from({ length: 12 }).map((_, i) => (
+        {Array.from({ length: 8 }).map((_, i) => (
           <mesh key={`flow-${i}`}>
-            <sphereGeometry args={[0.1, 12, 12]} />
+            <sphereGeometry args={[0.06, 8, 8]} />
             <meshBasicMaterial
-              color={i % 2 === 0 ? brightTeal : goldColor}
+              color={i % 2 === 0 ? cyan : amber}
               transparent
-              opacity={0.9}
+              opacity={0.5}
               toneMapped={false}
             />
           </mesh>
         ))}
       </group>
 
-      {/* Center glow core */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.6, 16, 16]} />
-        <meshBasicMaterial color={brightTeal} transparent opacity={0.05} />
-      </mesh>
-
-      {/* Floating dust sparkles */}
-      <Sparkles count={particleCount} scale={14} size={1.5} speed={0.12} color={brightTeal} opacity={0.3} />
+      <Sparkles count={particleCount} scale={10} size={0.8} speed={0.08} color={cyan} opacity={0.15} />
     </group>
   );
 }
 
 function Loader() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0a1612]">
+    <div className="absolute inset-0 flex items-center justify-center bg-[#060d12]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-12 h-12 border-2 border-teal-500/20 border-t-teal-500/60 rounded-full animate-spin" />
-        <span className="text-teal-400/60 text-xs font-mono tracking-widest">RENDERING DNA...</span>
+        <div className="w-8 h-8 border border-cyan-500/20 border-t-cyan-500/60 rounded-full animate-spin" />
+        <span className="text-cyan-400/40 text-[10px] font-mono tracking-[0.2em]">LOADING</span>
       </div>
     </div>
   );
@@ -182,30 +195,26 @@ function Loader() {
 export default function DNAUltra3D({ height = 600 }: { height?: number }) {
   const [isInteracting, setIsInteracting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [bloomIntensity, setBloomIntensity] = useState(1.0);
-  const [particleCount, setParticleCount] = useState(60);
+  const [bloomIntensity, setBloomIntensity] = useState(0.8);
+  const [particleCount, setParticleCount] = useState(40);
 
   useEffect(() => {
     const checkDevice = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      
-      // Reduce bloom on mobile for performance
-      setBloomIntensity(mobile ? 0.5 : 1.0);
-      setParticleCount(mobile ? 30 : 60);
+      setBloomIntensity(mobile ? 0.4 : 0.8);
+      setParticleCount(mobile ? 20 : 40);
     };
-
     checkDevice();
     window.addEventListener('resize', checkDevice, { passive: true });
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
-  // Reduce bloom further if reduced motion is preferred
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (mq.matches) {
-      setBloomIntensity(0.3);
-      setParticleCount(20);
+      setBloomIntensity(0.2);
+      setParticleCount(15);
     }
   }, []);
 
@@ -214,79 +223,78 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
       className="relative w-full overflow-hidden select-none group"
       style={{ height }}
     >
-      {/* CSS top bokeh blur */}
+      {/* Vignette overlay */}
+      <div className="absolute inset-0 z-10 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(6,13,18,0.6) 100%)',
+      }} />
+
+      {/* Top fade */}
       <div className="absolute inset-x-0 top-0 z-10 pointer-events-none" style={{
-        height: '32%',
-        backdropFilter: 'blur(3px)',
-        WebkitBackdropFilter: 'blur(3px)',
-        maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+        height: '25%',
+        background: 'linear-gradient(to bottom, #060d12 0%, transparent 100%)',
       }} />
 
-      {/* CSS bottom bokeh blur */}
+      {/* Bottom fade */}
       <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none" style={{
-        height: '28%',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        maskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
+        height: '25%',
+        background: 'linear-gradient(to top, #060d12 0%, transparent 100%)',
       }} />
 
-      {/* Teal ambient glow behind DNA */}
+      {/* Subtle ambient glow */}
       <div className="absolute inset-0 pointer-events-none z-0" style={{
-        background: 'radial-gradient(ellipse 55% 65% at 48% 52%, rgba(20, 184, 166, 0.10) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 50% 60% at 50% 50%, rgba(6, 182, 212, 0.06) 0%, transparent 70%)',
       }} />
+
+      {/* Status indicator */}
+      <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+        <span className="text-[10px] font-mono text-cyan-400/40 tracking-[0.15em]">LIVE SEQUENCING</span>
+      </div>
 
       {/* Interaction hint */}
-      <div className={`absolute top-4 right-4 z-20 pointer-events-none transition-opacity duration-500 ${isInteracting ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
-        <div className="flex flex-col gap-1 items-end">
-          <span className="text-[10px] font-mono text-teal-400/60 tracking-widest">SCROLL TO ZOOM</span>
-          <span className="text-[10px] font-mono text-teal-400/60 tracking-widest">DRAG TO ROTATE</span>
+      <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-opacity duration-700 ${isInteracting ? 'opacity-0' : 'opacity-30 group-hover:opacity-60'}`}>
+        <div className="flex items-center gap-3">
+          <span className="text-[9px] font-mono text-white/30 tracking-[0.1em]">DRAG TO EXPLORE</span>
+          <span className="w-0.5 h-3 bg-white/10" />
+          <span className="text-[9px] font-mono text-white/30 tracking-[0.1em]">SCROLL TO ZOOM</span>
         </div>
       </div>
 
-      {/* Corner brackets */}
-      {(['top-3 left-3 border-t border-l', 'top-3 right-3 border-t border-r', 'bottom-3 left-3 border-b border-l', 'bottom-3 right-3 border-b border-r'] as const).map((cls, i) => (
-        <div key={i} className={`absolute w-6 h-6 border-teal-500/30 z-20 pointer-events-none ${cls}`} />
-      ))}
-
       <Suspense fallback={<Loader />}>
         <Canvas
-          camera={{ position: [0, 1, 9], fov: 42 }}
-          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false }}
+          camera={{ position: [0, 0.5, 8], fov: 38 }}
+          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
           dpr={isMobile ? [1, 1] : [1, 1.5]}
           onPointerDown={() => setIsInteracting(true)}
           onPointerUp={() => setIsInteracting(false)}
         >
-          {/* Background */}
-          <color attach="background" args={['#0a1612']} />
+          <color attach="background" args={['#060d12']} />
 
-          {/* Cinematic lighting - teal tinted */}
-          <ambientLight intensity={0.25} />
-          <directionalLight position={[8, 14, 8]} intensity={3.5} color="#ffffff" />
-          <directionalLight position={[-5, -5, -5]} intensity={1.8} color="#5eead4" />
-          <pointLight position={[0, 0, 6]} intensity={2.5} color="#ffffff" distance={14} />
-          <pointLight position={[-4, -8, 3]} intensity={1.5} color="#5eead4" distance={18} />
-          <pointLight position={[4, 8, -3]} intensity={1.0} color="#d4a574" distance={16} />
+          <ambientLight intensity={0.3} color="#a5f3fc" />
+          <directionalLight position={[4, 8, 6]} intensity={2.5} color="#f8fafc" />
+          <directionalLight position={[-4, -2, -6]} intensity={1.2} color="#67e8f9" />
+          <pointLight position={[0, 0, 5]} intensity={1.5} color="#06b6d4" distance={12} />
+          <pointLight position={[0, 6, 0]} intensity={0.8} color="#3b82f6" distance={12} />
+          <pointLight position={[0, -6, 0]} intensity={0.6} color="#06b6d4" distance={12} />
 
           <CinematicDNA bloomIntensity={bloomIntensity} particleCount={particleCount} />
 
-          <Environment preset="studio" />
+          <Environment preset="night" />
 
           <OrbitControls
             enablePan={false}
             enableZoom={true}
             autoRotate
-            autoRotateSpeed={0.5}
-            dampingFactor={0.06}
+            autoRotateSpeed={0.4}
+            dampingFactor={0.08}
             enableDamping
             minDistance={4}
-            maxDistance={20}
-            zoomSpeed={0.8}
+            maxDistance={16}
+            zoomSpeed={0.6}
           />
 
           <EffectComposer>
-            <Bloom luminanceThreshold={0.1} luminanceSmoothing={0.06} intensity={1.8 * bloomIntensity} mipmapBlur />
+            <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.08} intensity={0.8 * bloomIntensity} mipmapBlur />
           </EffectComposer>
         </Canvas>
       </Suspense>
