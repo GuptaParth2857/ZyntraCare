@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import RoleGuard from '@/components/RoleGuard';
 import { FiUsers, FiMessageSquare, FiMail, FiCalendar, FiHome, FiUserCheck, FiDollarSign, FiActivity, FiAlertTriangle, FiServer, FiRefreshCw, FiSearch, FiChevronLeft, FiChevronRight, FiDatabase, FiHeart, FiStar, FiMapPin, FiShield } from 'react-icons/fi';
@@ -67,6 +67,7 @@ export default function AdminDataPage() {
   const [loadingTable, setLoadingTable] = useState(false);
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const prevTable = useRef<string | null>(null);
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
@@ -96,11 +97,17 @@ export default function AdminDataPage() {
   useEffect(() => { fetchOverview(); }, [fetchOverview]);
 
   useEffect(() => {
-    if (activeTable) {
+    if (activeTable && activeTable !== prevTable.current) {
+      prevTable.current = activeTable;
       setPage(1);
-      fetchTable(activeTable, 1);
     }
-  }, [activeTable, fetchTable]);
+  }, [activeTable]);
+
+  useEffect(() => {
+    if (activeTable) {
+      fetchTable(activeTable, page);
+    }
+  }, [activeTable, page, fetchTable]);
 
   const handlePageChange = (newPage: number) => {
     if (!activeTable) return;

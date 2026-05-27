@@ -10,6 +10,10 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 15
     
+    defaults:
+      run:
+        working-directory: .
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,30 +24,26 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          cd ZyntraCare
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Build web app
-        run: |
-          cd ZyntraCare
-          npm run build
+        run: npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'file:./dev.db' }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'fallback_secret_key_32_chars_minimum_for_build_only' }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL || 'http://localhost:3000' }}
 
       - name: Sync Capacitor iOS
-        run: cd ZyntraCare && npx cap sync ios
+        run: npx cap sync ios
 
       - name: Build iOS
         run: |
-          cd ZyntraCare/ios/App
+          cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: ZyntraCare/ios/App/App/build/Debug-iphonesimulator/App.app
+          path: ios/App/App/build/Debug-iphonesimulator/App.app
           retention-days: 5

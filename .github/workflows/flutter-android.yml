@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
+    defaults:
+      run:
+        working-directory: .
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,25 +24,21 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          cd ZyntraCare
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Build web app
-        run: |
-          cd ZyntraCare
-          npm run build
+        run: npm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'file:./dev.db' }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'fallback_secret_key_32_chars_minimum_for_build_only' }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL || 'http://localhost:3000' }}
 
       - name: Sync Capacitor Android
-        run: cd ZyntraCare && npx cap sync android
+        run: npx cap sync android
 
       - name: Build Android APK
         run: |
-          cd ZyntraCare/android/App
+          cd android/App
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -46,4 +46,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ZyntraCare-debug.apk
-          path: ZyntraCare/android/App/build/outputs/apk/debug/App-debug.apk
+          path: android/App/build/outputs/apk/debug/App-debug.apk
