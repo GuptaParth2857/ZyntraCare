@@ -94,6 +94,7 @@ export default function AdminDataPage() {
     setLoadingTable(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchOverview(); }, [fetchOverview]);
 
   useEffect(() => {
@@ -105,6 +106,7 @@ export default function AdminDataPage() {
 
   useEffect(() => {
     if (activeTable) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchTable(activeTable, page);
     }
   }, [activeTable, page, fetchTable]);
