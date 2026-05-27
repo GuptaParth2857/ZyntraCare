@@ -97,29 +97,71 @@ export default function HospitalsPage() {
     return filteredPlaces;
   }, [filteredPlaces, sortBy]);
 
-  // Convert places to Hospital type for compatibility
+  // Fetch hospital data from API and convert places
   useEffect(() => {
-    if (filteredPlaces.length > 0) {
-      const converted: Hospital[] = filteredPlaces.map((place) => ({
-        id: place.id,
-        name: place.name,
-        address: place.address || '',
-        city: place.address?.split(',')[0] || 'Unknown',
-        state: 'Delhi',
-        phone: place.phone || '',
-        rating: 4 + Math.random(),
-        specialties: place.type === 'hospital' ? ['General Medicine', 'Emergency Care'] : ['General'],
-        beds: { available: Math.floor(Math.random() * 50) + 10, total: Math.floor(Math.random() * 100) + 50 },
-        emergency: place.type === 'hospital',
-        lat: place.lat,
-        lng: place.lng,
-        distance: place.distance,
-      } as Hospital));
-      setHospitals(converted);
-      setDataLastUpdated(Date.now());
-      setLoading(false);
-    }
-  }, [filteredPlaces]);
+    const fetchAndConvertHospitals = async () => {
+      let apiHospitals: Hospital[] = [];
+      try {
+        const lat = position?.lat || 28.6139;
+        const lng = position?.lng || 77.2090;
+        const res = await fetch(`/api/hospitals?lat=${lat}&lng=${lng}`);
+        if (res.ok) {
+          const data = await res.json();
+          apiHospitals = data.hospitals || [];
+        }
+      } catch (err) {
+        console.error('Failed to fetch hospitals:', err);
+      }
+
+      const hospitalMap = new Map<string, Hospital>();
+      apiHospitals.forEach(h => hospitalMap.set(h.name.toLowerCase(), h));
+
+      if (filteredPlaces.length > 0) {
+        const converted: Hospital[] = filteredPlaces.map((place) => {
+          const apiMatch = hospitalMap.get(place.name.toLowerCase());
+          
+          if (apiMatch) {
+            return {
+              ...apiMatch,
+              id: place.id,
+              lat: place.lat,
+              lng: place.lng,
+              distance: place.distance,
+              location: { lat: place.lat, lng: place.lng },
+              address: place.address || apiMatch.address,
+              phone: place.phone || apiMatch.phone,
+            } as Hospital;
+          }
+
+          return {
+            id: place.id,
+            name: place.name,
+            address: place.address || '',
+            city: place.address?.split(',')[0] || 'Unknown',
+            state: 'Delhi',
+            phone: place.phone || '',
+            rating: 4.2,
+            specialties: place.type === 'hospital' ? ['General Medicine', 'Emergency Care'] : ['General'],
+            beds: { available: 25, total: 100 },
+            emergency: place.type === 'hospital',
+            lat: place.lat,
+            lng: place.lng,
+            distance: place.distance,
+            location: { lat: place.lat, lng: place.lng },
+          } as Hospital;
+        });
+
+        setHospitals(converted);
+        setDataLastUpdated(Date.now());
+        setLoading(false);
+      } else if (apiHospitals.length > 0) {
+        setHospitals(apiHospitals);
+        setDataLastUpdated(Date.now());
+        setLoading(false);
+      }
+    };
+    fetchAndConvertHospitals();
+  }, [filteredPlaces, position]);
 
   const isLoading = placesLoading || locationLoading;
 

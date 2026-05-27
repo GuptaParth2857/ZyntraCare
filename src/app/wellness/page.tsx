@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiActivity, FiClock, FiTrendingUp, FiStar, FiZap, FiHeart, FiMoon, FiCoffee, FiAward, FiCheckCircle } from 'react-icons/fi';
 
@@ -16,17 +16,28 @@ interface DailyMission {
 }
 
 export default function WellnessPage() {
-  const [missions] = useState<DailyMission[]>([
-    { id: '1', name: 'Morning Walk', type: 'fitness', target: '30 min', progress: 25, completed: false, reward: 50, icon: '🚶' },
-    { id: '2', name: 'Meditation', type: 'mental', target: '15 min', progress: 15, completed: true, reward: 30, icon: '🧘' },
-    { id: '3', name: 'Drink Water', type: 'nutrition', target: '8 glasses', progress: 6, completed: false, reward: 20, icon: '💧' },
-    { id: '4', name: 'Sleep Early', type: 'sleep', target: '10 PM', progress: 0, completed: false, reward: 40, icon: '😴' },
-    { id: '5', name: 'Healthy Breakfast', type: 'nutrition', target: '1 meal', progress: 1, completed: true, reward: 25, icon: '🥗' },
-    { id: '6', name: 'Gratitude Journal', type: 'mental', target: '3 entries', progress: 0, completed: false, reward: 35, icon: '📝' },
-  ]);
-
+  const [missions, setMissions] = useState<DailyMission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [streak, setStreak] = useState(12);
   const [points, setPoints] = useState(2450);
+
+  useEffect(() => {
+    const fetchMissions = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/wellness-missions');
+        const data = await res.json();
+        setMissions(data.missions || data || []);
+      } catch (err) {
+        setError('Failed to load missions');
+        console.error('Error fetching missions:', err);
+      }
+      setLoading(false);
+    };
+    fetchMissions();
+  }, []);
+
   const completedCount = missions.filter(m => m.completed).length;
 
   return (
@@ -107,6 +118,21 @@ export default function WellnessPage() {
         {/* Missions */}
         <div>
           <h2 className="font-bold text-lg mb-4">Today's Missions</h2>
+          {loading ? (
+            <div className="text-center py-8 bg-white rounded-xl">
+              <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm text-slate-400">Loading missions...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 bg-red-50 rounded-xl">
+              <p className="text-red-500 font-medium">{error}</p>
+              <button onClick={() => window.location.reload()} className="mt-2 text-sm text-amber-600 underline">Retry</button>
+            </div>
+          ) : missions.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-xl">
+              <p className="text-slate-500">No missions available today</p>
+            </div>
+          ) : (
           <div className="space-y-3">
             {missions.map(mission => (
               <motion.div
@@ -149,6 +175,7 @@ export default function WellnessPage() {
               </motion.div>
             ))}
           </div>
+          )}
         </div>
 
         {/* Achievements */}

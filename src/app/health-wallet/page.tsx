@@ -1,20 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCreditCard, FiPlus, FiMinus, FiArrowUpRight, FiArrowDownLeft, FiShield, FiDollarSign, FiActivity } from 'react-icons/fi';
 
+interface Transaction {
+  id: number;
+  type: 'credit' | 'debit';
+  desc: string;
+  amount: number;
+  date: string;
+}
+
 export default function HealthWalletPage() {
-  const [balance, setBalance] = useState(15420);
+  const [balance, setBalance] = useState(0);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [amount, setAmount] = useState('');
-  const [transactions] = useState([
-    { id: 1, type: 'debit', desc: 'Dr. Sharma Consultation', amount: -500, date: 'Today' },
-    { id: 2, type: 'credit', desc: 'Added via UPI', amount: 5000, date: 'Yesterday' },
-    { id: 3, type: 'debit', desc: 'Medicine Delivery', amount: -340, date: 'Mar 15' },
-    { id: 4, type: 'debit', desc: 'Lab Test - Blood', amount: -450, date: 'Mar 14' },
-    { id: 5, type: 'credit', desc: 'Refund - Apollo', amount: 1200, date: 'Mar 12' },
-  ]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchWalletData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/health-wallet');
+        if (!res.ok) throw new Error('Failed to fetch wallet data');
+        const data = await res.json();
+        setBalance(data.balance || 0);
+        setTransactions(data.transactions || []);
+      } catch (err) {
+        setError('Failed to load wallet data');
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchWalletData();
+  }, []);
 
   const handleAddMoney = () => {
     if (amount) {

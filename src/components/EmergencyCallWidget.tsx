@@ -40,61 +40,58 @@ function calculateHaversine(lat1: number, lon1: number, lat2: number, lon2: numb
 }
 
 const defaultFallbackHospitals: Hospital[] = [
-  { id: 'fallback-1', name: 'Government Hospital', phone: '102', address: 'Emergency Services Available', city: 'Your Area', distance: 1.5, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 100, available: 20 }, type: 'Hospital' },
-  { id: 'fallback-2', name: 'Private Hospital', phone: '102', address: '24/7 Emergency', city: 'Your Area', distance: 2.0, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 50, available: 10 }, type: 'Hospital' },
-  { id: 'fallback-3', name: 'Medical College & Hospital', phone: '102', address: 'Emergency & Trauma', city: 'Your Area', distance: 3.0, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 200, available: 30 }, type: 'Hospital' },
-  { id: 'fallback-4', name: 'Emergency Care Center', phone: '102', address: 'Ambulance Service', city: 'Your Area', distance: 4.0, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 30, available: 15 }, type: 'Hospital' },
-  { id: 'fallback-5', name: 'Multi Specialty Hospital', phone: '102', address: '24/7 Emergency', city: 'Your Area', distance: 5.0, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 150, available: 25 }, type: 'Hospital' },
+  { id: 'fallback-1', name: 'Government Hospital', phone: '102', address: 'Emergency Services Available', city: 'Your Area', distance: 0.6, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 100, available: 20 }, type: 'Hospital' },
+  { id: 'fallback-2', name: 'Private Hospital', phone: '102', address: '24/7 Emergency', city: 'Your Area', distance: 1.2, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 50, available: 10 }, type: 'Hospital' },
+  { id: 'fallback-3', name: 'Medical College & Hospital', phone: '102', address: 'Emergency & Trauma', city: 'Your Area', distance: 1.8, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 200, available: 30 }, type: 'Hospital' },
+  { id: 'fallback-4', name: 'Emergency Care Center', phone: '102', address: 'Ambulance Service', city: 'Your Area', distance: 2.5, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 30, available: 15 }, type: 'Hospital' },
+  { id: 'fallback-5', name: 'Multi Specialty Hospital', phone: '102', address: '24/7 Emergency', city: 'Your Area', distance: 3.5, location: { lat: 0, lng: 0 }, emergency: true, beds: { total: 150, available: 25 }, type: 'Hospital' },
 ];
 
 async function fetchRealNearbyHospitals(lat: number, lng: number): Promise<Hospital[]> {
-  console.log('Fetching hospitals for:', lat, lng);
-  const radius = 30000;
+  const radius = 2000;
   
-  // Try Overpass API first
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  
   const query = `[out:json][timeout:25];
     (
       node["amenity"="hospital"](around:${radius},${lat},${lng});
       way["amenity"="hospital"](around:${radius},${lat},${lng});
-      node["amenity"="clinic"](around:${radius},${lat},${lng});
-      node["healthcare"](around:${radius},${lat},${lng});
     );
-    out center 50;`;
+    out center 80;`;
 
   try {
     const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
-    console.log('Overpass URL:', url);
     
-    const res = await fetch(url, { 
-      signal: AbortSignal.timeout(20000)
-    });
+    const res = await fetch(url, { signal: controller.signal });
     
     console.log('Response status:', res.status);
     
     if (!res.ok) throw new Error(`API failed: ${res.status}`);
     
+    clearTimeout(timeout);
+    
     const data = await res.json();
     console.log('Total elements from Overpass:', data.elements?.length || 0);
     
     const hospitals: Hospital[] = (data.elements || [])
-      .filter((el: any) => el.tags?.name && 
-        (el.tags.amenity === 'hospital' || 
-         el.tags.amenity === 'clinic' || 
-         el.tags.healthcare))
+      .filter((el: any) =>
+        el.tags?.amenity === 'hospital' || el.tags?.healthcare === 'hospital'
+      )
       .map((el: any) => {
         const hLat = el.lat ?? el.center?.lat;
         const hLng = el.lon ?? el.center?.lon;
         return {
           id: String(el.id),
-          name: el.tags.name,
-          phone: el.tags['contact:phone'] || el.tags.phone || '102',
-          address: [el.tags['addr:street'], el.tags['addr:city'], el.tags['addr:state']].filter(Boolean).join(', '),
-          city: el.tags['addr:city'] || 'Nearby',
+          name: el.tags?.name || 'Nearby Hospital',
+          phone: el.tags?.['contact:phone'] || el.tags?.phone || '102',
+          address: [el.tags?.['addr:street'], el.tags?.['addr:city'], el.tags?.['addr:state']].filter(Boolean).join(', ') || 'Nearby',
+          city: el.tags?.['addr:city'] || 'Nearby',
           distance: calculateHaversine(lat, lng, hLat, hLng),
           location: { lat: hLat, lng: hLng },
-          emergency: el.tags.emergency === 'yes' || el.tags['emergency:ward'] === 'yes' || el.tags['opening_hours']?.includes('24'),
+          emergency: el.tags?.emergency === 'yes' || el.tags?.['emergency:ward'] === 'yes' || el.tags?.['opening_hours']?.includes('24'),
           beds: { total: Math.floor(Math.random() * 100) + 20, available: Math.floor(Math.random() * 30) },
-          type: el.tags.amenity === 'hospital' ? 'Hospital' : 'Clinic',
+          type: 'Hospital',
         };
       })
       .sort((a: Hospital, b: Hospital) => (a.distance || 0) - (b.distance || 0))
@@ -145,7 +142,7 @@ async function fetchRealNearbyHospitals(lat: number, lng: number): Promise<Hospi
   }
 
   console.log('All APIs failed, using fallback');
-  return defaultFallbackHospitals.map(h => ({ ...h, distance: (Math.random() * 8 + 1) }));
+  return defaultFallbackHospitals.map(h => ({ ...h, distance: (Math.random() * 3.5 + 0.5) }));
 }
 
 export default function EmergencyCallWidget() {
@@ -197,7 +194,7 @@ export default function EmergencyCallWidget() {
             }
           } catch {}
         } else {
-          setHospitals(defaultFallbackHospitals.map(h => ({ ...h, distance: Math.random() * 10 })));
+          setHospitals(defaultFallbackHospitals.map(h => ({ ...h, distance: Math.random() * 3.5 + 0.5 })));
           setStage('ready');
         }
       },
@@ -279,13 +276,13 @@ export default function EmergencyCallWidget() {
         </button>
       </div>
 
-      {/* SOS Button moved to left above plus menu */}
-      <div className="fixed bottom-[110px] left-6 z-[9990]">
+      {/* SOS Button — always on top of everything */}
+      <div className="fixed bottom-[170px] left-6 z-[9999]">
         <button
           onClick={startSOS}
           aria-label="Emergency SOS"
-          className="relative w-14 h-14 rounded-full flex items-center justify-center text-white font-black text-xs tracking-wider active:scale-95 transition-transform"
-          style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
+          className="relative w-14 h-14 rounded-full flex items-center justify-center text-white font-black text-xs tracking-wider active:scale-95 transition-transform hover:scale-105"
+          style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)', boxShadow: '0 0 30px rgba(220,38,38,0.5)' }}
         >
           <span className="absolute inset-0 rounded-full bg-red-500/40 sos-ring" />
           <span className="absolute inset-0 rounded-full bg-red-500/25 sos-ring-2" />
@@ -337,14 +334,22 @@ export default function EmergencyCallWidget() {
               </div>
 
               <div className="p-5 overflow-y-auto flex-1 space-y-4">
-                {/* Quick Emergency Buttons */}
-                <div className="grid grid-cols-2 gap-3">
-                  <a href="tel:112" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm transition active:scale-95" style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}>
-                    <FiPhone size={16} /> Call 112
+                {/* Quick Emergency Buttons — tap to call instantly */}
+                <div className="flex flex-col gap-2">
+                  <a href="tel:112" className="flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-white text-base transition active:scale-[0.97] hover:scale-[1.02]"
+                    style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)', boxShadow: '0 0 30px rgba(220,38,38,0.4)' }}>
+                    <FiPhone size={20} className="animate-pulse" /> 🚑 Call 112 — National Emergency
                   </a>
-                  <a href="tel:102" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm transition active:scale-95" style={{ background: 'linear-gradient(135deg, #ea580c, #9a3412)' }}>
-                    <FaAmbulance size={16} /> 102
-                  </a>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a href="tel:102" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm transition active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #ea580c, #9a3412)' }}>
+                      <FaAmbulance size={16} /> Call 102
+                    </a>
+                    <a href="tel:100" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm transition active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #2563eb, #1e40af)' }}>
+                      <FiShield size={16} /> Call 100
+                    </a>
+                  </div>
                 </div>
 
                 {/* Status Indicators */}
@@ -474,15 +479,17 @@ export default function EmergencyCallWidget() {
                           <div className="flex gap-2 mt-4">
                             <a 
                               href={`tel:${h.phone || '102'}`} 
-                              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition shadow-lg shadow-emerald-500/20"
+                              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white transition shadow-lg shadow-red-500/30 active:scale-[0.97]"
+                              style={{ boxShadow: '0 0 20px rgba(220,38,38,0.3)' }}
                             >
-                              <FiPhone size={16} /> 
-                              <span className="text-xs opacity-80">Call</span>
+                              <FiPhone size={16} className="animate-pulse" /> 
+                              <span>🚑 Call Now</span>
                             </a>
                             {h.location?.lat && h.location?.lng && (
                               <a 
-                                href={`/map?fromlat=${userLocation?.lat || 0}&fromlng=${userLocation?.lng || 0}&tolat=${h.location.lat}&tolng=${h.location.lng}&destName=${encodeURIComponent(h.name)}&destAddress=${encodeURIComponent(h.address || '')}`}
-                                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition shadow-lg shadow-purple-500/20"
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`}
+                                target="_blank"
+                                className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/20 text-white transition"
                               >
                                 🗺️ Map
                               </a>

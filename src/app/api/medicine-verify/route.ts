@@ -1,135 +1,154 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-interface MedicineVerification {
-  id: string;
-  name: string;
-  manufacturer: string;
-  batchNumber: string;
-  expiryDate: string;
-  verified: boolean;
-  timestamp: number;
-  source: string;
-}
-
-const medicineDatabase: Record<string, { manufacturer: string; composition: string; category: string; verified: boolean }> = {
-  'COVAS': { manufacturer: 'Zydus Cadila', composition: 'Covishield Vaccine', category: 'Vaccine', verified: true },
-  'COVAX': { manufacturer: 'Bharat Biotech', composition: 'Covaxin', category: 'Vaccine', verified: true },
-  'AMOX500': { manufacturer: 'Cipla Ltd', composition: 'Amoxicillin 500mg', category: 'Antibiotic', verified: true },
-  'PARA500': { manufacturer: 'Abbott India', composition: 'Paracetamol 500mg', category: 'Pain Relief', verified: true },
-  'MET500': { manufacturer: 'USV Ltd', composition: 'Metformin 500mg', category: 'Anti-Diabetic', verified: true },
-  'AMLOD10': { manufacturer: 'Sun Pharma', composition: 'Amlodipine 10mg', category: 'Cardiovascular', verified: true },
-  'ATOR20': { manufacturer: 'Pfizer', composition: 'Atorvastatin 20mg', category: 'Cholesterol', verified: true },
-  'RAMIPRIL5': { manufacturer: 'Lupin Ltd', composition: 'Ramipril 5mg', category: 'Cardiovascular', verified: true },
-  'OMEP40': { manufacturer: 'Dr Reddy\'s', composition: 'Omeprazole 40mg', category: 'Gastrointestinal', verified: true },
-  'AZITHRO250': { manufacturer: 'Alkem Labs', composition: 'Azithromycin 250mg', category: 'Antibiotic', verified: true },
-};
+import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const search = searchParams.get('search') || '';
-  const code = searchParams.get('code') || '';
+  try {
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get('search') || '';
+    const code = searchParams.get('code') || '';
 
-  // If searching by unique code/barcode
-  if (code) {
-    const upperCode = code.toUpperCase();
-    
-    // Check if code exists in database
-    if (medicineDatabase[upperCode]) {
-      const med = medicineDatabase[upperCode];
+    if (code) {
+      const upperCode = code.toUpperCase();
+      const medicine = await prisma.medicineRecord.findUnique({
+        where: { code: upperCode },
+      });
+
+      if (medicine) {
+        return NextResponse.json({
+          success: true,
+          verified: medicine.verified,
+          medicine: {
+            code: medicine.code,
+            name: medicine.name,
+            manufacturer: medicine.manufacturer,
+            category: medicine.category,
+            verified: medicine.verified,
+            timestamp: Date.now(),
+            source: 'ZyntraCare Verified Database',
+          },
+        });
+      }
+
       return NextResponse.json({
         success: true,
-        verified: true,
+        verified: false,
         medicine: {
           code: upperCode,
-          name: med.composition,
-          manufacturer: med.manufacturer,
-          category: med.category,
-          verified: true,
+          name: 'Unknown Product',
+          manufacturer: 'Unknown',
+          category: 'Unverified',
+          verified: false,
           timestamp: Date.now(),
-          source: 'ZyntraCare Verified Database'
-        }
+          source: 'Requires Verification',
+        },
       });
     }
-    
-    // Simulate verification check
-    const isLikelyGenuine = Math.random() > 0.1;
+
+    const searchTerm = search.toLowerCase();
+    const rows = await prisma.medicineRecord.findMany({
+      where: {
+        OR: [
+          { name: { contains: searchTerm } },
+          { manufacturer: { contains: searchTerm } },
+        ],
+      },
+      select: { code: true, name: true, manufacturer: true, category: true, verified: true },
+    });
+
+    const mapped = rows.map(r => ({ ...r, verified: r.verified }));
+
     return NextResponse.json({
       success: true,
-      verified: isLikelyGenuine,
-      medicine: {
-        code: upperCode,
-        name: 'Unknown Product',
-        manufacturer: 'Unknown',
-        category: 'Unverified',
-        verified: isLikelyGenuine,
-        timestamp: Date.now(),
-        source: isLikelyGenuine ? 'Likely Authentic' : 'Requires Verification'
-      }
+      medicines: mapped,
+      total: mapped.length,
     });
+  } catch (error) {
+    console.error('Medicine Verify GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  // Search medicines
-  const results = Object.entries(medicineDatabase)
-    .filter(([code, med]) => 
-      med.composition.toLowerCase().includes(search.toLowerCase()) ||
-      med.manufacturer.toLowerCase().includes(search.toLowerCase())
-    )
-    .map(([code, med]) => ({
-      code,
-      name: med.composition,
-      manufacturer: med.manufacturer,
-      category: med.category,
-      verified: med.verified
-    }));
-
-  return NextResponse.json({
-    success: true,
-    medicines: results,
-    total: results.length
-  });
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { code, name, manufacturer, batchNumber, location } = body;
+    const { code, name, manufacturer, batchNumber, composition, category, expiryDate, location } = body;
 
     if (!code) {
       return NextResponse.json({ error: 'Medicine code is required' }, { status: 400 });
     }
 
     const upperCode = code.toUpperCase();
-    const existing = medicineDatabase[upperCode];
 
-    // Simulate blockchain-style verification
-    const verificationResult: MedicineVerification = {
-      id: `VFY-${Date.now()}`,
-      name: existing?.composition || name || 'Unknown',
-      manufacturer: existing?.manufacturer || manufacturer || 'Unknown',
-      batchNumber: batchNumber || `BAT${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      verified: existing?.verified || Math.random() > 0.2,
-      timestamp: Date.now(),
-      source: 'ZyntraCare Supply Chain Network'
-    };
+    const hashInput = upperCode + (manufacturer || '') + Date.now();
+    const hashBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(hashInput));
+    const hash = Array.from(new Uint8Array(hashBytes))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    const prevHashInput = upperCode + (Date.now() - 1);
+    const prevHashBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(prevHashInput));
+    const previousHash =
+      '0x' +
+      Array.from(new Uint8Array(prevHashBytes))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+        .substring(0, 64);
+
+    const medicineRecord = await prisma.medicineRecord.upsert({
+      where: { code: upperCode },
+      update: {
+        name: name || '',
+        manufacturer: manufacturer || '',
+        composition: composition || '',
+        category: category || 'Unverified',
+        batchNumber: batchNumber || null,
+        expiryDate: expiryDate || null,
+        verified: true,
+      },
+      create: {
+        code: upperCode,
+        name: name || 'Unknown',
+        manufacturer: manufacturer || 'Unknown',
+        composition: composition || '',
+        category: category || 'Unverified',
+        batchNumber: batchNumber || null,
+        expiryDate: expiryDate || null,
+        verified: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      verification: verificationResult,
+      verification: {
+        id: medicineRecord.id,
+        name: medicineRecord.name,
+        manufacturer: medicineRecord.manufacturer,
+        batchNumber:
+          batchNumber ||
+          `BAT${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        expiryDate:
+          expiryDate ||
+          new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split('T')[0],
+        verified: true,
+        timestamp: Date.now(),
+        source: 'ZyntraCare Supply Chain Network',
+      },
       supplyChain: {
-        manufacturer: verificationResult.manufacturer,
+        manufacturer: medicineRecord.manufacturer,
         distributor: 'ZyntraCare Authorized Distributor',
         pharmacy: location || 'Verified Retail Partner',
         timestamp: Date.now(),
         blockchain: {
-          hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-          previousHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-          verified: verificationResult.verified
-        }
-      }
+          hash,
+          previousHash,
+          verified: true,
+        },
+      },
     });
-
   } catch (error) {
+    console.error('Medicine Verify POST error:', error);
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }

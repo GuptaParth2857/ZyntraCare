@@ -7,7 +7,8 @@ import { FiFilter, FiActivity, FiSearch, FiAward, FiUsers, FiStar, FiTrendingUp,
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import SearchBar from '@/components/SearchBar';
 import DoctorCard from '@/components/DoctorCard';
-import { specialties, states } from '@/data/mockData';
+const specialties = ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Pediatrics', 'Gynecology', 'Dermatology', 'ENT', 'Ophthalmology', 'Psychiatry', 'Urology', 'Gastroenterology', 'Pulmonology', 'Endocrinology', 'Nephrology'];
+const states = ['All India', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'];
 import { Doctor } from '@/types';
 
 const STATS = [

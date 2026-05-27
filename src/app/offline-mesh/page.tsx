@@ -34,15 +34,6 @@ interface FirstAidStep {
   completed: boolean;
 }
 
-const MESH_NODES: MeshNode[] = [
-  { id: 'N-001', name: 'Ramesh Kumar', distance: 45, signal: 92, isRelay: true, lastSeen: 'Just now' },
-  { id: 'N-002', name: 'Sunita Devi', distance: 78, signal: 85, isRelay: true, lastSeen: 'Just now' },
-  { id: 'N-003', name: 'Vijay Sharma', distance: 120, signal: 72, isRelay: false, lastSeen: '2 min ago' },
-  { id: 'N-004', name: 'Meera Patel', distance: 95, signal: 80, isRelay: true, lastSeen: 'Just now' },
-  { id: 'N-005', name: 'Anil Kumar', distance: 200, signal: 45, isRelay: false, lastSeen: '5 min ago' },
-  { id: 'N-006', name: 'Lakshmi', distance: 180, signal: 52, isRelay: false, lastSeen: '3 min ago' },
-];
-
 const FIRST_AID_SNAKEBITE: FirstAidStep[] = [
   { step: 1, instruction: 'Stay calm. Do not panic.', duration: '30 sec', completed: false },
   { step: 2, instruction: 'Immobilize the affected limb. Do not move it.', duration: 'Ongoing', completed: false },
@@ -58,8 +49,10 @@ export default function OfflineMeshPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [nodes, setNodes] = useState<MeshNode[]>(MESH_NODES);
+  const [nodes, setNodes] = useState<MeshNode[]>([]);
   const [messages, setMessages] = useState<EmergencyMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [firstAidSteps, setFirstAidSteps] = useState<FirstAidStep[]>(FIRST_AID_SNAKEBITE);
   const [newMessage, setNewMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -68,25 +61,39 @@ export default function OfflineMeshPage() {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
+    const fetchMeshData = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/mesh-network');
+        const data = await res.json();
+        setNodes(data.nodes || data || []);
+        setMessages(data.messages || []);
+      } catch (err) {
+        setError('Failed to load mesh network');
+        console.error('Error fetching mesh data:', err);
+      }
+      setLoading(false);
+    };
+    fetchMeshData();
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => setSignalPulse(prev => (prev + 1) % 100), 50);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (emergencyMode) {
-      const msgInterval = setInterval(() => {
-        const types: EmergencyMessage['type'][] = ['SOS', 'relay', 'response', 'info'];
-        const names = ['Ramesh Kumar', 'Sunita Devi', 'Vijay Sharma', 'Meera Patel'];
-        const newMsg: EmergencyMessage = {
-          id: `MSG-${Date.now()}`,
-          from: names[Math.floor(Math.random() * names.length)],
-          message: getRandomMessage(),
-          type: types[Math.floor(Math.random() * types.length)],
-          timestamp: 'Just now',
-          hops: Math.floor(Math.random() * 5) + 1,
-          reached: Math.random() > 0.3,
-        };
-        setMessages(prev => [newMsg, ...prev.slice(0, 9)]);
+      const msgInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/mesh-network/messages');
+          const data = await res.json();
+          if (data.messages) {
+            setMessages(data.messages);
+          }
+        } catch (err) {
+          console.error('Failed to fetch messages:', err);
+        }
       }, 3000);
       return () => clearInterval(msgInterval);
     }
@@ -94,19 +101,30 @@ export default function OfflineMeshPage() {
 
   useEffect(() => {
     if (isConnected) {
-      const nodeInterval = setInterval(() => {
-        setNodes(prev => prev.map(n => ({
-          ...n,
-          signal: Math.max(20, Math.min(100, n.signal + (Math.random() - 0.5) * 10)),
-        })));
+      const nodeInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/mesh-network');
+          const data = await res.json();
+          if (data.nodes) {
+            setNodes(data.nodes);
+          }
+        } catch (err) {
+          console.error('Failed to fetch nodes:', err);
+        }
       }, 2000);
       return () => clearInterval(nodeInterval);
     }
   }, [isConnected]);
 
-  const connectToMesh = () => {
+  const connectToMesh = async () => {
     setIsConnected(true);
-    setNodes(prev => prev.map(n => ({ ...n, lastSeen: 'Just now' })));
+    try {
+      const res = await fetch('/api/mesh-network', { method: 'POST' });
+      const data = await res.json();
+      if (data.nodes) setNodes(data.nodes);
+    } catch (err) {
+      console.error('Failed to connect to mesh:', err);
+    }
   };
 
   const disconnectFromMesh = () => {
@@ -114,46 +132,33 @@ export default function OfflineMeshPage() {
     setEmergencyMode(false);
   };
 
-  const sendSOS = () => {
+  const sendSOS = async () => {
     setEmergencyMode(true);
     setIsBroadcasting(true);
-    const sos: EmergencyMessage = {
-      id: `MSG-${Date.now()}`,
-      from: 'Me',
-      message: 'SNAKE BITE EMERGENCY! Need immediate help!',
-      type: 'SOS',
-      timestamp: 'Just now',
-      hops: 0,
-      reached: false,
-    };
-    setMessages(prev => [sos, ...prev]);
+    try {
+      const res = await fetch('/api/mesh-network/sos', { method: 'POST' });
+      const data = await res.json();
+      if (data.messages) setMessages(data.messages);
+    } catch (err) {
+      console.error('Failed to send SOS:', err);
+    }
     setIsBroadcasting(false);
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!newMessage.trim()) return;
-    const msg: EmergencyMessage = {
-      id: `MSG-${Date.now()}`,
-      from: 'Me',
-      message: newMessage,
-      type: 'info',
-      timestamp: 'Just now',
-      hops: 0,
-      reached: false,
-    };
-    setMessages(prev => [msg, ...prev]);
+    try {
+      const res = await fetch('/api/mesh-network/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: newMessage }),
+      });
+      const data = await res.json();
+      if (data.messages) setMessages(data.messages);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
     setNewMessage('');
-  };
-
-  const getRandomMessage = () => {
-    const msgs = [
-      'Received your SOS. Calling village head.',
-      'Ambulance dispatched from nearest hospital.',
-      'First aid instructions sent. Follow them.',
-      'Medical team notified. ETA 30 minutes.',
-      'Stay calm. Help is on the way.',
-    ];
-    return msgs[Math.floor(Math.random() * msgs.length)];
   };
 
   const completeStep = (step: number) => {
@@ -212,6 +217,24 @@ export default function OfflineMeshPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-xl mx-auto mt-20 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 text-center"
         >
+          {loading ? (
+            <>
+              <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+              <p className="text-slate-400">Loading mesh network...</p>
+            </>
+          ) : error ? (
+            <>
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center mx-auto mb-6">
+                <FiAlertTriangle className="text-4xl text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Connection Error</h2>
+              <p className="text-slate-400 mb-6">{error}</p>
+              <button onClick={() => window.location.reload()} className="px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold text-lg">
+                Retry
+              </button>
+            </>
+          ) : (
+          <>
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center mx-auto mb-6">
             <FiRadio className="text-4xl text-white" />
           </div>
@@ -223,6 +246,8 @@ export default function OfflineMeshPage() {
           >
             Start Mesh Connection
           </button>
+          </>
+          )}
         </motion.div>
       ) : (
         <div className="grid grid-cols-3 gap-6">

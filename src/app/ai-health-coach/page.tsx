@@ -43,7 +43,7 @@ export default function AIHealthCoachPage() {
   const [typing, setTyping] = useState(false);
   const [metrics] = useState<HealthMetric[]>(HEALTH_METRICS);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
 
     const userMsg: ChatMessage = {
@@ -56,18 +56,30 @@ export default function AIHealthCoachPage() {
     setInput('');
     setTyping(true);
 
-    setTimeout(() => {
-      const keyword = input.toLowerCase();
-      const match = SUGGESTIONS.find(s => keyword.includes(s.keyword));
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input, context: 'health-coach' }),
+      });
+      const data = await res.json();
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        message: match?.response || SUGGESTIONS[SUGGESTIONS.length - 1].response,
+        message: data.reply || "I'm here to help! Ask me about your health metrics, get exercise tips, or advice on diet and lifestyle.",
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages(prev => [...prev, aiMsg]);
+    } catch {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        message: "I'm here to help! Ask me about your health metrics, get exercise tips, or advice on diet and lifestyle.",
+        timestamp: new Date().toLocaleTimeString(),
+      }]);
+    } finally {
       setTyping(false);
-    }, 1500);
+    }
   };
 
   return (

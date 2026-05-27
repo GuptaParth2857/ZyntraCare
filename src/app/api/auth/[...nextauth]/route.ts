@@ -1,34 +1,31 @@
 import NextAuth from 'next-auth';
 import { authOptions } from './options';
 
-let handlers: { GET: Function; POST: Function } | null = null;
+let _handlers: { GET: Function; POST: Function } | null = null;
 
-try {
-  const result = NextAuth(authOptions as any);
-  handlers = result.handlers;
-} catch (e) {
-  console.error('[Auth] Failed to initialize NextAuth:', e);
+async function getHandlers() {
+  if (!_handlers) {
+    const result = NextAuth(authOptions);
+    _handlers = result.handlers;
+  }
+  return _handlers;
 }
 
 export async function GET(req: Request) {
-  if (!handlers) {
-    return Response.json({ error: 'Auth not configured' }, { status: 500 });
-  }
   try {
+    const handlers = await getHandlers();
     return await handlers.GET(req);
-  } catch (e: any) {
+  } catch (e) {
     console.error('[Auth] GET error:', e);
-    return Response.json({ error: 'Authentication error' }, { status: 500 });
+    return Response.json({ user: null }, { status: 200 });
   }
 }
 
 export async function POST(req: Request) {
-  if (!handlers) {
-    return Response.json({ error: 'Auth not configured' }, { status: 500 });
-  }
   try {
+    const handlers = await getHandlers();
     return await handlers.POST(req);
-  } catch (e: any) {
+  } catch (e) {
     console.error('[Auth] POST error:', e);
     return Response.json({ error: 'Authentication error' }, { status: 500 });
   }

@@ -5,19 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiMenu, FiX, FiPhone, FiHeart, FiStar, FiGlobe, FiAlertCircle, FiBell, FiUser, FiPlus } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, availableLanguages } from '@/context/LanguageContext';
 import { NotificationBell } from '@/components/Notifications';
 
 export default function Navbar() {
-  // Guest mode - no login required
-  const session = null;
-  const status = 'authenticated';
+  const { data: session, status } = useSession();
   const { lang, setLang, t } = useLanguage();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);

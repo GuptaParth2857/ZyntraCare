@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiShield, FiCheckCircle, FiExternalLink, FiSearch, FiHeart, FiAward } from 'react-icons/fi';
 
@@ -15,25 +15,25 @@ interface Scheme {
   matched: boolean;
 }
 
-const SCHEMES: Scheme[] = [
-  { id: '1', name: 'Ayushman Bharat PM-JAY', provider: 'Government of India', category: 'Health Insurance', benefit: '₹5L coverage per family', eligibility: 'SECC identified families', applyUrl: '#', matched: true },
-  { id: '2', name: 'Rashtriya Swasthya Bima Yojana', provider: 'Government of India', category: 'Health Insurance', benefit: '₹30K coverage', eligibility: 'BPL families', applyUrl: '#', matched: true },
-  { id: '3', name: 'Employees State Insurance', provider: 'ESIC', category: 'Health Insurance', benefit: 'Full medical coverage', eligibility: 'Formal sector employees', applyUrl: '#', matched: false },
-  { id: '4', name: 'Central Government Health', provider: 'CGHS', category: 'Health Insurance', benefit: 'Full medical coverage', eligibility: 'Govt employees', applyUrl: '#', matched: false },
-  { id: '5', name: 'Mahatma Jana Aarogya', provider: 'Karnataka Govt', category: 'Health Insurance', benefit: '₹10L coverage', eligibility: 'Karnataka residents', applyUrl: '#', matched: true },
-];
-
-const INSURANCES = [
-  { id: '1', name: 'Zyntra Care Plus', premium: '₹299/mo', coverage: '₹10L', features: ['Hospitalization', 'Day care', 'Telehealth'] },
-  { id: '2', name: 'Zyntra Premium', premium: '₹599/mo', coverage: '₹25L', features: ['All Plus', 'Dental', 'Vision', 'Mental health'] },
-  { id: '3', name: 'Zyntra Family', premium: '₹899/mo', coverage: '₹50L', features: ['All Premium', 'Maternity', 'Child care', 'Parent coverage'] },
-];
-
 export default function SchemesPage() {
+  const [schemes, setSchemes] = useState<Scheme[]>([]);
+  const [insurances, setInsurances] = useState<{id: string; name: string; provider: string; premium: string; coverage: string; features: string[]}[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
 
-  const filtered = SCHEMES.filter(s => {
+  useEffect(() => {
+    fetch('/api/micro-insurance')
+      .then(r => r.json())
+      .then(data => {
+        setSchemes(data.schemes || []);
+        setInsurances(data.insurances || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filtered = schemes.filter(s => {
     const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = category === 'all' || s.category === category;
     return matchesSearch && matchesCategory;
@@ -87,7 +87,7 @@ export default function SchemesPage() {
             <FiHeart className="text-red-400" /> Recommended for You
           </h2>
           <div className="space-y-3">
-            {SCHEMES.filter(s => s.matched).map(scheme => (
+            {schemes.filter(s => s.matched).map(scheme => (
               <motion.div
                 key={scheme.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -148,7 +148,7 @@ export default function SchemesPage() {
             <FiAward className="text-amber-400" /> ZyntraCare Plans
           </h2>
           <div className="grid gap-4">
-            {INSURANCES.map(plan => (
+            {insurances.map(plan => (
               <div key={plan.id} className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
                 <div className="flex items-start justify-between">
                   <div>

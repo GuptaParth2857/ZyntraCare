@@ -4,10 +4,6 @@ const nextConfig = {
   reactStrictMode: true,
   compress: true,
 
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
   // Faster compilation
   turbopack: {},
 
@@ -16,7 +12,7 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
-  // Image optimization - reduced for dev speed
+  // Image optimization
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
@@ -28,13 +24,17 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128],
   },
 
+  serverExternalPackages: ['bcryptjs'],
+
   experimental: {
     optimizePackageImports: [
       'framer-motion',
       'react-icons',
       'recharts',
+      'three',
+      'jspdf',
+      'twilio',
     ],
-    serverExternalPackages: ['bcryptjs'],
   },
 
   webpack: (config, { isServer }) => {
@@ -49,7 +49,6 @@ const nextConfig = {
     return config;
   },
 
-  // Simplified headers for dev
   async headers() {
     return [
       {
@@ -57,6 +56,7 @@ const nextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
       },
       {
@@ -65,6 +65,7 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type,Authorization' },
+          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
         ],
       },
     ];

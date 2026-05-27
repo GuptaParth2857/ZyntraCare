@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiCheck, FiClock, FiBell, FiActivity, FiHeart, FiCoffee, FiMoon, FiDroplet, FiShield, FiTrendingUp, FiTarget, FiAward } from 'react-icons/fi';
 
@@ -26,14 +26,6 @@ interface HealthGoal {
   unit: string;
 }
 
-const VACCINES: Vaccine[] = [
-  { id: '1', name: 'COVID-19 Booster', dueDate: '2024-04-15', status: 'upcoming', ageGroup: 'Adults', description: 'Precautionary dose' },
-  { id: '2', name: 'Influenza (Flu)', dueDate: '2024-01-01', status: 'completed', ageGroup: 'All', description: 'Annual flu shot' },
-  { id: '3', name: 'Tetanus (TT)', dueDate: '2023-06-15', status: 'completed', ageGroup: 'Adults', description: 'Booster every 10 years' },
-  { id: '4', name: 'Hepatitis B', dueDate: '2025-01-01', status: 'upcoming', ageGroup: 'Adults', description: '3-dose series' },
-  { id: '5', name: 'Pneumonia (PCV)', dueDate: '2024-03-01', status: 'overdue', ageGroup: '65+', description: 'One-time dose' },
-];
-
 const GOAL_COLORS: Record<string, { bg: string; bar: string; glow: string }> = {
   blue:    { bg: 'bg-blue-500/10 border-blue-500/20', bar: 'bg-gradient-to-r from-blue-400 to-blue-600', glow: 'shadow-blue-500/20' },
   cyan:    { bg: 'bg-cyan-500/10 border-cyan-500/20', bar: 'bg-gradient-to-r from-cyan-400 to-cyan-600', glow: 'shadow-cyan-500/20' },
@@ -44,15 +36,52 @@ const GOAL_COLORS: Record<string, { bg: string; bar: string; glow: string }> = {
   emerald: { bg: 'bg-emerald-500/10 border-emerald-500/20', bar: 'bg-gradient-to-r from-emerald-400 to-emerald-600', glow: 'shadow-emerald-500/20' },
 };
 
+const defaultGoals: HealthGoal[] = [
+  { id: '1', name: 'Steps', type: 'fitness', target: '10000', current: 0, icon: <FiTrendingUp size={22} />, color: 'blue', bgClass: '', barClass: '', unit: 'steps' },
+  { id: '2', name: 'Water', type: 'nutrition', target: '8', current: 0, icon: <FiDroplet size={22} />, color: 'cyan', bgClass: '', barClass: '', unit: 'glasses' },
+  { id: '3', name: 'Sleep', type: 'sleep', target: '8', current: 0, icon: <FiMoon size={22} />, color: 'purple', bgClass: '', barClass: '', unit: 'hours' },
+  { id: '4', name: 'Meditation', type: 'mental', target: '15', current: 0, icon: <FiHeart size={22} />, color: 'amber', bgClass: '', barClass: '', unit: 'min' },
+  { id: '5', name: 'Heart Rate', type: 'fitness', target: '100', current: 0, icon: <FiActivity size={22} />, color: 'red', bgClass: '', barClass: '', unit: 'bpm' },
+  { id: '6', name: 'Calories', type: 'nutrition', target: '2000', current: 0, icon: <FiCoffee size={22} />, color: 'orange', bgClass: '', barClass: '', unit: 'kcal' },
+];
+
 export default function HealthTrackerPage() {
-  const [goals] = useState<HealthGoal[]>([
-    { id: '1', name: 'Steps', type: 'fitness', target: '10000', current: 7234, icon: <FiTrendingUp size={22} />, color: 'blue', bgClass: '', barClass: '', unit: 'steps' },
-    { id: '2', name: 'Water', type: 'nutrition', target: '8', current: 5, icon: <FiDroplet size={22} />, color: 'cyan', bgClass: '', barClass: '', unit: 'glasses' },
-    { id: '3', name: 'Sleep', type: 'sleep', target: '8', current: 6.5, icon: <FiMoon size={22} />, color: 'purple', bgClass: '', barClass: '', unit: 'hours' },
-    { id: '4', name: 'Meditation', type: 'mental', target: '15', current: 10, icon: <FiHeart size={22} />, color: 'amber', bgClass: '', barClass: '', unit: 'min' },
-    { id: '5', name: 'Heart Rate', type: 'fitness', target: '100', current: 72, icon: <FiActivity size={22} />, color: 'red', bgClass: '', barClass: '', unit: 'bpm' },
-    { id: '6', name: 'Calories', type: 'nutrition', target: '2000', current: 1850, icon: <FiCoffee size={22} />, color: 'orange', bgClass: '', barClass: '', unit: 'kcal' },
-  ]);
+  const [vaccines, setVaccines] = useState<Vaccine[]>([]);
+  const [goals, setGoals] = useState<HealthGoal[]>(defaultGoals);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchHealthData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [healthRes, goalsRes] = await Promise.all([
+          fetch('/api/health'),
+          fetch('/api/health-goals'),
+        ]);
+        
+        if (healthRes.ok) {
+          const healthData = await healthRes.json();
+          setVaccines(healthData.vaccines || []);
+        }
+        
+        if (goalsRes.ok) {
+          const goalsData = await goalsRes.json();
+          const mergedGoals = defaultGoals.map((goal, idx) => {
+            const apiGoal = goalsData.goals?.[idx];
+            return apiGoal ? { ...goal, ...apiGoal, icon: goal.icon } : goal;
+          });
+          setGoals(mergedGoals);
+        }
+      } catch (err) {
+        setError('Failed to load health data');
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchHealthData();
+  }, []);
 
   const getProgress = (goal: HealthGoal) => {
     const target = parseFloat(goal.target);
@@ -78,15 +107,15 @@ export default function HealthTrackerPage() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/5">
-                <p className="text-2xl font-black">{VACCINES.filter(v => v.status === 'completed').length}</p>
+                <p className="text-2xl font-black">{vaccines.filter(v => v.status === 'completed').length}</p>
                 <p className="text-xs text-emerald-200/70">Completed</p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/5">
-                <p className="text-2xl font-black">{VACCINES.filter(v => v.status === 'upcoming').length}</p>
+                <p className="text-2xl font-black">{vaccines.filter(v => v.status === 'upcoming').length}</p>
                 <p className="text-xs text-emerald-200/70">Upcoming</p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/5">
-                <p className="text-2xl font-black text-red-400">{VACCINES.filter(v => v.status === 'overdue').length}</p>
+                <p className="text-2xl font-black text-red-400">{vaccines.filter(v => v.status === 'overdue').length}</p>
                 <p className="text-xs text-emerald-200/70">Overdue</p>
               </div>
             </div>
@@ -154,7 +183,7 @@ export default function HealthTrackerPage() {
               <FiShield className="text-emerald-400" /> Vaccination Records
             </h2>
             <div className="space-y-3">
-              {VACCINES.map((vaccine, idx) => (
+              {vaccines.map((vaccine, idx) => (
                 <motion.div
                   key={vaccine.id}
                   initial={{ opacity: 0, x: -20 }}

@@ -9,4 +9,14 @@ node_modules
 healthcare-platform
 my-app
 *.apk
+*.db
+*.db-journal
+artifacts/
+cache/
+contracts/
+hardhat.config.js
+scripts/
+tests/
+vitest.config.ts
+eslint.config.js
 

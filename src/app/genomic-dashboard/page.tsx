@@ -38,7 +38,7 @@ interface HealthRisk {
   genes: string[];
 }
 
-const GENE_VARIANTS: GeneVariant[] = [
+const defaultGeneVariants: GeneVariant[] = [
   { gene: 'CYP2C9', variant: '*2', genotype: 'AA', phenotype: 'Normal Metabolizer', effect: 'normal', drugResponse: 'Warfarin: Normal sensitivity', recommendation: 'Standard dosing' },
   { gene: 'CYP2C19', variant: '*2', genotype: 'AA', phenotype: 'Normal Metabolizer', effect: 'normal', drugResponse: 'Clopidogrel: Normal activation', recommendation: 'Standard dosing' },
   { gene: 'CYP2D6', variant: '*10', genotype: 'CT', phenotype: 'Intermediate Metabolizer', effect: 'reduced', drugResponse: 'Codeine: Reduced conversion to morphine', recommendation: 'Use alternative pain reliever' },
@@ -49,7 +49,7 @@ const GENE_VARIANTS: GeneVariant[] = [
   { gene: 'ABCB1', variant: '3435C>T', genotype: 'CC', phenotype: 'Normal Transport', effect: 'normal', drugResponse: 'P-gp substrates: Normal transport', recommendation: 'Standard dosing' },
 ];
 
-const DRUG_RECOMMENDATIONS: DrugRecommendation[] = [
+const defaultDrugRecommendations: DrugRecommendation[] = [
   { drug: 'Paracetamol', category: 'Pain/Fever', suitability: 'optimal', reason: 'Safe for CYP2D6 intermediate metabolizers', dosage: '500-1000mg every 6 hours' },
   { drug: 'Ibuprofen', category: 'Pain/Anti-inflammatory', suitability: 'optimal', reason: 'No known gene-drug interactions', dosage: '400mg every 6-8 hours' },
   { drug: 'Codeine', category: 'Pain', suitability: 'avoid', reason: 'Reduced conversion to active morphine - ineffective', dosage: 'Not recommended' },
@@ -58,7 +58,7 @@ const DRUG_RECOMMENDATIONS: DrugRecommendation[] = [
   { drug: 'Warfarin', category: 'Anticoagulant', suitability: 'acceptable', reason: 'Requires careful INR monitoring', dosage: 'Initial 2-5mg, adjust per INR' },
 ];
 
-const HEALTH_RISKS: HealthRisk[] = [
+const defaultHealthRisks: HealthRisk[] = [
   { condition: 'Type 2 Diabetes', risk: 'moderate', score: 35, genes: ['TCF7L2', 'PPARG', 'KCNJ11'] },
   { condition: 'Cardiovascular Disease', risk: 'low', score: 22, genes: ['9p21', 'APOE', 'LDLR'] },
   { condition: 'Breast Cancer', risk: 'low', score: 18, genes: ['BRCA1', 'BRCA2', 'PALB2'] },
@@ -67,8 +67,41 @@ const HEALTH_RISKS: HealthRisk[] = [
 ];
 
 export default function GenomicDashboardPage() {
+  const [geneVariants, setGeneVariants] = useState<GeneVariant[]>([]);
+  const [drugRecommendations, setDrugRecommendations] = useState<DrugRecommendation[]>([]);
+  const [healthRisks, setHealthRisks] = useState<HealthRisk[]>([]);
   const [selectedGene, setSelectedGene] = useState<GeneVariant | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'drugs' | 'risks'>('overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchGenomicData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/genomic-data');
+        if (res.ok) {
+          const data = await res.json();
+          setGeneVariants(data.geneVariants || defaultGeneVariants);
+          setDrugRecommendations(data.drugRecommendations || defaultDrugRecommendations);
+          setHealthRisks(data.healthRisks || defaultHealthRisks);
+        } else {
+          setGeneVariants(defaultGeneVariants);
+          setDrugRecommendations(defaultDrugRecommendations);
+          setHealthRisks(defaultHealthRisks);
+        }
+      } catch (err) {
+        setError('Failed to load genomic data');
+        console.error(err);
+        setGeneVariants(defaultGeneVariants);
+        setDrugRecommendations(defaultDrugRecommendations);
+        setHealthRisks(defaultHealthRisks);
+      }
+      setLoading(false);
+    };
+    fetchGenomicData();
+  }, []);
 
   const getSuitabilityColor = (suitability: DrugRecommendation['suitability']) => {
     switch (suitability) {
@@ -190,7 +223,7 @@ export default function GenomicDashboardPage() {
                     </h2>
                   </div>
                   <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {GENE_VARIANTS.map((gene, idx) => {
+                    {geneVariants.map((gene, idx) => {
                       const badge = getEffectBadge(gene.effect);
                       const isSelected = selectedGene?.gene === gene.gene;
                       return (
@@ -243,7 +276,7 @@ export default function GenomicDashboardPage() {
                     </h2>
                   </div>
                   <div className="p-5 space-y-3">
-                    {DRUG_RECOMMENDATIONS.map((drug, idx) => {
+                    {drugRecommendations.map((drug, idx) => {
                       const colors = getSuitabilityColor(drug.suitability);
                       return (
                         <motion.div
@@ -294,7 +327,7 @@ export default function GenomicDashboardPage() {
                     </h2>
                   </div>
                   <div className="p-5 space-y-4">
-                    {HEALTH_RISKS.map((risk, idx) => {
+                    {healthRisks.map((risk, idx) => {
                       const style = getRiskStyle(risk.risk);
                       return (
                         <motion.div

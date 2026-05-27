@@ -29,12 +29,26 @@ export default function ClinicalAISupportPage() {
     setInput('');
     setLoading(true);
 
-    // Simulate AI response with clinical context
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(input);
-      setMessages(prev => [...prev, aiResponse]);
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input, context: 'clinical' }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        content: data.reply || 'I apologize, but I need more information to provide an accurate clinical assessment. Could you please provide more details about your symptoms?',
+        sources: data.sources || undefined,
+      }]);
+    } catch {
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        content: 'I apologize, but I need more information to provide an accurate clinical assessment. Could you please provide more details about your symptoms?',
+      }]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const generateAIResponse = (query: string): Message => {

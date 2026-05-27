@@ -118,7 +118,7 @@ const DEFAULT_POSITION = { lat: 28.6139, lng: 77.2090 };
 function HeroNearbyMap() {
   const { position, loading, error, requestLocation, hasPermission } = useGeolocation();
   const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'clinic' | 'pharmacy'>('all');
-  const [radius, setRadius] = useState(2);
+  const [radius, setRadius] = useState(5);
   const [dismissedPermission, setDismissedPermission] = useState(false);
 
   // Use default immediately while getting user location
@@ -1512,47 +1512,96 @@ export default function Home() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
             {[
+              // ── Core Healthcare ──
               { href: '/pharmacies', icon: '💊', label: 'Pharmacies', color: 'from-emerald-500 to-teal-500', desc: 'Order medicines' },
               { href: '/labs', icon: '🧪', label: 'Labs', color: 'from-purple-500 to-pink-500', desc: 'Book diagnostics' },
               { href: '/blood-donors', icon: '🩸', label: 'Blood Donors', color: 'from-red-500 to-rose-500', desc: 'Find donors' },
               { href: '/telehealth', icon: '📹', label: 'Telehealth', color: 'from-blue-500 to-cyan-500', desc: 'Virtual consult' },
               { href: '/video-consult', icon: '💻', label: 'Video Consult', color: 'from-indigo-500 to-purple-500', desc: 'Face to face' },
+              { href: '/doctors', icon: '👨‍⚕️', label: 'Doctors', color: 'from-blue-500 to-cyan-500', desc: 'Find physicians' },
+              { href: '/booking', icon: '📅', label: 'Booking', color: 'from-violet-500 to-purple-500', desc: 'Appointments' },
+              { href: '/camps', icon: '🎪', label: 'Health Camps', color: 'from-green-500 to-emerald-500', desc: 'Free checkups' },
+              { href: '/first-aid', icon: '🚑', label: 'First Aid', color: 'from-red-500 to-orange-500', desc: 'Emergency help' },
+
+              // ── AI & Intelligence ──
+              { href: '/symptoms', icon: '🤒', label: 'Symptoms', color: 'from-orange-500 to-amber-500', desc: 'Symptom checker' },
+              { href: '/edge-ai-symptoms', icon: '🧠', label: 'Edge AI', color: 'from-purple-500 to-blue-500', desc: 'On-device diagnosis' },
+              { href: '/edge-ai-vision', icon: '📷', label: 'Edge AI Vision', color: 'from-purple-500 to-blue-500', desc: 'Offline image AI' },
               { href: '/ai-health-coach', icon: '🧘', label: 'AI Coach', color: 'from-teal-500 to-emerald-500', desc: 'Smart guidance' },
-              { href: '/genomic-dashboard', icon: '🧬', label: 'Genomics', color: 'from-pink-500 to-rose-500', desc: 'DNA analysis' },
-              { href: '/health-tracker', icon: '📈', label: 'Health Tracker', color: 'from-amber-500 to-orange-500', desc: 'Monitor vitals' },
-              { href: '/predictive-analytics', icon: '📊', label: 'Analytics', color: 'from-cyan-500 to-blue-500', desc: 'AI predictions' },
-              { href: '/blockchain-records', icon: '⛓️', label: 'Records', color: 'from-violet-500 to-purple-500', desc: 'Secure storage' },
-              { href: '/health-wallet', icon: '💳', label: 'Health Wallet', color: 'from-sky-500 to-teal-500', desc: 'Digital cards' },
               { href: '/clinical-ai', icon: '🤖', label: 'Clinical AI', color: 'from-fuchsia-500 to-pink-500', desc: 'Medical AI' },
               { href: '/ai-vision', icon: '👁️', label: 'AI Vision', color: 'from-rose-500 to-red-500', desc: 'Image analysis' },
-              { href: '/pill-scanner', icon: '📷', label: 'Pill Scanner', color: 'from-green-500 to-emerald-500', desc: 'Verify meds' },
-              { href: '/medicine-verify', icon: '🔒', label: 'Verify Medicine', color: 'from-teal-500 to-cyan-500', desc: 'Check authenticity' },
-              { href: '/symptoms', icon: '🤒', label: 'Symptoms', color: 'from-orange-500 to-amber-500', desc: 'Symptom checker' },
-              { href: '/first-aid', icon: '🚑', label: 'First Aid', color: 'from-red-500 to-orange-500', desc: 'Emergency help' },
+              { href: '/vane-chat', icon: '🤖', label: 'Vane AI', color: 'from-fuchsia-500 to-pink-500', desc: 'AI assistant' },
+              { href: '/predictive-analytics', icon: '📊', label: 'Analytics', color: 'from-cyan-500 to-blue-500', desc: 'AI predictions' },
+
+              // ── Health Tracking ──
+              { href: '/health-tracker', icon: '📈', label: 'Health Tracker', color: 'from-amber-500 to-orange-500', desc: 'Monitor vitals' },
               { href: '/health-risk', icon: '❤️', label: 'Health Risk', color: 'from-rose-500 to-pink-500', desc: 'Risk assessment' },
-              { href: '/medications', icon: '⏰', label: 'Medications', color: 'from-blue-500 to-indigo-500', desc: 'Reminders' },
+              { href: '/genomic-dashboard', icon: '🧬', label: 'Genomics', color: 'from-pink-500 to-rose-500', desc: 'DNA analysis' },
               { href: '/wearables', icon: '⌚', label: 'Wearables', color: 'from-violet-500 to-indigo-500', desc: 'Device sync' },
+              { href: '/bluetooth-hrm', icon: '📡', label: 'BT Heart Rate', color: 'from-teal-500 to-emerald-500', desc: 'Live BLE monitor' },
+              { href: '/medications', icon: '⏰', label: 'Medications', color: 'from-blue-500 to-indigo-500', desc: 'Reminders' },
+              { href: '/analytics', icon: '📉', label: 'Data Analytics', color: 'from-cyan-500 to-teal-500', desc: 'Health insights' },
+
+              // ── Emergency & Safety ──
+              { href: '/voice-emergency', icon: '🎤', label: 'Voice Emergency', color: 'from-red-500 to-rose-600', desc: 'Voice SOS + GPS' },
+              { href: '/drone-network', icon: '🚁', label: 'Drone Network', color: 'from-gray-500 to-slate-500', desc: 'Emergency delivery' },
+              { href: '/offline-mesh', icon: '📡', label: 'Mesh Network', color: 'from-teal-500 to-cyan-500', desc: 'Offline SOS' },
+              { href: '/epidemic-radar', icon: '🌍', label: 'Epidemic Radar', color: 'from-red-500 to-yellow-500', desc: 'Disease tracking' },
+              { href: '/outbreak-radar', icon: '🎯', label: 'Outbreak Radar', color: 'from-red-500 to-orange-500', desc: 'Alert system' },
+              { href: '/organ-matching', icon: '🔗', label: 'Organ Chain', color: 'from-red-500 to-pink-500', desc: 'Donor matching' },
+              { href: '/beds', icon: '🛏️', label: 'Bed Tracker', color: 'from-amber-500 to-orange-500', desc: 'ICU availability' },
+              { href: '/sms-emergency', icon: '📱', label: 'SMS Emergency', color: 'from-red-500 to-rose-600', desc: 'Real SMS alert' },
+
+              // ── Wellness & Lifestyle ──
               { href: '/wellness', icon: '🌿', label: 'Wellness', color: 'from-green-500 to-teal-500', desc: 'Holistic health' },
-              { href: '/schemes', icon: '📜', label: 'Schemes', color: 'from-amber-500 to-yellow-500', desc: 'Govt schemes' },
               { href: '/corporate-wellness', icon: '🏢', label: 'Corporate', color: 'from-slate-500 to-gray-500', desc: 'Employee health' },
               { href: '/womens-health', icon: '🌸', label: "Women's Health", color: 'from-pink-500 to-rose-500', desc: 'Specialized care' },
               { href: '/family-care', icon: '👨‍👩‍👧', label: 'Family Care', color: 'from-teal-500 to-green-500', desc: 'Family records' },
-              { href: '/communities', icon: '👥', label: 'Communities', color: 'from-indigo-500 to-blue-500', desc: 'Support groups' },
               { href: '/pets', icon: '🐾', label: 'Pet Care', color: 'from-amber-500 to-orange-500', desc: 'Animal health' },
-              { href: '/epidemic-radar', icon: '🌍', label: 'Epidemic Radar', color: 'from-red-500 to-yellow-500', desc: 'Disease tracking' },
-              { href: '/lab-booking', icon: '📋', label: 'Lab Booking', color: 'from-purple-500 to-violet-500', desc: 'Book tests' },
-              { href: '/multilingual', icon: '🌐', label: 'Multilingual', color: 'from-blue-500 to-sky-500', desc: '20+ languages' },
-              { href: '/rewards', icon: '🏆', label: 'Rewards', color: 'from-yellow-500 to-amber-500', desc: 'Earn points' },
               { href: '/dementia-voice', icon: '🧠', label: 'Elder Voice', color: 'from-slate-500 to-blue-500', desc: 'Senior care' },
-              { href: '/organ-matching', icon: '🔗', label: 'Organ Chain', color: 'from-red-500 to-pink-500', desc: 'Donor matching' },
-              { href: '/clinical-scribe', icon: '📝', label: 'AI Scribe', color: 'from-cyan-500 to-blue-500', desc: 'Auto documentation' },
-              { href: '/eye-control', icon: '👁️', label: 'Eye Control', color: 'from-teal-500 to-cyan-500', desc: 'Accessibility' },
-              { href: '/drone-network', icon: '🚁', label: 'Drone Network', color: 'from-gray-500 to-slate-500', desc: 'Emergency delivery' },
-              { href: '/accessibility-mode', icon: '♿', label: 'Accessibility', color: 'from-purple-500 to-pink-500', desc: 'Universal design' },
-              { href: '/admin/god-mode', icon: '🛡️', label: 'God Mode', color: 'from-amber-500 to-red-500', desc: 'Admin panel' },
+              { href: '/schemes', icon: '📜', label: 'Schemes', color: 'from-amber-500 to-yellow-500', desc: 'Govt schemes' },
+              { href: '/rewards', icon: '🏆', label: 'Rewards', color: 'from-yellow-500 to-amber-500', desc: 'Earn points' },
+
+              // ── Data & Security ──
+              { href: '/blockchain-records', icon: '⛓️', label: 'Records', color: 'from-violet-500 to-purple-500', desc: 'Secure storage' },
+              { href: '/health-wallet', icon: '💳', label: 'Health Wallet', color: 'from-sky-500 to-teal-500', desc: 'Digital cards' },
+              { href: '/health-id', icon: '🛡️', label: 'Health ID', color: 'from-indigo-500 to-purple-500', desc: 'Web3 NFT identity' },
               { href: '/chain-reaction', icon: '⚡', label: 'Chain Demo', color: 'from-blue-500 to-teal-500', desc: 'Blockchain demo' },
               { href: '/digital-twin', icon: '🔮', label: 'Digital Twin', color: 'from-violet-500 to-purple-500', desc: 'Virtual health' },
-              { href: '/outbreak-radar', icon: '🎯', label: 'Outbreak Radar', color: 'from-red-500 to-orange-500', desc: 'Alert system' },
+              { href: '/data-marketplace', icon: '📊', label: 'Data Market', color: 'from-indigo-500 to-blue-500', desc: 'Sell health data' },
+              { href: '/micro-insurance', icon: '🛡️', label: 'Micro Insurance', color: 'from-emerald-500 to-teal-500', desc: 'Affordable cover' },
+
+              // ── Pharma & Verification ──
+              { href: '/pill-scanner', icon: '📷', label: 'Pill Scanner', color: 'from-green-500 to-emerald-500', desc: 'Verify meds' },
+              { href: '/medicine-verify', icon: '🔒', label: 'Verify Medicine', color: 'from-teal-500 to-cyan-500', desc: 'Check authenticity' },
+              { href: '/pdf-prescription', icon: '📄', label: 'PDF Prescription', color: 'from-emerald-500 to-teal-500', desc: 'Download reports' },
+              { href: '/lab-booking', icon: '📋', label: 'Lab Booking', color: 'from-purple-500 to-violet-500', desc: 'Book tests' },
+
+              // ── Partner Programs ──
+              { href: '/pharmacy-partner', icon: '🏪', label: 'Pharmacy Partner', color: 'from-purple-500 to-violet-500', desc: 'Join as pharmacy' },
+              { href: '/hospital-partner', icon: '🏥', label: 'Hospital Partner', color: 'from-red-500 to-rose-500', desc: 'List your hospital' },
+              { href: '/hospital-dashboard', icon: '🏥', label: 'Hospital Dashboard', color: 'from-blue-500 to-indigo-500', desc: 'Hospital admin' },
+              { href: '/hospital-inventory', icon: '📦', label: 'Hospital Inventory', color: 'from-cyan-500 to-teal-500', desc: 'Stock management' },
+              { href: '/sponsor', icon: '🤝', label: 'Sponsor', color: 'from-blue-500 to-indigo-500', desc: 'Partner with us' },
+
+              // ── Accessibility & Community ──
+              { href: '/communities', icon: '👥', label: 'Communities', color: 'from-indigo-500 to-blue-500', desc: 'Support groups' },
+              { href: '/multilingual', icon: '🌐', label: 'Multilingual', color: 'from-blue-500 to-sky-500', desc: '20+ languages' },
+              { href: '/accessibility-mode', icon: '♿', label: 'Accessibility', color: 'from-purple-500 to-pink-500', desc: 'Universal design' },
+              { href: '/eye-control', icon: '👁️', label: 'Eye Control', color: 'from-teal-500 to-cyan-500', desc: 'Accessibility' },
+              { href: '/clinical-scribe', icon: '📝', label: 'AI Scribe', color: 'from-cyan-500 to-blue-500', desc: 'Auto documentation' },
+
+              // ── Communication & Content ──
+              { href: '/chat', icon: '💬', label: 'Health Chat', color: 'from-sky-500 to-blue-500', desc: 'Instant messaging' },
+              { href: '/blogs', icon: '📝', label: 'Blogs', color: 'from-orange-500 to-amber-500', desc: 'Health articles' },
+              { href: '/feedback', icon: '💡', label: 'Feedback', color: 'from-pink-500 to-rose-500', desc: 'Share thoughts' },
+              { href: '/contact', icon: '📧', label: 'Contact', color: 'from-gray-500 to-slate-500', desc: 'Get in touch' },
+              { href: '/subscription', icon: '⭐', label: 'Premium', color: 'from-amber-500 to-yellow-500', desc: 'Unlock features' },
+              { href: '/install', icon: '📲', label: 'Install App', color: 'from-sky-500 to-blue-500', desc: 'PWA install' },
+              { href: '/download-windows', icon: '🪟', label: 'Windows App', color: 'from-sky-500 to-blue-500', desc: 'Desktop version' },
+
+              // ── Admin (bottom) ──
+              { href: '/admin/god-mode', icon: '🛡️', label: 'God Mode', color: 'from-amber-500 to-red-500', desc: 'Admin panel' },
             ].map((feature, idx) => (
               <motion.div
                 key={feature.href}

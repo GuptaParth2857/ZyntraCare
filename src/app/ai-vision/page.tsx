@@ -43,19 +43,9 @@ export default function AIVisionPage() {
       
       if (data.results) {
         setResults(data.results);
-      } else if (data.error) {
-        const mockResults: ScanResult[] = [
-          { condition: 'Skin Lesion Detection', confidence: 92, severity: 'warning', description: 'Minor discoloration detected. Recommend dermatologist consultation within 2 weeks.' },
-          { condition: 'Inflammation markers', confidence: 78, severity: 'normal', description: 'No significant inflammation detected.' },
-        ];
-        setResults(mockResults);
       }
     } catch (err) {
-      const mockResults: ScanResult[] = [
-        { condition: 'Skin Lesion Detection', confidence: 92, severity: 'warning', description: 'Minor discoloration detected. Recommend dermatologist consultation within 2 weeks.' },
-        { condition: 'Inflammation markers', confidence: 78, severity: 'normal', description: 'No significant inflammation detected.' },
-      ];
-      setResults(mockResults);
+      console.error('Vision analysis failed:', err);
     }
     setAnalyzing(false);
   };

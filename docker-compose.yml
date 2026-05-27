@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-ports:
+    ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
@@ -24,14 +24,16 @@ ports:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=zyntra
+      - POSTGRES_PASSWORD=zyntra123
       - POSTGRES_DB=zyntracare
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d zyntracare"]
+      test: ["CMD-SHELL", "pg_isready -U zyntra -d zyntracare"]
       interval: 10s
       timeout: 5s
       retries: 5

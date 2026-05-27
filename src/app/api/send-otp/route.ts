@@ -72,7 +72,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         message: `OTP sent to ${phone.slice(0, -4).replace(/./g, '*')}XXXX`,
-        devOtp: otp,
         expiresIn: 300,
       });
     }

@@ -19,21 +19,12 @@ interface BloodDonor {
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-const MOCK_DONORS: BloodDonor[] = [
-  { id: '1', name: 'Rahul S.', bloodType: 'O-', location: 'HSR Layout, Bangalore', distance: '1.2km', phone: '9876543210', available: true, lastDonated: '45 days ago', donations: 12, verified: true },
-  { id: '2', name: 'Priya M.', bloodType: 'A+', location: 'Koramangala, Bangalore', distance: '2.5km', phone: '9876543211', available: true, lastDonated: '90 days ago', donations: 8, verified: true },
-  { id: '3', name: 'Amit K.', bloodType: 'B+', location: 'Indiranagar, Bangalore', distance: '3.8km', phone: '9876543212', available: false, lastDonated: '30 days ago', donations: 15, verified: true },
-  { id: '4', name: 'Sneha R.', bloodType: 'AB+', location: 'Whitefield, Bangalore', distance: '5.2km', phone: '9876543213', available: true, lastDonated: '120 days ago', donations: 5, verified: true },
-  { id: '5', name: 'Vikram J.', bloodType: 'O+', location: 'JP Nagar, Bangalore', distance: '4.1km', phone: '9876543214', available: true, lastDonated: '60 days ago', donations: 20, verified: true },
-  { id: '6', name: 'Anjali P.', bloodType: 'A-', location: 'MG Road, Bangalore', distance: '2.0km', phone: '9876543215', available: true, lastDonated: '75 days ago', donations: 7, verified: false },
-  { id: '7', name: 'Rajesh T.', bloodType: 'B-', location: ' Bannerghatta, Bangalore', distance: '6.5km', phone: '9876543216', available: false, lastDonated: '25 days ago', donations: 3, verified: true },
-  { id: '8', name: 'Meera S.', bloodType: 'AB-', location: 'City Market, Bangalore', distance: '1.8km', phone: '9876543217', available: true, lastDonated: '180 days ago', donations: 10, verified: true },
-];
-
 export default function BloodDonorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBlood, setSelectedBlood] = useState<string>('');
-  const [donors, setDonors] = useState<BloodDonor[]>(MOCK_DONORS);
+  const [donors, setDonors] = useState<BloodDonor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showRequest, setShowRequest] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [requestForm, setRequestForm] = useState({ name: '', phone: '', bloodType: '', urgency: 'normal', location: '', message: '' });
@@ -41,6 +32,22 @@ export default function BloodDonorsPage() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const fetchDonors = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/blood-donors');
+        const data = await res.json();
+        setDonors(data.donors || data || []);
+      } catch (err) {
+        setError('Failed to load donors');
+        console.error('Error fetching donors:', err);
+      }
+      setLoading(false);
+    };
+    fetchDonors();
   }, []);
 
   const filteredDonors = donors.filter(donor => {
@@ -184,7 +191,20 @@ export default function BloodDonorsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading ? (
+          <div className="text-center py-16">
+            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Finding donors near you...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <FiAlertCircle className="text-4xl text-red-500 mx-auto mb-4" />
+            <p className="text-xl font-bold text-red-400">{error}</p>
+            <button onClick={() => window.location.reload()} className="mt-4 px-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-bold">
+              Retry
+            </button>
+          </div>
+        ) : (<>
           <AnimatePresence>
             {filteredDonors.map((donor, index) => (
               <motion.div
@@ -238,15 +258,15 @@ export default function BloodDonorsPage() {
               </motion.div>
             ))}
           </AnimatePresence>
-        </div>
 
-        {filteredDonors.length === 0 && (
+        {filteredDonors.length === 0 && !loading && !error && (
           <div className="text-center py-16">
             <FiDroplet className="text-6xl text-gray-700 mx-auto mb-4" />
             <p className="text-xl font-bold">No donors found</p>
             <p className="text-gray-400">Try changing your filters or request blood</p>
           </div>
         )}
+        </>)}
       </div>
 
       {/* Request Modal */}

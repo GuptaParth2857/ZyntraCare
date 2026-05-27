@@ -43,6 +43,29 @@ model User {
   patientRecord     PatientRecord?
   hospitalAdmin     HospitalAdmin?
   emergencyAlerts   EmergencyAlert[]
+  feedback          Feedback[]
+  bedAlerts         BedAlert[]
+  wearableData      WearableData[]
+  digitalTwin       DigitalTwin?
+  pillRecords       PillRecord[]
+  organDonor        OrganDonor?
+  organRecipient    OrganRecipient?
+  dataListings      DataListing[]
+  insurancePolicies InsurancePolicy[]
+  healthGoals       HealthGoal[]
+  wellnessProgress  WellnessMissionProgress[]
+  familyMembers     FamilyMember[]
+  womenHealthCycles WomenHealthCycle[]
+  pets              Pet[]
+  contactMessages   ContactMessage[]
+  sponsorInquiries  SponsorInquiry[]
+  healthWallet      HealthWallet?
+  rewards           Reward[]
+  genomicData       GenomicData?
+  medicineReminders MedicineReminder[]
+  sentMeshMessages  MeshMessage[]
+  voiceReminders    VoiceReminder[]
+  communityPosts    CommunityPost[]
 }
 
 model OtpToken {
@@ -391,6 +414,738 @@ model EmergencyAlert {
   hospitalId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ─── FEEDBACK ──────────────────────────────────────────────
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  rating    Int
+  category  String   @default("Overall Experience")
+  message   String
+  name      String   @default("Anonymous")
+  email     String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ─── BED ALERTS ─────────────────────────────────────────
+
+model BedAlert {
+  id                String   @id @default(cuid())
+  userId            String
+  hospitalId        String
+  hospitalName      String
+  alertType         String   // icu | general | any
+  targetAvailability Int     @default(1)
+  notified          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([hospitalId])
+}
+
+// ─── FOOTFALL ─────────────────────────────────────────
+
+model FootfallReport {
+  id          String   @id @default(cuid())
+  hospitalId  String
+  hospitalName String
+  level       String   // low | medium | high | very_high
+  reportDate  DateTime @default(now())
+
+  @@index([hospitalId])
+  @@index([reportDate])
+}
+
+// ─── PASSWORD RESET TOKENS ─────────────────────────────
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// ─── HEALTH CAMPS ──────────────────────────────────────
+
+model HealthCamp {
+  id            String   @id @default(cuid())
+  name          String
+  campType      String
+  date          String
+  time          String
+  location      String
+  city          String
+  state         String
+  lat           Float?
+  lng           Float?
+  services      String   // JSON array
+  hospital      String
+  hospitalId    String?
+  registration  String   @default("Free")
+  spotsAvailable Int     @default(50)
+  organizedBy   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([city])
+  @@index([date])
+}
+
+// ─── MEDICINE VERIFICATION ─────────────────────────────
+
+model MedicineRecord {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  manufacturer String
+  composition  String
+  category     String
+  batchNumber  String?
+  expiryDate   String?
+  verified     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([code])
+  @@index([manufacturer])
+}
+
+// ─── WEARABLE DEVICE DATA ─────────────────────────────
+
+model WearableData {
+  id            String   @id @default(cuid())
+  userId        String
+  deviceId      String?
+  heartRate     Int?
+  bloodPressure String?  // "120/80"
+  bloodSugar    Float?
+  oxygenLevel   Float?
+  temperature   Float?
+  steps         Int?
+  calories      Int?
+  sleepHours    Float?
+  recordedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([recordedAt])
+}
+
+// ─── DIGITAL TWIN ──────────────────────────────────────
+
+model DigitalTwin {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  displayName    String?
+  avatarData     String?  // JSON for 3D avatar config
+  healthSummary  String?  // JSON summary
+  lastSyncAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── DRONE NETWORK ─────────────────────────────────────
+
+model Drone {
+  id          String   @id @default(cuid())
+  droneId     String   @unique
+  name        String
+  model       String?
+  status      String   @default("IDLE") // IDLE | IN_FLIGHT | CHARGING | MAINTENANCE
+  batteryLevel Float   @default(100)
+  lat         Float?
+  lng         Float?
+  altitude    Float?
+  speed       Float?
+  hospitalId  String?
+  lastMission String?
+  missions    DroneMission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model DroneMission {
+  id             String    @id @default(cuid())
+  droneId        String
+  type           String    // delivery | surveillance | emergency
+  status         String    @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | FAILED
+  originLat      Float
+  originLng      Float
+  destLat        Float
+  destLng        Float
+  packageDesc    String?
+  recipientName  String?
+  recipientPhone String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  drone Drone @relation(fields: [droneId], references: [id], onDelete: Cascade)
+  @@index([droneId])
+  @@index([status])
+}
+
+// ─── PILL SCANNER ──────────────────────────────────────
+
+model PillRecord {
+  id          String   @id @default(cuid())
+  userId      String?
+  imageData   String?  // base64
+  pillName    String?
+  description String?
+  dosage      String?
+  matches     String?  // JSON array of matched pills
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId])
+}
+
+// ─── ORGAN MATCHING ────────────────────────────────────
+
+model OrganDonor {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  organs      String   // JSON array of donated organs
+  bloodType   String?
+  tissueType  String?  // HLA typing
+  age         Int?
+  weight      Float?
+  height      Float?
+  city        String?
+  state       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([bloodType])
+  @@index([organs])
+}
+
+model OrganRecipient {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  organNeeded  String
+  bloodType    String?
+  tissueType   String?  // HLA typing
+  urgency      String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  age          Int?
+  city         String?
+  state        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([organNeeded])
+  @@index([bloodType])
+}
+
+// ─── DATA MARKETPLACE ──────────────────────────────────
+
+model DataListing {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String
+  description  String?
+  dataType     String   // genomic | health_record | wearable | research
+  price        Float    @default(0)
+  format       String   @default("JSON")
+  isAnonymized Boolean  @default(true)
+  status       String   @default("ACTIVE") // ACTIVE | SOLD | ARCHIVED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([dataType])
+  @@index([status])
+}
+
+// ─── MICRO INSURANCE ───────────────────────────────────
+
+model InsurancePlan {
+  id          String   @id @default(cuid())
+  name        String
+  provider    String
+  type        String   // health | accident | critical_illness | daily_hospital
+  coverage    Float
+  premium     Float
+  period      String   @default("monthly")
+  description String?
+  eligibility String?  // JSON
+  isActive    Boolean  @default(true)
+  policies    InsurancePolicy[]
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+}
+
+model InsurancePolicy {
+  id           String   @id @default(cuid())
+  userId       String
+  planId       String
+  status       String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
+  startDate    DateTime @default(now())
+  endDate      DateTime
+  premiumPaid  Float
+  claimsUsed   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan InsurancePlan @relation(fields: [planId], references: [id])
+  @@index([userId])
+  @@index([status])
+}
+
+// ─── CORPORATE WELLNESS ────────────────────────────────
+
+model CorporateProgram {
+  id            String   @id @default(cuid())
+  companyName   String
+  contactName   String
+  contactEmail  String
+  contactPhone  String?
+  employeeCount Int?
+  services      String   // JSON array
+  status        String   @default("ACTIVE")
+  startDate     DateTime?
+  endDate       DateTime?
+  members       CorporateMember[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CorporateMember {
+  id          String   @id @default(cuid())
+  programId   String
+  userId      String?
+  employeeId  String?
+  name        String
+  email       String
+  department  String?
+  joinDate    DateTime @default(now())
+
+  program CorporateProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  @@index([programId])
+}
+
+// ─── LABS ───────────────────────────────────────────────────
+
+model Lab {
+  id            String   @id @default(cuid())
+  name          String
+  address       String
+  city          String
+  state         String
+  pincode       String   @default("")
+  phone         String   @default("")
+  email         String   @default("")
+  website       String   @default("")
+  lat           Float?
+  lng           Float?
+  rating        Float    @default(0)
+  image         String   @default("")
+  accredited    Boolean  @default(false)
+  homeCollection Boolean @default(true)
+  tests         String   @default("[]") // JSON array of available tests
+  workingHours  String   @default("8:00 AM - 6:00 PM")
+  verified      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([city])
+  @@index([state])
+}
+
+// ─── PHARMACIES ─────────────────────────────────────────────
+
+model Pharmacy {
+  id            String   @id @default(cuid())
+  name          String
+  address       String
+  city          String
+  state         String
+  pincode       String   @default("")
+  phone         String   @default("")
+  email         String   @default("")
+  website       String   @default("")
+  lat           Float?
+  lng           Float?
+  rating        Float    @default(0)
+  image         String   @default("")
+  license       String   @default("")
+  isOnline      Boolean  @default(true)
+  deliveryAvailable Boolean @default(true)
+  open24Hours   Boolean  @default(false)
+  workingHours  String   @default("9:00 AM - 9:00 PM")
+  verified      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([city])
+  @@index([state])
+}
+
+// ─── BLOGS ──────────────────────────────────────────────────
+
+model Blog {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  content   String
+  excerpt   String   @default("")
+  author    String   @default("ZyntraCare")
+  image     String   @default("")
+  category  String   @default("General")
+  tags      String   @default("[]") // JSON array
+  readTime  Int      @default(5)
+  published Boolean  @default(true)
+  featured  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([createdAt])
+}
+
+// ─── COMMUNITIES ────────────────────────────────────────────
+
+model Community {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  category    String   @default("General")
+  image       String   @default("")
+  memberCount Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdBy   String?
+  posts       CommunityPost[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+model CommunityPost {
+  id          String   @id @default(cuid())
+  communityId String
+  userId      String?
+  authorName  String   @default("Anonymous")
+  content     String
+  likes       Int      @default(0)
+  replies     Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([communityId])
+  @@index([createdAt])
+}
+
+// ─── HEALTH GOALS ───────────────────────────────────────────
+
+model HealthGoal {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String   @default("")
+  type        String   // weight | exercise | sleep | water | steps | custom
+  targetValue Float?
+  currentValue Float   @default(0)
+  unit        String   @default("")
+  startDate   String
+  endDate     String?
+  status      String   @default("active") // active | completed | cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([status])
+}
+
+// ─── WELLNESS MISSIONS ──────────────────────────────────────
+
+model WellnessMission {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  category    String   // exercise | nutrition | mental | sleep | social
+  points      Int      @default(10)
+  icon        String   @default("")
+  duration    String   @default("daily") // daily | weekly | monthly
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userProgress WellnessMissionProgress[]
+}
+
+model WellnessMissionProgress {
+  id        String   @id @default(cuid())
+  missionId String
+  userId    String
+  streak    Int      @default(0)
+  completed Boolean  @default(false)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mission WellnessMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([missionId, userId])
+  @@index([userId])
+}
+
+// ─── FAMILY CARE ────────────────────────────────────────────
+
+model FamilyMember {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  relation      String   // spouse | child | parent | sibling | other
+  age           Int?
+  bloodGroup    String?
+  gender        String?
+  phone         String?
+  email         String?
+  conditions    String?  // JSON array
+  medications   String?  // JSON array
+  isEmergency   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// ─── WOMEN'S HEALTH ─────────────────────────────────────────
+
+model WomenHealthCycle {
+  id          String   @id @default(cuid())
+  userId      String
+  startDate   String
+  endDate     String?
+  cycleLength Int      @default(28)
+  periodLength Int     @default(5)
+  symptoms    String   @default("[]") // JSON array
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([startDate])
+}
+
+// ─── PET HEALTHCARE ─────────────────────────────────────────
+
+model Pet {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  species   String   // dog | cat | bird | other
+  breed     String   @default("")
+  age       Int?
+  weight    Float?
+  color     String   @default("")
+  microchip String   @default("")
+  notes     String   @default("")
+  image     String   @default("")
+  vaccinations PetVaccination[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model PetVaccination {
+  id          String   @id @default(cuid())
+  petId       String
+  name        String
+  dateGiven   String
+  nextDueDate String?
+  veterinarian String  @default("")
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+  @@index([petId])
+}
+
+// ─── CONTACT & SUPPORT ──────────────────────────────────────
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  userId    String?
+  status    String   @default("unread") // unread | read | replied
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── SPONSOR / PARTNERSHIP ──────────────────────────────────
+
+model SponsorInquiry {
+  id           String   @id @default(cuid())
+  companyName  String
+  contactName  String
+  contactEmail String
+  contactPhone String?
+  partnershipType String
+  budget       String?
+  message      String   @default("")
+  status       String   @default("pending") // pending | reviewed | contacted | closed
+  userId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([status])
+}
+
+// ─── HEALTH WALLET ──────────────────────────────────────────
+
+model HealthWallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions HealthTransaction[]
+}
+
+model HealthTransaction {
+  id          String   @id @default(cuid())
+  walletId    String
+  amount      Float
+  type        String   // credit | debit
+  category    String   // reward | subscription | appointment | pharmacy | refund
+  description String   @default("")
+  referenceId String?
+  status      String   @default("completed") // pending | completed | failed
+  createdAt   DateTime @default(now())
+
+  wallet HealthWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  @@index([walletId])
+  @@index([createdAt])
+}
+
+// ─── REWARDS / HEALTH COINS ─────────────────────────────────
+
+model Reward {
+  id          String   @id @default(cuid())
+  userId      String
+  points      Int      @default(0)
+  source      String   // mission | appointment | workout | donation | referral
+  description String   @default("")
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([source])
+  @@index([createdAt])
+}
+
+// ─── GENOMIC DATA ───────────────────────────────────────────
+
+model GenomicData {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  data        String?  // JSON - full genomic profile
+  summary     String?  // JSON - risk markers, traits
+  rawFileUrl  String?  // link to uploaded raw DNA file
+  provider    String   @default("")
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── MEDICINE REMINDERS ─────────────────────────────────────
+
+model MedicineReminder {
+  id        String   @id @default(cuid())
+  userId    String
+  medicine  String
+  dosage    String
+  frequency String   // daily | twice_daily | weekly | custom
+  times     String   // JSON array of times ["08:00","20:00"]
+  startDate String
+  endDate   String?
+  notes     String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([isActive])
+}
+
+// ─── OFFLINE MESH NETWORK ───────────────────────────────────
+
+model MeshMessage {
+  id        String   @id @default(cuid())
+  senderId  String?
+  senderName String  @default("Anonymous")
+  content   String
+  latitude  Float?
+  longitude Float?
+  deviceId  String?
+  hopCount  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  sender User? @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  @@index([createdAt])
+}
+
+// ─── DEMENTIA VOICE ASSISTANT ───────────────────────────────
+
+model VoiceReminder {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  message     String
+  scheduledAt DateTime
+  repeatType  String   @default("none") // none | daily | weekly
+  isActive    Boolean  @default(true)
+  lastTriggeredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([scheduledAt])
 }
 
 // ─── SUPPLY CHAIN ───────────────────────────────────────────

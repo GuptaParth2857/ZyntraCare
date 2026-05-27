@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       
       if (!beds) {
         let parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 };
-        try { parsedBeds = JSON.parse(hospital.beds); } catch {}
+        try { parsedBeds = JSON.parse(hospital.beds); } catch { parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 }; }
         
         beds = await prisma.realTimeBed.create({
           data: {
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
     }
 
     let parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 };
-    try { parsedBeds = JSON.parse(hospital.beds); } catch {}
+    try { parsedBeds = JSON.parse(hospital.beds); } catch { parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 }; }
 
     return NextResponse.json({
       success: true,
@@ -147,34 +147,41 @@ export async function POST(req: NextRequest) {
     const occupancyPercent = calculateOccupancy(totalBeds || 0, availableBeds || 0);
     const icuOccupancy = totalICU ? Math.round(((totalICU - (availableICU || 0)) / totalICU) * 100) : 0;
 
-    const data = await prisma.realTimeBed.upsert({
-      where: { hospitalId },
-      create: {
-        hospitalId,
-        hospitalName: hospitalName || 'Hospital',
-        totalBeds: totalBeds || 0,
-        availableBeds: availableBeds || 0,
-        occupiedBeds: Math.max(0, occupiedBeds),
-        totalICU: totalICU || 0,
-        availableICU: availableICU || 0,
-        occupiedICU: Math.max(0, occupiedICU),
-        icuOccupancy,
-        generalOccupancy: occupancyPercent,
-        updateSource: updateSource || 'api',
-      },
-      update: {
-        hospitalName: hospitalName || 'Hospital',
-        totalBeds: totalBeds || 0,
-        availableBeds: availableBeds || 0,
-        occupiedBeds: Math.max(0, occupiedBeds),
-        totalICU: totalICU || 0,
-        availableICU: availableICU || 0,
-        occupiedICU: Math.max(0, occupiedICU),
-        icuOccupancy,
-        generalOccupancy: occupancyPercent,
-        updateSource: updateSource || 'api',
-      },
-    });
+    const existing = await prisma.realTimeBed.findFirst({ where: { hospitalId } });
+    let data;
+    if (existing) {
+      data = await prisma.realTimeBed.update({
+        where: { id: existing.id },
+        data: {
+          hospitalName: hospitalName || 'Hospital',
+          totalBeds: totalBeds || 0,
+          availableBeds: availableBeds || 0,
+          occupiedBeds: Math.max(0, occupiedBeds),
+          totalICU: totalICU || 0,
+          availableICU: availableICU || 0,
+          occupiedICU: Math.max(0, occupiedICU),
+          icuOccupancy,
+          generalOccupancy: occupancyPercent,
+          updateSource: updateSource || 'api',
+        },
+      });
+    } else {
+      data = await prisma.realTimeBed.create({
+        data: {
+          hospitalId,
+          hospitalName: hospitalName || 'Hospital',
+          totalBeds: totalBeds || 0,
+          availableBeds: availableBeds || 0,
+          occupiedBeds: Math.max(0, occupiedBeds),
+          totalICU: totalICU || 0,
+          availableICU: availableICU || 0,
+          occupiedICU: Math.max(0, occupiedICU),
+          icuOccupancy,
+          generalOccupancy: occupancyPercent,
+          updateSource: updateSource || 'api',
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

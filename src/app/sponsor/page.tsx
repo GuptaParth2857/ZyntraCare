@@ -28,8 +28,17 @@ export default function SponsorPage() {
     e.preventDefault();
     if (!partnerType || !form.orgName || !form.email) return;
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1600));
-    setSubmitted(true);
+    try {
+      const res = await fetch('/api/sponsor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, partnerType, budget }),
+      });
+      if (!res.ok) throw new Error('Submission failed');
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit:', err);
+    }
     setSubmitting(false);
   };
 

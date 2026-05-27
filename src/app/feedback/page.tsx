@@ -18,24 +18,30 @@ export default function FeedbackPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const { addNotification } = useNotifications();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rating || !message.trim()) return;
     setSubmitting(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 1500));
-    setSubmitted(true);
-    setSubmitting(false);
-    // Trigger notification
     try {
-      const { addNotification } = useNotifications();
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, category, message, name, email }),
+      });
+      if (!res.ok) throw new Error('Failed to submit');
+      setSubmitted(true);
       addNotification({
         type: 'success',
         title: 'Feedback Submitted',
         message: `Thank you for your ${category} feedback!`,
       });
-    } catch {}
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to submit feedback' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {

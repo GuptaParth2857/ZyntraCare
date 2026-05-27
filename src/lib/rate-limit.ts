@@ -1,66 +1,69 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
+const requestCounts = new Map<string, { count: number; resetAt: number }>();
+
+export function rateLimit(
+  ip: string,
+  limit: number = 100,
+  windowMs: number = 60000
+): { allowed: boolean; remaining: number; resetAt: number } {
+  const now = Date.now();
+  const record = requestCounts.get(ip);
+
+  if (!record || now > record.resetAt) {
+    requestCounts.set(ip, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
+  }
+
+  record.count += 1;
+
+  if (record.count > limit) {
+    return { allowed: false, remaining: 0, resetAt: record.resetAt };
+  }
+
+  return { allowed: true, remaining: limit - record.count, resetAt: record.resetAt };
 }
 
-const store: RateLimitStore = {};
-
-export function rateLimitMiddleware(
-  request: NextRequest,
-  limit: number = 10,
-  windowMs: number = 60 * 1000 // 1 minute
-) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] 
-    || request.headers.get('x-real-ip') 
-    || 'unknown';
-  
+export function cleanExpiredEntries(): void {
   const now = Date.now();
-  const key = `ratelimit:${ip}`;
-  
-  // Clean up old entries
-  if (store[key] && store[key].resetTime < now) {
-    delete store[key];
+  for (const [ip, record] of requestCounts) {
+    if (now > record.resetAt) {
+      requestCounts.delete(ip);
+    }
   }
-  
-  // Initialize if not exists
-  if (!store[key]) {
-    store[key] = { count: 0, resetTime: now + windowMs };
-  }
-  
-  store[key].count++;
-  
-  if (store[key].count > limit) {
+}
+
+setInterval(cleanExpiredEntries, 60000);
+
+export function authRateLimit(req: NextRequest, limit: number = 20, windowMs: number = 60000): NextResponse | null {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || '127.0.0.1';
+
+  const result = rateLimit(ip, limit, windowMs);
+
+  if (!result.allowed) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': '60' } }
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((result.resetAt - Date.now()) / 1000)),
+          'X-RateLimit-Limit': String(limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.ceil(result.resetAt / 1000)),
+        },
+      }
     );
   }
-  
+
   return null;
 }
 
-export function withRateLimit(
-  handler: (req: NextRequest) => Promise<NextResponse>,
-  options: { limit?: number; windowMs?: number } = {}
-) {
-  return async function(req: NextRequest): Promise<NextResponse> {
-    const block = rateLimitMiddleware(req, options.limit, options.windowMs);
-    if (block) return block;
-    return handler(req);
-  };
-}
-
-// Rate limiter for auth endpoints
-export function authRateLimit(req: NextRequest): NextResponse | null {
-  return rateLimitMiddleware(req, 5, 60 * 1000); // 5 attempts per minute
-}
-
-// Rate limiter for general API
-export function apiRateLimit(req: NextRequest): NextResponse | null {
-  return rateLimitMiddleware(req, 30, 60 * 1000); // 30 requests per minute
+export function rateLimitMiddleware(
+  request: Request,
+  limit: number = 100,
+  windowMs: number = 60000
+): NextResponse | null {
+  return authRateLimit(request as NextRequest, limit, windowMs);
 }

@@ -183,7 +183,7 @@ export default function Footer() {
           className="mt-8 pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4"
         >
           <div className="flex flex-wrap gap-4 text-sm">
-            <Link href="/hospital-dashboard" className="text-gray-400 hover:text-teal-400 transition">🏥 Partner with Hospitals</Link>
+            <Link href="/hospital-partner" className="text-gray-400 hover:text-teal-400 transition">🏥 Partner with Hospitals</Link>
             <Link href="/doctors/register" className="text-gray-400 hover:text-teal-400 transition">👨‍⚕️ Join as Doctor</Link>
             <Link href="/corporate-wellness" className="text-gray-400 hover:text-teal-400 transition">🏢 Corporate Wellness</Link>
             <Link href="/pharmacy-partner" className="text-gray-400 hover:text-teal-400 transition">💊 Pharmacy Partner</Link>

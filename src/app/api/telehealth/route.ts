@@ -1,59 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getToken } from 'next-auth/jwt';
 
-const consultations = [
-  { id: '1', doctorName: 'Dr. Priya Sharma', specialty: 'General Physician', hospital: 'Rural Health Center, UP', available: true, nextSlot: 'Today 4PM', isRural: true, languages: ['Hindi', 'English'] },
-  { id: '2', doctorName: 'Dr. Amit Kumar', specialty: 'Cardiologist', hospital: 'District Hospital, Bihar', available: true, nextSlot: 'Tomorrow 10AM', isRural: true, languages: ['Hindi'] },
-  { id: '3', doctorName: 'Dr. Sneha Gupta', specialty: 'Dermatologist', hospital: 'City Hospital, Delhi', available: false, nextSlot: 'Next Week', isRural: false, languages: ['English', 'Hindi'] },
-  { id: '4', doctorName: 'Dr. Rajesh Patel', specialty: 'Pediatrician', hospital: 'Taluka Hospital, Gujarat', available: true, nextSlot: 'Today 6PM', isRural: true, languages: ['Gujarati', 'Hindi'] },
-  { id: '5', doctorName: 'Dr. Lisa Chen', specialty: 'Psychiatrist', hospital: 'Metro Hospital, Mumbai', available: true, nextSlot: 'Today 5PM', isRural: false, languages: ['English', 'Hindi'] },
-  { id: '6', doctorName: 'Dr. Raj Malhotra', specialty: 'Orthopedic', hospital: 'PHC, Rajasthan', available: true, nextSlot: 'Tomorrow 9AM', isRural: true, languages: ['Hindi'] },
-  { id: '7', doctorName: 'Dr. Kavita Singh', specialty: 'Gynecologist', hospital: 'CHC, MP', available: true, nextSlot: 'Today 3PM', isRural: true, languages: ['Hindi', 'English'] },
-  { id: '8', doctorName: 'Dr. Vikram Joshi', specialty: 'General Physician', hospital: 'Urban Health Post, Delhi', available: true, nextSlot: 'Today 7PM', isRural: false, languages: ['English', 'Hindi', 'Punjabi'] },
-];
+function isRuralHospital(name: string): boolean {
+  const lower = name.toLowerCase();
+  const rural = ['rural', 'phc', 'chc', 'taluka', 'primary', 'district'];
+  const urban = ['city', 'metro', 'urban', 'corporate'];
+  const hasRural = rural.some(k => lower.includes(k));
+  const hasUrban = urban.some(k => lower.includes(k));
+  return hasRural && !hasUrban;
+}
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const specialty = searchParams.get('specialty');
-  const rural = searchParams.get('rural') === 'true';
+  try {
+    const { searchParams } = new URL(req.url);
+    const specialty = searchParams.get('specialty');
+    const rural = searchParams.get('rural') === 'true';
 
-  let filtered = consultations;
-  
-  if (specialty && specialty !== 'all') {
-    filtered = filtered.filter(c => c.specialty === specialty);
-  }
-  
-  if (rural) {
-    filtered = filtered.filter(c => c.isRural);
-  }
+    const doctors = await prisma.doctor.findMany({
+      where: {
+        ...(specialty && specialty !== 'all' ? { specialty } : {}),
+      },
+      include: {
+        user: { select: { name: true } },
+        hospitalLinks: {
+          include: { hospital: { select: { name: true } } },
+        },
+      },
+    });
 
-  return NextResponse.json({
-    success: true,
-    count: filtered.length,
-    consultations: filtered
-  });
+    let consultations = doctors.map(doc => ({
+      id: doc.id,
+      doctorName: doc.user.name || 'Unknown',
+      specialty: doc.specialty,
+      hospital: doc.hospitalLinks[0]?.hospital.name || 'Independent',
+      isRural: doc.hospitalLinks[0] ? isRuralHospital(doc.hospitalLinks[0].hospital.name) : false,
+      available: doc.isAvailable,
+    }));
+
+    if (rural) {
+      consultations = consultations.filter(c => c.isRural);
+    }
+
+    return NextResponse.json({
+      success: true,
+      count: consultations.length,
+      consultations,
+    });
+  } catch (error) {
+    console.error('Telehealth GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { consultationId, userId, date, time } = body;
+  try {
+    const body = await req.json();
+    const { consultationId, userId: bodyUserId, date, time } = body;
 
-  if (!consultationId || !date || !time) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    if (!consultationId || !date || !time) {
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    }
+
+    const token = await getToken({ req });
+    const userId = bodyUserId || token?.sub || '';
+
+    const doctor = await prisma.doctor.findUnique({
+      where: { id: consultationId },
+      include: { user: { select: { name: true } } },
+    });
+
+    if (!doctor) {
+      return NextResponse.json({ error: 'Consultation not found' }, { status: 404 });
+    }
+
+    if (!doctor.isAvailable) {
+      return NextResponse.json({ error: 'Consultation not available' }, { status: 400 });
+    }
+
+    const meetingId = `zyntra-${doctor.id}-${Date.now().toString(36)}`;
+    const meetingLink = `https://meet.jit.si/${meetingId}`;
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId,
+        doctorId: doctor.id,
+        doctorName: doctor.user.name || 'Unknown',
+        specialty: doctor.specialty,
+        date,
+        time,
+        status: 'confirmed',
+        isOnline: true,
+        meetingLink,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Consultation booked successfully',
+      meetingLink,
+      booking: {
+        id: appointment.id,
+        consultationId,
+        userId,
+        date,
+        time,
+      },
+    });
+  } catch (error) {
+    console.error('Telehealth POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  const consultation = consultations.find(c => c.id === consultationId);
-  if (!consultation) {
-    return NextResponse.json({ error: 'Consultation not found' }, { status: 404 });
-  }
-
-  if (!consultation.available) {
-    return NextResponse.json({ error: 'Consultation not available' }, { status: 400 });
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: 'Consultation booked successfully',
-    meetingLink: `https://meet.zyntracare.com/${consultationId}`,
-    booking: { consultationId, userId, date, time }
-  });
 }

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-
-function calculateHaversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { getDistanceKm } from '@/utils/distance';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -24,14 +17,18 @@ export async function GET(req: NextRequest) {
     const where: any = {};
     
     if (city) {
-      where.city = { contains: city, mode: 'insensitive' };
+      where.city = { contains: city };
+    }
+    
+    if (specialty) {
+      where.specialties = { contains: specialty };
     }
     
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { city: { contains: search, mode: 'insensitive' } },
-        { specialties: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { city: { contains: search } },
+        { specialties: { contains: search } },
       ];
     }
 
@@ -48,12 +45,12 @@ export async function GET(req: NextRequest) {
       let beds = { total: 0, available: 0, icu: 0, icuAvailable: 0 };
       try {
         beds = typeof h.beds === 'string' ? JSON.parse(h.beds) : h.beds;
-      } catch {}
+      } catch { beds = { total: 0, available: 0, icu: 0, icuAvailable: 0 }; }
 
       let specs: string[] = [];
       try {
         specs = typeof h.specialties === 'string' ? JSON.parse(h.specialties) : [];
-      } catch {}
+      } catch { specs = []; }
 
       return {
         id: h.id,
@@ -75,30 +72,60 @@ export async function GET(req: NextRequest) {
     if (nearby && lat && lng) {
       formatted = formatted.map(h => ({
         ...h,
-        distance: calculateHaversine(lat, lng, h.location.lat, h.location.lng),
+        distance: getDistanceKm(lat, lng, h.location.lat, h.location.lng),
       })).sort((a: any, b: any) => a.distance - b.distance);
     }
 
-    const cities = await prisma.hospital.findMany({
-      select: { city: true },
-      distinct: ['city'],
-    });
+    let cities: string[] = [];
+    try {
+      const cityResults = await prisma.hospital.findMany({
+        select: { city: true },
+        distinct: ['city'],
+      });
+      cities = cityResults.map(c => c.city).sort();
+    } catch {
+      console.error('Failed to fetch cities');
+      cities = [];
+    }
 
     return NextResponse.json({
       hospitals: formatted,
       total,
       page,
       pages: Math.ceil(total / limit),
-      cities: cities.map(c => c.city).sort(),
+      cities,
     });
   } catch (error) {
-    console.warn('Hospitals API unavailable, using fallback data:', (error as Error)?.message);
-    const fallback = [
-      { id: 'fallback_1', name: 'Apollo Hospital', city: 'Delhi', state: 'Delhi', address: 'Sector 26, Noida', phone: '+91-120-234-5678', location: { lat: 28.6145, lng: 77.2088 }, rating: '4.8', beds: { total: 500, available: 120, icu: 50, icuAvailable: 12 }, specialties: ['Cardiology', 'Neurology', 'Orthopedics'], emergency: true, verified: true, doctors: 150 },
-      { id: 'fallback_2', name: 'Fortis Hospital', city: 'Delhi', state: 'Delhi', address: 'Sector 62, Noida', phone: '+91-120-458-9000', location: { lat: 28.6125, lng: 77.2120 }, rating: '4.7', beds: { total: 400, available: 85, icu: 40, icuAvailable: 8 }, specialties: ['Cardiology', 'Oncology', 'Neurology'], emergency: true, verified: true, doctors: 120 },
-      { id: 'fallback_3', name: 'Max Healthcare', city: 'Delhi', state: 'Delhi', address: 'Sector 45, Gurgaon', phone: '+91-124-456-7000', location: { lat: 28.6305, lng: 77.2195 }, rating: '4.6', beds: { total: 350, available: 60, icu: 30, icuAvailable: 5 }, specialties: ['Cardiology', 'Orthopedics', 'Pulmonology'], emergency: true, verified: true, doctors: 90 },
-      { id: 'fallback_4', name: 'AIIMS Delhi', city: 'Delhi', state: 'Delhi', address: 'Ansari Nagar, New Delhi', phone: '+91-11-2658-8500', location: { lat: 28.5677, lng: 77.2433 }, rating: '4.9', beds: { total: 2000, available: 300, icu: 200, icuAvailable: 30 }, specialties: ['Cardiology', 'Neurology', 'Oncology', 'Pediatrics'], emergency: true, verified: true, doctors: 500 },
-    ];
-    return NextResponse.json({ hospitals: fallback, total: fallback.length, page: 1, pages: 1, cities: ['Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata'] });
+    console.error('Hospitals API error:', error);
+    return NextResponse.json({ hospitals: [], total: 0, page: 1, pages: 0, cities: [] }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const hospital = await prisma.hospital.create({
+      data: {
+        name: body.name,
+        address: body.address,
+        city: body.city,
+        state: body.state,
+        pincode: body.pincode || '',
+        phone: body.phone,
+        email: body.email || '',
+        website: body.website || '',
+        specialties: JSON.stringify(body.specialties || []),
+        beds: JSON.stringify(body.beds || { total: 0, available: 0, icu: 0, icuAvailable: 0 }),
+        emergency: body.emergency || false,
+        lat: body.lat || 0,
+        lng: body.lng || 0,
+        doctors: body.doctors || 0,
+        workingHours: body.workingHours || '24/7',
+      },
+    });
+    return NextResponse.json({ success: true, hospital }, { status: 201 });
+  } catch (error) {
+    console.error('Hospital POST error:', error);
+    return NextResponse.json({ error: 'Failed to register hospital' }, { status: 500 });
   }
 }

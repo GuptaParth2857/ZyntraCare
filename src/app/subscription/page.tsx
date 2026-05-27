@@ -50,12 +50,15 @@ const plans = [
 ];
 
 export default function SubscriptionPage() {
-  const session = { user: { subscription: { plan: 'Free' } } } as { user: { subscription: { plan: string } } };
-  const update = async () => {};
+  const [currentPlan, setCurrentPlan] = useState('Free');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubscribe = async (planName: string) => {
     setLoading(true);
+    setError('');
+    setSuccess('');
     try {
       const res = await fetch('/api/subscribe', {
         method: 'POST',
@@ -63,20 +66,18 @@ export default function SubscriptionPage() {
         body: JSON.stringify({ plan: planName }),
       });
       if (res.ok) {
-        alert('Subscription successful! This is a demo - in production, payment would be processed.');
+        setCurrentPlan(planName);
+        setSuccess(`Subscribed to ${planName} successfully!`);
       } else {
         const err = await res.json();
-        alert(err.error || 'Subscription failed');
+        setError(err.error || 'Subscription failed');
       }
     } catch (error) {
-      console.error(error);
-      alert('An error occurred');
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  const currentPlan = session?.user?.subscription?.plan;
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
@@ -109,6 +110,16 @@ export default function SubscriptionPage() {
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {success && (
+            <div className="md:col-span-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-300 text-sm text-center">
+              {success}
+            </div>
+          )}
+          {error && (
+            <div className="md:col-span-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm text-center">
+              {error}
+            </div>
+          )}
           {plans.map((plan, idx) => (
             <motion.div
               key={plan.name}

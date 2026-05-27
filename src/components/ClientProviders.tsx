@@ -41,6 +41,7 @@ const Navbar           = dynamic(() => import('@/components/Navbar'),           
 const Footer           = dynamic(() => import('@/components/Footer'),           { ssr: false });
 const EmergencyBanner  = dynamic(() => import('@/components/EmergencyBanner'),  { ssr: false });
 const EmergencyCallWidget = dynamic(() => import('@/components/EmergencyCallWidget'), { ssr: false });
+const VoiceEmergencyAssistant = dynamic(() => import('@/components/VoiceEmergencyAssistant'), { ssr: false });
 const CanvasBackground = dynamic(() => import('@/components/CanvasBackground'), { ssr: false });
 const ServiceWorkerRegistration = dynamic(() => import('@/components/ServiceWorkerRegistration'), { ssr: false });
 const Analytics        = dynamic(() => import('@/components/Analytics'),        { ssr: false });
@@ -74,13 +75,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
   // useActiveUserHeartbeat();
   const loadTier = useStagedLoad();
 
-  // Suppress JSON fetch errors globally
+  // Suppress JSON fetch errors globally (not next-auth)
   useEffect(() => {
     const originalError = console.error;
     console.error = (...args: unknown[]) => {
-      const msg = args[0]?.toString() || '';
+      const msg = typeof args[0] === 'string' ? args[0] : args[0]?.toString() || '';
       if (msg.includes('Failed to execute') || msg.includes('Unexpected end of JSON')) {
-        return; // Suppress these specific errors
+        return;
       }
       originalError(...args);
     };
@@ -101,6 +102,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <EmergencyBanner />
       <Navbar />
       <EmergencyCallWidget />
+      <VoiceEmergencyAssistant />
       <main id="main-content" className="flex-1 relative z-10" role="main">
         {children}
       </main>
@@ -125,7 +127,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider basePath="/api/auth" refetchInterval={0} refetchOnWindowFocus={false}>
       <LanguageProvider>
         <NotificationProvider>
           <SelfHealingSystem>

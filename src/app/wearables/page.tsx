@@ -44,29 +44,31 @@ export default function WearableSyncPage() {
   });
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState('2 minutes ago');
-  const [alerts] = useState<HealthAlert[]>([
-    { id: '1', type: 'success', message: 'Heart rate recovered to normal range', time: '10 min ago' },
-    { id: '2', type: 'info', message: 'Goal: 10,000 steps - 85% complete', time: '1 hour ago' },
-    { id: '3', type: 'warning', message: 'Elevated stress detected - Try meditation', time: '3 hours ago' },
-  ]);
+  const [alerts, setAlerts] = useState<HealthAlert[]>([]);
+  const [devices, setDevices] = useState(WEARABLE_DEVICES);
+
+  useEffect(() => {
+    fetch('/api/wearables')
+      .then(res => res.json())
+      .then(data => {
+        if (data.vitals) setVitals(data.vitals);
+        if (data.alerts) setAlerts(data.alerts);
+        if (data.devices) setDevices(data.devices);
+        if (data.lastSync) setLastSync(data.lastSync);
+      }).catch(() => {});
+  }, []);
   const [selectedDevice, setSelectedDevice] = useState('apple');
 
-  const syncData = () => {
+  const syncData = async () => {
     setSyncing(true);
-    setTimeout(() => {
-      setVitals({
-        heartRate: Math.floor(65 + Math.random() * 20),
-        bloodOxygen: Math.floor(95 + Math.random() * 5),
-        respiratoryRate: Math.floor(14 + Math.random() * 6),
-        bodyTemperature: +(97.5 + Math.random() * 2).toFixed(1),
-        sleepHours: +(5 + Math.random() * 4).toFixed(1),
-        steps: Math.floor(5000 + Math.random() * 8000),
-        calories: Math.floor(1200 + Math.random() * 1500),
-        stressLevel: Math.floor(20 + Math.random() * 40),
-      });
+    try {
+      const res = await fetch('/api/wearables', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (data.vitals) setVitals(data.vitals);
+      if (data.alerts) setAlerts(data.alerts);
       setLastSync('Just now');
-      setSyncing(false);
-    }, 2000);
+    } catch { /* fallback */ }
+    setSyncing(false);
   };
 
   useEffect(() => {

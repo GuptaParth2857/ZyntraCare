@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (city) {
-      where.city = { contains: city, mode: 'insensitive' };
+      where.city = { contains: city };
     }
 
     const [donors, total] = await Promise.all([

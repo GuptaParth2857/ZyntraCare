@@ -59,108 +59,37 @@ export function useNearbyPlaces(
     setError(null);
 
     try {
-      // Overpass API query for real hospitals, clinics, pharmacies
-      const query = `
-        [out:json][timeout:30];
-        (
-          node["amenity"="hospital"](around:${radius * 1000},${userLat},${userLng});
-          way["amenity"="hospital"](around:${radius * 1000},${userLat},${userLng});
-          node["amenity"="clinic"](around:${radius * 1000},${userLat},${userLng});
-          way["amenity"="clinic"](around:${radius * 1000},${userLat},${userLng});
-          node["shop"="chemist"](around:${radius * 1000},${userLat},${userLng});
-          way["shop"="chemist"](around:${radius * 1000},${userLat},${userLng});
-          node["amenity"="pharmacy"](around:${radius * 1000},${userLat},${userLng});
-          way["amenity"="pharmacy"](around:${radius * 1000},${userLat},${userLng});
-        );
-        out body;
-        out center;
-      `;
-
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `data=${encodeURIComponent(query)}`,
-      });
+      const response = await fetch(
+        `/api/hospitals/nearby?lat=${userLat}&lng=${userLng}&radius=${radius * 1000}`,
+        { signal: AbortSignal.timeout(15000) }
+      );
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
 
-      const text = await response.text();
-      if (!text || text.trim() === '') {
-        throw new Error('Empty response from API');
-      }
-      
-      const data = JSON.parse(text);
+      const data = await response.json();
+      const hospitals2 = data.hospitals || [];
 
-      // Transform Overpass data to our Place format
-      const transformedPlaces: Place[] = data.elements
-        .map((element: any) => {
-          let lat = element.lat;
-          let lng = element.lon;
-
-          // For ways, use center coordinates
-          if (element.type === 'way' && element.center) {
-            lat = element.center.lat;
-            lng = element.center.lon;
-          }
-
-          if (!lat || !lng) return null;
-
-          // Determine type from tags
-          let type: PlaceType = 'clinic';
-          if (element.tags?.amenity === 'hospital') {
-            type = 'hospital';
-          } else if (
-            element.tags?.shop === 'chemist' ||
-            element.tags?.amenity === 'pharmacy'
-          ) {
-            type = 'pharmacy';
-          } else if (element.tags?.amenity === 'clinic') {
-            type = 'clinic';
-          }
-
-          const name =
-            element.tags?.name ||
-            element.tags?.['name:en'] ||
-            (type === 'hospital' ? 'Hospital' : type === 'pharmacy' ? 'Pharmacy' : 'Clinic');
-
-          return {
-            // Use coordinates in ID to ensure uniqueness (OSM IDs can duplicate)
-            id: `${element.type}_${element.id}_${lat?.toFixed(4) || 0}_${lng?.toFixed(4) || 0}`,
-            name,
-            type,
-            lat,
-            lng,
-            address: element.tags?.['addr:street'] || element.tags?.['addr:housename'] || '',
-            phone: element.tags?.phone || element.tags?.['contact:phone'] || '',
-            website: element.tags?.website || element.tags?.url || '',
-            openingHours: element.tags?.opening_hours || '',
-          };
-        })
-        .filter((place: Place | null) => place !== null);
-
-      // Calculate distances and sort
-      const placesWithDistance = transformedPlaces.map((place) => ({
-        ...place,
-        distance: getDistanceKm(userLat, userLng, place.lat, place.lng),
+      const transformedPlaces: Place[] = hospitals2.map((h: any) => ({
+        id: h.id,
+        name: h.name,
+        type: 'hospital' as PlaceType,
+        lat: h.location?.lat || userLat,
+        lng: h.location?.lng || userLng,
+        address: h.address || '',
+        phone: h.phone || '',
+        website: h.website || '',
+        openingHours: h.workingHours || '',
+        distance: h.distance || getDistanceKm(userLat, userLng, h.location?.lat || userLat, h.location?.lng || userLng),
       }));
 
-      const sortedPlaces = sortByDistance(
-        placesWithDistance,
-        userLat,
-        userLng
-      );
-
+      const sortedPlaces = sortByDistance(transformedPlaces, userLat, userLng);
       setPlaces(sortedPlaces);
     } catch (err) {
       console.error('Error fetching places:', err);
-      setError('Using sample data');
-      
-      // Always provide sample data as fallback
-      setPlaces(getSamplePlaces(userLat || 28.6139, userLng || 77.2090));
+      setError('Could not load nearby places');
+      setPlaces([]);
     } finally {
       setLoading(false);
     }
@@ -190,102 +119,6 @@ export function useNearbyPlaces(
     refresh: fetchPlaces,
     totalCount: places.length,
   };
-}
-
-// Sample data for demo/fallback when API fails
-function getSamplePlaces(userLat: number, userLng: number): Place[] {
-  return [
-    {
-      id: 'sample_1',
-      name: 'Apollo Hospital',
-      type: 'hospital',
-      lat: userLat + 0.012,
-      lng: userLng + 0.008,
-      address: 'Sector 26, Noida',
-      phone: '+91-120-234-5678',
-      openingHours: '24/7',
-      distance: 1.2,
-      photos: [
-        'https://images.unsplash.com/photo-1580344147038-8704517c566b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMGluZGV4fGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400',
-        'https://images.unsplash.com/photo-1576091160550-2173dba999ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMGludGVyaW9yfGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400'
-      ]
-    },
-    {
-      id: 'sample_2',
-      name: 'Fortis Hospital',
-      type: 'hospital',
-      lat: userLat - 0.008,
-      lng: userLng + 0.015,
-      address: 'Sector 62, Noida',
-      phone: '+91-120-458-9000',
-      openingHours: 'Open 24/7',
-      distance: 2.1,
-      photos: [
-        'https://images.unsplash.com/photo-1559757148-5c350d0d3c96?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwxfHxob3NwaXRhbCUyMHRyYWlsfGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400',
-        'https://images.unsplash.com/photo-1576091160358-7fbba8934b5a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxob3NwaXRhbCUyMHRyYWlzfGVufDB8fHx8MTY3OTMwMDQ1Mg&ixlib=rb-4.0.3&q=80&w=400'
-      ]
-    },
-    {
-      id: 'sample_3',
-      name: 'City Medical Center',
-      type: 'clinic',
-      lat: userLat + 0.005,
-      lng: userLng - 0.003,
-      address: 'Sector 15, Noida',
-      phone: '+91-120-345-6789',
-      openingHours: '8:00 AM - 8:00 PM',
-      distance: 0.5,
-      photos: [
-        'https://images.unsplash.com/photo-1576091160358-7fbbb8934b5a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxob3NwaXRhbCUyMGNsaW5pY3xlbnwwfHx8fDE2NzkzMDA0NTI&ixlib=rb-4.0.3&q=80&w=400',
-        'https://images.unsplash.com/photo-1576091160358-7fbbb8934b5b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxob3NwaXRhbCUyMGNsaW5pY3xlbnwwfHx8fDE2NzkzMDA0NTM&ixlib=rb-4.0.3&q=80&w=400'
-      ]
-    },
-    {
-      id: 'sample_4',
-      name: 'MedPlus Pharmacy',
-      type: 'pharmacy',
-      lat: userLat - 0.003,
-      lng: userLng - 0.005,
-      address: 'Sector 12, Noida',
-      phone: '+91-120-456-7890',
-      openingHours: '7:00 AM - 11:00 PM',
-      distance: 0.8,
-      photos: [
-        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTR8&ixlib=rb-4.0.3&q=80&w=400',
-        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTV8&ixlib=rb-4.0.3&q=80&w=400'
-      ]
-    },
-    {
-      id: 'sample_5',
-      name: '1mg Store',
-      type: 'pharmacy',
-      lat: userLat + 0.015,
-      lng: userLng + 0.010,
-      address: 'Sector 18, Noida',
-      phone: '+91-120-678-9012',
-      openingHours: '8:00 AM - 10:00 PM',
-      distance: 3.5,
-      photos: [
-        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTZ8&ixlib=rb-4.0.3&q=80&w=400',
-        'https://images.unsplash.com/photo-1582735129835-50c3ebe2b93e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTd8&ixlib=rb-4.0.3&q=80&w=400'
-      ]
-    },
-    {
-      id: 'sample_6',
-      name: 'Max Healthcare',
-      type: 'hospital',
-      lat: userLat - 0.015,
-      lng: userLng - 0.012,
-      address: 'Sector 45, Gurgaon',
-      phone: '+91-124-456-7000',
-      openingHours: '24/7',
-      distance: 4.2,
-      photos: [
-        'https://images.unsplash.com/photo-1559757148-5c350d0d3c97?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDA0NTh8&ixlib=rb-4.0.3&q=80&w=400',
-        'https://images.unsplash.com/photo-1559757148-5c350d0d3c98?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwyNzY2Nzl8MHwxfHNlYXJjaHwzfHxwaG9zcGFyYWNjeXxlbnwwfHx8fDE2NzkzMDAwNTh8&ixlib=rb-4.0.3&q=80&w=400'
-      ]
-    },
-  ];
 }
 
 export default useNearbyPlaces;

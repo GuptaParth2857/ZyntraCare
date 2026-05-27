@@ -1,6 +1,7 @@
 import './globals.css';
 import ClientProviders from '@/components/ClientProviders';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import AnimatedBackground from '@/components/AnimatedBackground';
 import { Metadata, Viewport } from 'next';
 
 export const viewport: Viewport = {
@@ -103,6 +104,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main-content" className="skip-to-content focus:top-4">
           Skip to main content
         </a>
+
+        <AnimatedBackground />
 
         <ClientProviders>
           <ServiceWorkerRegistration />

@@ -35,7 +35,9 @@ async function callAI(symptoms: string): Promise<string | null> {
       const text = data.message?.content?.trim()?.toLowerCase();
       if (text && ['high','medium','low'].includes(text)) return text;
     }
-  } catch {}
+  } catch (e) {
+    console.error('Ollama triage error:', e);
+  }
 
   // Priority 2: Gemini
   if (GEMINI_API_KEY) {
@@ -45,7 +47,9 @@ async function callAI(symptoms: string): Promise<string | null> {
       const result = await model.generateContent(`Emergency priority high/medium/low for "${symptoms}". One word only.`);
       const text = (await result.response).text()?.trim()?.toLowerCase();
       if (text && ['high','medium','low'].includes(text)) return text;
-    } catch {}
+    } catch (e) {
+      console.error('Gemini triage error:', e);
+    }
   }
 
   return null;

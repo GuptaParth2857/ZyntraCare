@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiUsers, FiPlus, FiBell, FiPhone, FiCalendar, FiClock, FiActivity, FiHeart, FiAlertCircle, FiMapPin, FiStar } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -19,51 +19,21 @@ interface FamilyMember {
   vitals: { lastChecked: string; bp: string; sugar: string; heartRate: string };
 }
 
-const familyMembers: FamilyMember[] = [
-  {
-    id: '1',
-    name: 'Dad (Rajesh Gupta)',
-    relation: 'Father',
-    age: 58,
-    bloodType: 'B+',
-    avatar: 'RG',
-    color: 'from-blue-500 to-cyan-500',
-    healthAlerts: [
-      { id: '1', message: 'Blood Pressure check due tomorrow', type: 'warning', time: '9:00 AM' },
-      { id: '2', message: 'Metoprolol 50mg - Take after food', type: 'info', time: '8:00 PM' },
-    ],
-    upcomingAppointments: [
-      { id: '1', doctor: 'Dr. Amit Sharma', specialty: 'Cardiologist', date: 'Mar 15', time: '10:30 AM', location: 'AIIMS, Delhi' },
-    ],
-    medications: [
-      { id: '1', name: 'Metoprolol 50mg', dosage: '1 tablet', frequency: 'After breakfast', nextDue: '8:00 AM' },
-    ],
-    vitals: { lastChecked: '2 days ago', bp: '130/85', sugar: '110 mg/dL', heartRate: '72 bpm' },
-  },
-  {
-    id: '2',
-    name: 'Mom (Sunita Gupta)',
-    relation: 'Mother',
-    age: 52,
-    bloodType: 'O+',
-    avatar: 'SG',
-    color: 'from-pink-500 to-rose-500',
-    healthAlerts: [
-      { id: '1', message: 'Calcium supplement reminder', type: 'info', time: '10:00 PM' },
-    ],
-    upcomingAppointments: [
-      { id: '1', doctor: 'Dr. Neha Kapoor', specialty: 'Gynecologist', date: 'Mar 20', time: '4:00 PM', location: 'Fortis, Delhi' },
-    ],
-    medications: [
-      { id: '1', name: 'Calcium + D3', dosage: '1 tablet', frequency: 'After dinner', nextDue: '10:00 PM' },
-    ],
-    vitals: { lastChecked: '5 days ago', bp: '120/80', sugar: '95 mg/dL', heartRate: '78 bpm' },
-  },
-];
-
 export default function FamilyDashboardPage() {
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState<string>('1');
   const currentMember = familyMembers.find(m => m.id === selectedMember);
+
+  useEffect(() => {
+    fetch('/api/family-members')
+      .then(r => r.json())
+      .then(data => {
+        setFamilyMembers(data.familyMembers || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">

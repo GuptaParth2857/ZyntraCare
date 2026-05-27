@@ -7,43 +7,31 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '7');
 
   try {
-    if (userId) {
-      const metrics = await prisma.healthMetric.findMany({
-        where: { userId },
-        orderBy: { date: 'desc' },
-        take: limit,
-      });
-
-      if (metrics.length === 0) {
-        return NextResponse.json({
-          metrics: generateMockMetrics(userId, limit),
-          source: 'mock',
-        });
-      }
-
-      return NextResponse.json({
-        metrics: metrics.map(m => ({
-          date: m.date,
-          bloodPressure: m.bloodPressure,
-          heartRate: m.heartRate,
-          bloodSugar: m.bloodSugar,
-          weight: m.weight,
-          temperature: m.temperature,
-          oxygenLevel: m.oxygenLevel,
-        })),
-        source: 'database',
-      });
+    if (!userId) {
+      return NextResponse.json({ status: 'healthy', timestamp: new Date().toISOString(), metrics: [], source: 'database' });
     }
 
+    const metrics = await prisma.healthMetric.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+      take: limit,
+    });
+
     return NextResponse.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      metrics: generateMockMetrics('default', limit),
-      source: 'mock',
+      metrics: metrics.map(m => ({
+        date: m.date,
+        bloodPressure: m.bloodPressure,
+        heartRate: m.heartRate,
+        bloodSugar: m.bloodSugar,
+        weight: m.weight,
+        temperature: m.temperature,
+        oxygenLevel: m.oxygenLevel,
+      })),
+      source: 'database',
     });
   } catch (error) {
     console.error('Health API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch health data' }, { status: 500 });
+    return NextResponse.json({ metrics: [], source: 'error' }, { status: 500 });
   }
 }
 
@@ -85,25 +73,4 @@ export async function POST(req: NextRequest) {
     console.error('Health POST error:', error);
     return NextResponse.json({ error: 'Failed to save health data' }, { status: 500 });
   }
-}
-
-function generateMockMetrics(userId: string, days: number) {
-  const metrics = [];
-  const now = new Date();
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    metrics.push({
-      date: date.toISOString().split('T')[0],
-      bloodPressure: `${110 + Math.floor(Math.random() * 30)}/${70 + Math.floor(Math.random() * 20)}`,
-      heartRate: 65 + Math.floor(Math.random() * 30),
-      bloodSugar: 80 + Math.floor(Math.random() * 60),
-      weight: 65 + Math.random() * 10,
-      temperature: 36.5 + Math.random(),
-      oxygenLevel: 95 + Math.floor(Math.random() * 5),
-    });
-  }
-  
-  return metrics;
 }

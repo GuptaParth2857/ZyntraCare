@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
@@ -14,16 +14,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
-    // Try Ollama first
+    // Try Ollama first (with image support via llava)
     try {
+      const isMultimodal = OLLAMA_MODEL?.includes('llava') || OLLAMA_MODEL?.includes('bakllava') || true;
+      const ollamaBody: any = {
+        model: OLLAMA_MODEL,
+        stream: false,
+      };
+
+      if (isMultimodal) {
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        ollamaBody.prompt = `Analyze this medical ${scanType || 'image'}. Return JSON with results array containing condition, confidence (0-100), severity (normal/warning/critical), description.`;
+        ollamaBody.images = [base64Data];
+      } else {
+        ollamaBody.prompt = `Analyze this medical ${scanType || 'image'}. Return JSON with results array containing condition, confidence (0-100), severity (normal/warning/critical), description.`;
+      }
+
       const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          prompt: `Analyze this medical ${scanType || 'image'}. Return JSON with results array containing condition, confidence (0-100), severity (normal/warning/critical), description.`,
-          stream: false
-        })
+        body: JSON.stringify(ollamaBody),
       });
 
       if (response.ok) {
@@ -54,17 +64,17 @@ export async function POST(request: NextRequest) {
           generationConfig: {
             responseMimeType: 'application/json',
             responseSchema: {
-              type: 'OBJECT',
+              type: SchemaType.OBJECT,
               properties: {
                 results: {
-                  type: 'ARRAY',
+                  type: SchemaType.ARRAY,
                   items: {
-                    type: 'OBJECT',
+                    type: SchemaType.OBJECT,
                     properties: {
-                      condition: { type: 'STRING' },
-                      confidence: { type: 'NUMBER' },
-                      severity: { type: 'STRING' },
-                      description: { type: 'STRING' }
+                      condition: { type: SchemaType.STRING },
+                      confidence: { type: SchemaType.NUMBER },
+                      severity: { type: SchemaType.STRING },
+                      description: { type: SchemaType.STRING }
                     }
                   }
                 }

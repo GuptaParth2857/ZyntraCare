@@ -43,10 +43,16 @@ export default function DroneNetworkPage() {
   const [liveDrones, setLiveDrones] = useState(drones);
   const [deliveries, setDeliveries] = useState(activeDeliveries);
   const [pulse, setPulse] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const pulseInterval = setInterval(() => setPulse(prev => (prev + 1) % 100), 100);
-    return () => clearInterval(pulseInterval);
+    fetch('/api/drone-network')
+      .then(res => res.json())
+      .then(data => {
+        if (data.drones) setLiveDrones(data.drones);
+        if (data.deliveries) setDeliveries(data.deliveries);
+        setLoading(false);
+      }).catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {

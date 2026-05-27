@@ -23,59 +23,30 @@ interface Reward {
   icon: string;
 }
 
-const userStats = {
-  totalCoins: 2450,
-  streakDays: 12,
-  level: 5,
-  rank: 'Diamond',
-  stepsToday: 8542,
-  stepsGoal: 10000,
-  nextRewardCoins: 500,
-};
-
-const recentTransactions: HealthCoin[] = [
-  { id: '1', type: 'earned', amount: 100, description: 'Completed 10,000 steps', date: 'Today' },
-  { id: '2', type: 'earned', amount: 50, description: 'Medicine taken on time', date: 'Today' },
-  { id: '3', type: 'earned', amount: 200, description: 'Weekly health goal achieved', date: 'Yesterday' },
-  { id: '4', type: 'redeemed', amount: -500, description: 'Lab test discount', date: 'Yesterday' },
-  { id: '5', type: 'earned', amount: 150, description: 'Blood donation completed', date: '2 days ago' },
-];
-
-const rewards: Reward[] = [
-  { id: '1', title: 'Apollo Lab Blood Test', description: 'Complete Blood Count (CBC)', coinsRequired: 300, category: 'Lab', discount: '20% off', icon: '🧪' },
-  { id: '2', title: 'MedPlus Pharmacy', description: 'Flat ₹100 off on medicines', coinsRequired: 200, category: 'Pharmacy', discount: '₹100 off', icon: '💊' },
-  { id: '3', title: 'Health Checkup Package', description: 'Full body checkup', coinsRequired: 1000, category: 'Lab', discount: '30% off', icon: '🏥' },
-  { id: '4', title: 'Telehealth Consultation', description: 'Free video consult', coinsRequired: 500, category: 'Consult', discount: 'Free', icon: '📹' },
-  { id: '5', title: 'Premium Subscription', description: '1 month free', coinsRequired: 2000, category: 'Premium', discount: 'Free', icon: '⭐' },
-  { id: '6', title: 'Fitness Band', description: 'Track your health', coinsRequired: 5000, category: 'Gadget', discount: '₹500 off', icon: '⌚' },
-];
-
-const dailyTasks = [
-  { id: '1', title: 'Complete 10,000 steps', coins: 100, completed: true, icon: <FiActivity /> },
-  { id: '2', title: 'Take medicine on time', coins: 50, completed: true, icon: <FiShield /> },
-  { id: '3', title: 'Log your health data', coins: 25, completed: true, icon: <FiTrendingUp /> },
-  { id: '4', title: 'Read health article', coins: 25, completed: false, icon: <FiAward /> },
-  { id: '5', title: 'Share health tip', coins: 50, completed: false, icon: <FiUsers /> },
-];
-
-const leaderboard = [
-  { rank: 1, name: 'Rahul S.', coins: 15420, avatar: 'R', level: 'Platinum' },
-  { rank: 2, name: 'Priya M.', coins: 12850, avatar: 'P', level: 'Diamond' },
-  { rank: 3, name: 'Amit K.', coins: 11200, avatar: 'A', level: 'Diamond' },
-  { rank: 4, name: 'You', coins: 2450, avatar: 'Y', level: 'Diamond', isUser: true },
-  { rank: 5, name: 'Sneha R.', coins: 2100, avatar: 'S', level: 'Gold' },
-];
-
-const levels = [
-  { level: 1, name: 'Bronze', minCoins: 0, color: 'from-amber-700 to-amber-600' },
-  { level: 2, name: 'Silver', minCoins: 500, color: 'from-gray-400 to-gray-300' },
-  { level: 3, name: 'Gold', minCoins: 2000, color: 'from-yellow-500 to-amber-400' },
-  { level: 4, name: 'Diamond', minCoins: 5000, color: 'from-cyan-400 to-blue-500' },
-  { level: 5, name: 'Platinum', minCoins: 10000, color: 'from-purple-500 to-pink-500' },
-];
-
 export default function RewardsPage() {
+  const [userStats, setUserStats] = useState({ totalCoins: 0, streakDays: 0, level: 0, rank: '', stepsToday: 0, stepsGoal: 10000, nextRewardCoins: 0 });
+  const [recentTransactions, setRecentTransactions] = useState<HealthCoin[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [dailyTasks, setDailyTasks] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [levels, setLevels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    fetch('/api/rewards')
+      .then(r => r.json())
+      .then(data => {
+        setUserStats(data.userStats || { totalCoins: 0, streakDays: 0, level: 0, rank: '', stepsToday: 0, stepsGoal: 10000, nextRewardCoins: 0 });
+        setRecentTransactions(data.recentTransactions || []);
+        setRewards(data.rewards || []);
+        setDailyTasks(data.dailyTasks || []);
+        setLeaderboard(data.leaderboard || []);
+        setLevels(data.levels || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">

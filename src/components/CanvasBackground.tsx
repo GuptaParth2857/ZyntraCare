@@ -58,6 +58,12 @@ export default function CanvasBackground() {
       ringsColors = ['#0ea5e9', '#0284c7', '#06b6d4'];
       connColor = '56,189,248'; // Sky
       bgColor = 'rgba(2, 10, 20, 0.15)'; // dark bluish
+    } else if (pathname.includes('/corporate-wellness')) {
+      themeColors = ['#6366f1', '#818cf8', '#a5b4fc', '#4338ca', '#4f46e5'];
+      orbsColors = ['#6366f1', '#818cf8', '#a5b4fc'];
+      ringsColors = ['#4f46e5', '#4338ca', '#3730a3'];
+      connColor = '99,102,241'; // Indigo
+      bgColor = 'rgba(8, 6, 28, 0.18)';
     } else if (pathname.includes('/camp') || pathname.includes('/wellness')) {
       themeColors = ['#fbbf24', '#f59e0b', '#d97706', '#fb923c', '#f97316'];
       orbsColors = ['#fbbf24', '#f59e0b', '#fb923c'];

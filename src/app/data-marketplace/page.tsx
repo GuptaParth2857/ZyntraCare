@@ -28,26 +28,24 @@ interface Transaction {
   timestamp: string;
 }
 
-const SAMPLE_LISTINGS: DataListing[] = [
-  { id: 'DAT-001', disease: 'Type 2 Diabetes', dataType: 'Clinical Records', records: 15420, price: 2500, buyer: 'Pfizer India', status: 'available', anonymized: true },
-  { id: 'DAT-002', disease: 'Cardiovascular', dataType: 'ECG Data', records: 8900, price: 4200, buyer: 'Cipla R&D', status: 'available', anonymized: true },
-  { id: 'DAT-003', disease: 'Cancer Genomics', dataType: 'DNA Sequences', records: 2300, price: 15000, buyer: 'Roche India', status: 'pending', anonymized: true },
-  { id: 'DAT-004', disease: 'Respiratory', dataType: 'Lung Scans', records: 12500, price: 3800, buyer: 'GSK Pharma', status: 'sold', anonymized: true },
-  { id: 'DAT-005', disease: 'Mental Health', dataType: 'Survey Data', records: 5600, price: 1800, buyer: 'Sun Pharma', status: 'available', anonymized: true },
-  { id: 'DAT-006', disease: 'Pediatric', dataType: 'Growth Metrics', records: 22000, price: 1500, buyer: 'Abbott', status: 'available', anonymized: true },
-];
-
-const MY_DATA_LISTINGS: DataListing[] = [
-  { id: 'MY-001', disease: 'My Health Profile', dataType: 'Vitals & Metrics', records: 1, price: 50, buyer: 'Anyone', status: 'available', anonymized: true },
-  { id: 'MY-002', disease: 'Blood Reports', dataType: 'Lab Results', records: 12, price: 200, buyer: 'Researchers', status: 'available', anonymized: true },
-  { id: 'MY-003', disease: 'Prescription History', dataType: 'Medications', records: 45, price: 350, buyer: 'Pharma Companies', status: 'sold', anonymized: true },
-];
-
 export default function DataMarketplacePage() {
-  const [listings, setListings] = useState<DataListing[]>(SAMPLE_LISTINGS);
-  const [myListings, setMyListings] = useState<DataListing[]>(MY_DATA_LISTINGS);
-  const [walletBalance, setWalletBalance] = useState(4250);
-  const [totalEarned, setTotalEarned] = useState(12500);
+  const [listings, setListings] = useState<DataListing[]>([]);
+  const [myListings, setMyListings] = useState<DataListing[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/data-marketplace')
+      .then(res => res.json())
+      .then(data => {
+        setListings(data.listings || []);
+        setMyListings(data.myListings || []);
+        setWalletBalance(data.walletBalance || 0);
+        setTotalEarned(data.totalEarned || 0);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+  }, []);
   const [showBalance, setShowBalance] = useState(true);
   const [activeTab, setActiveTab] = useState<'browse' | 'myData' | 'transactions'>('browse');
   const [transactions, setTransactions] = useState<Transaction[]>([

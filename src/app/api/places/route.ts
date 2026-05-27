@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getDistanceKm } from '@/utils/distance';
 
 async function fetchPlacesFromOSM(lat: number, lng: number, radius: number = 10000) {
   // Query for various place types: shops, malls, restaurants, etc.
@@ -36,7 +37,7 @@ async function fetchPlacesFromOSM(lat: number, lng: number, radius: number = 100
           location: { lat: placeLat, lng: placeLng },
           address: el.tags['addr:full'] || `${el.tags['addr:housenumber']} ${el.tags['addr:street']}`.trim() || `${el.tags['addr:city'] || ''}, ${el.tags['addr:state'] || ''}`.trim(),
           city: el.tags['addr:city'] || 'Nearby',
-          distance: calculateHaversine(lat, lng, placeLat, placeLng),
+          distance: getDistanceKm(lat, lng, placeLat, placeLng),
         };
       })
       .sort((a: any, b: any) => a.distance - b.distance)
@@ -45,14 +46,6 @@ async function fetchPlacesFromOSM(lat: number, lng: number, radius: number = 100
     console.error('OSM places fetch error:', e);
     return null;
   }
-}
-
-function calculateHaversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export async function GET(req: NextRequest) {

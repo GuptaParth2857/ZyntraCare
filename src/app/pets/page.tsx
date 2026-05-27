@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { FiSearch, FiMapPin, FiPhone, FiClock, FiStar, FiCalendar, FiActivity, FiHeart, FiShield, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiSearch, FiMapPin, FiPhone, FiCalendar, FiActivity, FiHeart, FiShield, FiAlertCircle, FiCheckCircle, FiNavigation, FiStar } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const LiveHealthMap = dynamic(() => import('@/components/LiveHealthMap'), { ssr: false });
 
 interface Pet {
   id: string;
@@ -27,6 +30,16 @@ interface VetClinic {
   services: string[];
 }
 
+interface PetShop {
+  id: number;
+  name: string;
+  type: 'pet_shop';
+  lat: number;
+  lng: number;
+  distance: number;
+  address?: string;
+}
+
 interface PetMedicine {
   id: string;
   name: string;
@@ -34,32 +47,80 @@ interface PetMedicine {
   price: string;
 }
 
-const myPets: Pet[] = [
-  { id: '1', name: 'Max', species: 'dog', breed: 'Golden Retriever', age: 3, weight: 30, lastCheckup: 'Jan 2026', nextVaccination: 'Apr 2026' },
-  { id: '2', name: 'Luna', species: 'cat', breed: 'Persian', age: 2, weight: 4, lastCheckup: 'Feb 2026', nextVaccination: 'May 2026' },
-];
-
-const vetClinics: VetClinic[] = [
-  { id: '1', name: 'Pet Care Clinic', address: 'HSR Layout, Bangalore', phone: '+91 98765 43210', rating: 4.8, distance: '1.2km', open24x7: true, services: ['Vaccination', 'Surgery', 'Grooming'] },
-  { id: '2', name: 'VetPlus Hospital', address: 'Koramangala, Bangalore', phone: '+91 98765 43211', rating: 4.6, distance: '2.5km', open24x7: true, services: ['Emergency', 'Dental', 'Diagnostic'] },
-  { id: '3', name: 'Animal Wellness Center', address: 'Indiranagar, Bangalore', phone: '+91 98765 43212', rating: 4.5, distance: '3.8km', open24x7: false, services: ['Acupuncture', 'Physiotherapy'] },
-];
-
-const petMedicines: PetMedicine[] = [
-  { id: '1', name: 'Deworming Tablet', for: 'Dogs & Cats', price: '₹50' },
-  { id: '2', name: 'Flea & Tick Spray', for: 'All Pets', price: '₹250' },
-  { id: '3', name: 'Pet Vitamin Syrup', for: 'Dogs', price: '₹180' },
-  { id: '4', name: 'Eye Drop', for: 'Dogs & Cats', price: '₹120' },
-];
-
-const vaccinationSchedule = [
-  { vaccine: 'Rabies', due: 'Apr 2026', for: 'Max' },
-  { vaccine: 'DHPP', due: 'May 2026', for: 'Max' },
-  { vaccine: 'FVRCP', due: 'May 2026', for: 'Luna' },
-];
-
 export default function PetsPage() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'vets' | 'medicines'>('dashboard');
+  const [myPets, setMyPets] = useState<Pet[]>([]);
+  const [vetClinics, setVetClinics] = useState<VetClinic[]>([]);
+  const [petMedicines, setPetMedicines] = useState<PetMedicine[]>([]);
+  const [vaccinationSchedule, setVaccinationSchedule] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pets' | 'medicines'>('dashboard');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [petShops, setPetShops] = useState<PetShop[]>([]);
+  const [petSearch, setPetSearch] = useState('');
+
+  useEffect(() => {
+    fetch('/api/pets').then(r => r.json()).then(data => {
+      setMyPets(data.pets || []);
+      setVetClinics(data.vetClinics || []);
+      setPetMedicines(data.petMedicines || []);
+      setVaccinationSchedule(data.vaccinationSchedule || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationLoading(false);
+      },
+      () => { setLocationLoading(false); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'pets') return;
+    if (!userLocation) {
+      setPetShops(getFallbackShops());
+      return;
+    }
+    const overpassQuery = `[out:json];(node["shop"="pet"](around:5000,${userLocation.lat},${userLocation.lng}););out center 30;`;
+    fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`)
+      .then(r => r.json())
+      .then(data => {
+        const shops: PetShop[] = (data.elements || []).map((el: any, i: number) => ({
+          id: i,
+          name: el.tags?.name || 'Pet Shop',
+          type: 'pet_shop' as const,
+          lat: el.lat || el.center?.lat || 0,
+          lng: el.lon || el.center?.lon || 0,
+          distance: 0,
+          address: el.tags?.['addr:street']
+            ? `${el.tags?.['addr:street']}${el.tags?.['addr:city'] ? ', ' + el.tags?.['addr:city'] : ''}`
+            : el.tags?.['addr:city']
+              ? el.tags?.['addr:city']
+              : undefined,
+        })).filter((s: PetShop) => s.lat && s.lng);
+        if (shops.length > 0) {
+          setPetShops(shops);
+        } else {
+          setPetShops(getFallbackShops());
+        }
+      })
+      .catch(() => setPetShops(getFallbackShops()));
+  }, [userLocation, activeTab]);
+
+  function getFallbackShops(): PetShop[] {
+    return [
+      { id: 1, name: 'Paws & Claws Pet Store', type: 'pet_shop', lat: 28.6139, lng: 77.2090, distance: 0, address: 'Connaught Place, New Delhi' },
+      { id: 2, name: 'Happy Tails Pet Shop', type: 'pet_shop', lat: 28.6200, lng: 77.2200, distance: 0, address: 'Karol Bagh, New Delhi' },
+      { id: 3, name: 'Pet World India', type: 'pet_shop', lat: 28.6300, lng: 77.2000, distance: 0, address: 'Rajendra Nagar, New Delhi' },
+      { id: 4, name: 'Furry Friends Pet Shop', type: 'pet_shop', lat: 28.6100, lng: 77.2300, distance: 0, address: 'Lajpat Nagar, New Delhi' },
+      { id: 5, name: 'Aqua & Pets Hub', type: 'pet_shop', lat: 28.6400, lng: 77.1900, distance: 0, address: 'Model Town, New Delhi' },
+      { id: 6, name: 'The Pet Planet', type: 'pet_shop', lat: 28.6000, lng: 77.2400, distance: 0, address: 'Greater Kailash, New Delhi' },
+    ];
+  }
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
@@ -91,12 +152,12 @@ export default function PetsPage() {
             <FiActivity className="inline mr-2" /> My Pets
           </button>
           <button
-            onClick={() => setActiveTab('vets')}
+            onClick={() => setActiveTab('pets')}
             className={`px-6 py-3 rounded-2xl font-bold transition ${
-              activeTab === 'vets' ? 'bg-orange-500 text-white' : 'bg-white/10 text-gray-400'
+              activeTab === 'pets' ? 'bg-orange-500 text-white' : 'bg-white/10 text-gray-400'
             }`}
           >
-            <FiMapPin className="inline mr-2" /> Find Vets
+            <FiMapPin className="inline mr-2" /> Find Pets
           </button>
           <button
             onClick={() => setActiveTab('medicines')}
@@ -216,81 +277,82 @@ export default function PetsPage() {
           </div>
         )}
 
-        {activeTab === 'vets' && (
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <div className="relative mb-6">
-                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search for vet clinics..."
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white placeholder:text-gray-500"
-                />
-              </div>
+        {activeTab === 'pets' && (
+          <div className="space-y-6 max-w-5xl mx-auto">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden h-[380px] shadow-xl">
+              <LiveHealthMap
+                facilities={petShops}
+                userLocation={userLocation}
+                centerLat={userLocation?.lat}
+                centerLng={userLocation?.lng}
+              />
+            </motion.div>
 
-              <div className="space-y-4">
-                {vetClinics.map((clinic) => (
-                  <motion.div
-                    key={clinic.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-slate-900/80 border border-white/10 rounded-2xl p-6 hover:border-orange-500/30 transition"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="text-xl font-bold text-white">{clinic.name}</h4>
-                        <p className="text-gray-400 text-sm flex items-center gap-1">
-                          <FiMapPin size={14} /> {clinic.address} - {clinic.distance}
-                        </p>
-                      </div>
-                      {clinic.open24x7 && (
-                        <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
-                          24/7
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {clinic.services.map((service, idx) => (
-                        <span key={idx} className="bg-white/5 text-gray-300 px-3 py-1 rounded-full text-xs">
-                          {service}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <FiStar className="text-amber-400 fill-current" size={18} />
-                          <span className="font-bold text-white">{clinic.rating}</span>
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+                <input type="text" value={petSearch} onChange={e => setPetSearch(e.target.value)}
+                  placeholder="Search pet shops..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-orange-500/50 transition" />
+              </div>
+              {petShops.length > 0 && (
+                <span className="text-white/40 text-sm whitespace-nowrap">{petShops.length} shop{petShops.length !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+
+            {petShops.filter(s => s.name.toLowerCase().includes(petSearch.toLowerCase())).length > 0 ? (
+              <div className="grid md:grid-cols-2 gap-4">
+                {petShops.filter(s => s.name.toLowerCase().includes(petSearch.toLowerCase())).map((shop, idx) => (
+                  <motion.div key={shop.id} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                    className="group relative overflow-hidden bg-white/[0.04] hover:bg-white/[0.07] border border-white/10 hover:border-orange-500/30 rounded-2xl p-5 transition-all duration-300">
+                    <div className="absolute -top-6 -right-6 w-24 h-24 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-all duration-500" />
+                    <div className="flex items-start gap-4">
+                      <div className="relative shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-xl shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 group-hover:scale-110 transition-all duration-300">
+                          <span className="drop-shadow-sm">🐾</span>
                         </div>
-                        <a href={`tel:${clinic.phone}`} className="flex items-center gap-2 text-orange-400 hover:text-orange-300">
-                          <FiPhone size={16} />
-                          <span className="text-sm">{clinic.phone}</span>
-                        </a>
+                        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-orange-400/30 to-amber-500/30 blur-sm -z-10 group-hover:blur-md transition-all duration-300" />
                       </div>
-                      <Link href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clinic.address)}`} target="_blank" className="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-bold text-sm transition">
-                        Get Directions
-                      </Link>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-white font-semibold text-base truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-orange-200 group-hover:to-amber-200 transition-all duration-300">{shop.name}</h4>
+                        {shop.address ? (
+                          <p className="text-white/40 text-xs flex items-center gap-1.5 mt-1">
+                            <FiMapPin size={12} className="shrink-0 text-orange-400/60" />
+                            <span className="truncate">{shop.address}</span>
+                          </p>
+                        ) : (
+                          <p className="text-white/30 text-xs mt-1">📍 Location available on map</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-3">
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${shop.lat},${shop.lng}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500/15 to-amber-500/15 hover:from-orange-500/25 hover:to-amber-500/25 text-orange-400 rounded-xl text-xs font-medium transition-all border border-orange-500/20 hover:border-orange-500/40">
+                            <FiNavigation size={13} /> Directions
+                          </a>
+                          <a href={`https://www.google.com/maps/search/?api=1&query=${shop.lat},${shop.lng}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/70 rounded-xl text-xs transition">
+                            <FiMapPin size={13} /> View on Maps
+                          </a>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
               </div>
-            </div>
-
-            <div>
-              <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6">
-                <h3 className="font-bold text-lg mb-4">Emergency Contacts</h3>
-                <div className="space-y-3">
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                    <p className="text-red-400 font-bold mb-1">Animal Emergency</p>
-                    <p className="text-white font-bold">+91 98765 40000</p>
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-4">
-                    <p className="text-gray-400 font-bold mb-1">Pet Ambulance</p>
-                    <p className="text-white font-bold">+91 98765 40001</p>
+            ) : (
+              <div className="text-center py-16">
+                <div className="relative w-20 h-20 mx-auto mb-5">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-400/20 to-amber-400/20 blur-xl" />
+                  <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-3xl shadow-lg shadow-orange-500/30">
+                    🐾
                   </div>
                 </div>
+                <p className="text-white/50 text-lg font-medium">No pet shops found nearby</p>
+                <p className="text-white/30 text-sm mt-1">Enable location or try searching a different area</p>
               </div>
-            </div>
+            )}
           </div>
         )}
 

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const where: any = {};
     
     if (specialty) {
-      where.specialty = { contains: specialty, mode: 'insensitive' };
+      where.specialty = { contains: specialty };
     }
     
     if (isAvailable === 'true') {
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       specialty: d.specialty,
       experience: d.experience,
       fee: d.consultingFee,
-      rating: 4.0 + Math.random(),
+      rating: Math.min(5, Math.max(3, 3.5 + d.experience * 0.02)),
       isAvailable: d.isAvailable,
       education: d.education,
       bio: d.bio,
