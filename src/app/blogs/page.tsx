@@ -242,14 +242,12 @@ export default function BlogsPage() {
                     <span className="flex items-center gap-1.5"><FiClock /> 10 min read</span>
                     <span>March 15, 2026</span>
                   </div>
-                  <motion.button
-                    whileHover={{ scale: 1.03, x: 5, z: 20 }}
-                    whileTap={{ scale: 0.97 }}
-                    aria-label="Read featured article"
-                    className="mt-8 flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+                  <Link
+                    href={blogPosts[0] ? `/blogs/${blogPosts[0].slug}` : '/blogs'}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                   >
                     Read Article <FiArrowRight aria-hidden="true" />
-                  </motion.button>
+                  </Link>
                 </motion.div>
                 <motion.div
                   className="relative h-64 md:h-80 rounded-2xl overflow-hidden"
@@ -302,95 +300,97 @@ export default function BlogsPage() {
             {blogPosts.map((post, idx) => {
               const colors = getCardColor(post.color);
               return (
-                <TiltCard key={post.id}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 40, rotateX: 15 }}
-                    animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                    transition={{ delay: 0.7 + idx * 0.08, type: 'spring', stiffness: 80 }}
-                    className={`group relative bg-gradient-to-br ${colors.from} ${colors.to} backdrop-blur-xl border border-white/10 ${colors.border} rounded-[2rem] overflow-hidden hover:shadow-2xl ${colors.glow} transition-all duration-500 flex flex-col h-full`}
-                    style={{ transformStyle: 'preserve-3d' }}
-                  >
-                    {/* Shimmer effect */}
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2rem]">
-                      <motion.div
-                        className="absolute top-0 left-0 w-full h-full"
-                        style={{
-                          background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%)',
-                        }}
-                        animate={{ x: ['-100%', '200%'] }}
-                        transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2 + idx * 0.5 }}
-                      />
-                    </div>
-
-                    {/* Glow on hover */}
+                <Link key={post.id} href={`/blogs/${post.slug}`}>
+                  <TiltCard>
                     <motion.div
-                      className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 rounded-2xl blur-lg"
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.5 }}
-                    />
-
-                    <div className="relative z-10 flex flex-col h-full" style={{ transformStyle: 'preserve-3d' }}>
-                      {/* Image with 3D depth */}
-                      <motion.div
-                        className="w-full h-48 rounded-t-[2rem] relative overflow-hidden"
-                        style={{ transformStyle: 'preserve-3d' }}
-                        animate={{ z: [0, 5, 0] }}
-                        transition={{ duration: 4, delay: idx * 0.3, repeat: Infinity, ease: 'easeInOut' }}
-                      >
-                        <Image
-                          src={post.image}
-                          alt={post.title}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                      initial={{ opacity: 0, y: 40, rotateX: 15 }}
+                      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                      transition={{ delay: 0.7 + idx * 0.08, type: 'spring', stiffness: 80 }}
+                      className={`group relative bg-gradient-to-br ${colors.from} ${colors.to} backdrop-blur-xl border border-white/10 ${colors.border} rounded-[2rem] overflow-hidden hover:shadow-2xl ${colors.glow} transition-all duration-500 flex flex-col h-full`}
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      {/* Shimmer effect */}
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2rem]">
+                        <motion.div
+                          className="absolute top-0 left-0 w-full h-full"
+                          style={{
+                            background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%)',
+                          }}
+                          animate={{ x: ['-100%', '200%'] }}
+                          transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2 + idx * 0.5 }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
+                      </div>
 
-                        {/* Tag badge */}
-                        <div className="absolute top-4 left-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${tagColors[post.tag]}`}>
-                            {post.tag}
-                          </span>
-                        </div>
+                      {/* Glow on hover */}
+                      <motion.div
+                        className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 rounded-2xl blur-lg"
+                        animate={{ x: ['-100%', '100%'] }}
+                        transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.5 }}
+                      />
 
-                        {/* Category pill */}
-                        <div className="absolute top-4 right-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold bg-black/40 backdrop-blur-xl text-white border border-white/10`}>
-                            {post.category}
-                          </span>
-                        </div>
-                      </motion.div>
+                      <div className="relative z-10 flex flex-col h-full cursor-pointer" style={{ transformStyle: 'preserve-3d' }}>
+                        {/* Image with 3D depth */}
+                        <motion.div
+                          className="w-full h-48 rounded-t-[2rem] relative overflow-hidden"
+                          style={{ transformStyle: 'preserve-3d' }}
+                          animate={{ z: [0, 5, 0] }}
+                          transition={{ duration: 4, delay: idx * 0.3, repeat: Infinity, ease: 'easeInOut' }}
+                        >
+                          <Image
+                            src={post.image}
+                            alt={post.title}
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
 
-                      {/* Content */}
-                      <div className="p-6 flex flex-col flex-1">
-                        <h3 className="text-xl font-bold text-white mb-3 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">
-                          {post.title}
-                        </h3>
-                        <p className="text-slate-400 mb-6 flex-1 line-clamp-3 text-sm leading-relaxed">
-                          {post.excerpt}
-                        </p>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-auto">
-                          <div className="flex items-center gap-3 text-xs text-slate-500">
-                            <span className="flex items-center gap-1.5">
-                              <FiClock size={12} />
-                              {post.readTime}
+                          {/* Tag badge */}
+                          <div className="absolute top-4 left-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${tagColors[post.tag]}`}>
+                              {post.tag}
                             </span>
-                            <span>{post.date.split(',')[0]}</span>
                           </div>
-                          <motion.div
-                            animate={{ x: [0, 5, 0] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                            className="text-slate-500 group-hover:text-emerald-400 transition-colors"
-                          >
-                            <FiArrowRight size={18} />
-                          </motion.div>
+
+                          {/* Category pill */}
+                          <div className="absolute top-4 right-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold bg-black/40 backdrop-blur-xl text-white border border-white/10`}>
+                              {post.category}
+                            </span>
+                          </div>
+                        </motion.div>
+
+                        {/* Content */}
+                        <div className="p-6 flex flex-col flex-1">
+                          <h3 className="text-xl font-bold text-white mb-3 leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">
+                            {post.title}
+                          </h3>
+                          <p className="text-slate-400 mb-6 flex-1 line-clamp-3 text-sm leading-relaxed">
+                            {post.excerpt}
+                          </p>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-auto">
+                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                              <span className="flex items-center gap-1.5">
+                                <FiClock size={12} />
+                                {post.readTime}
+                              </span>
+                              <span>{post.date.split(',')[0]}</span>
+                            </div>
+                            <motion.div
+                              animate={{ x: [0, 5, 0] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                              className="text-slate-500 group-hover:text-emerald-400 transition-colors"
+                            >
+                              <FiArrowRight size={18} />
+                            </motion.div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                </TiltCard>
+                    </motion.div>
+                  </TiltCard>
+                </Link>
               );
             })}
           </div>

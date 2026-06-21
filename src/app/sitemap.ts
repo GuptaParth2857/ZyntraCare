@@ -1,9 +1,9 @@
 import type { MetadataRoute } from 'next';
+import { prisma } from '@/lib/prisma';
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zyntracare.com';
 
 const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' | 'monthly' }[] = [
-  // Core pages (highest priority)
   { path: '/', priority: 1.0, changeFreq: 'daily' },
   { path: '/emergency', priority: 0.9, changeFreq: 'daily' },
   { path: '/hospitals', priority: 0.9, changeFreq: 'daily' },
@@ -16,6 +16,7 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/blood-donors', priority: 0.8, changeFreq: 'daily' },
   { path: '/pets', priority: 0.8, changeFreq: 'daily' },
   { path: '/blogs', priority: 0.8, changeFreq: 'daily' },
+  { path: '/health', priority: 0.8, changeFreq: 'weekly' },
   { path: '/symptoms', priority: 0.7, changeFreq: 'weekly' },
   { path: '/beds', priority: 0.7, changeFreq: 'daily' },
   { path: '/telehealth', priority: 0.7, changeFreq: 'weekly' },
@@ -25,6 +26,7 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/camps', priority: 0.6, changeFreq: 'weekly' },
   { path: '/chat', priority: 0.5, changeFreq: 'weekly' },
   { path: '/contact', priority: 0.5, changeFreq: 'monthly' },
+  { path: '/first-aid', priority: 0.6, changeFreq: 'weekly' },
 
   // Health topics (high SEO value)
   { path: '/health/water-intake', priority: 0.8, changeFreq: 'weekly' },
@@ -68,6 +70,7 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/feedback', priority: 0.3, changeFreq: 'monthly' },
   { path: '/sponsor', priority: 0.3, changeFreq: 'monthly' },
   { path: '/install', priority: 0.2, changeFreq: 'monthly' },
+  { path: '/doctor/register', priority: 0.4, changeFreq: 'weekly' },
 
   // Feature pages
   { path: '/ai-health-coach', priority: 0.6, changeFreq: 'weekly' },
@@ -105,7 +108,6 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/bluetooth-hrm', priority: 0.4, changeFreq: 'weekly' },
   { path: '/voice-emergency', priority: 0.5, changeFreq: 'weekly' },
   { path: '/sms-emergency', priority: 0.5, changeFreq: 'weekly' },
-  { path: '/first-aid', priority: 0.6, changeFreq: 'weekly' },
   { path: '/family-care', priority: 0.5, changeFreq: 'weekly' },
   { path: '/medications', priority: 0.5, changeFreq: 'weekly' },
   { path: '/pdf-prescription', priority: 0.4, changeFreq: 'weekly' },
@@ -119,14 +121,31 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/hospital-inventory', priority: 0.3, changeFreq: 'monthly' },
   { path: '/pharmacy', priority: 0.4, changeFreq: 'weekly' },
   { path: '/lab-booking', priority: 0.4, changeFreq: 'weekly' },
-  { path: '/doctor/register', priority: 0.4, changeFreq: 'weekly' },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  return ROUTES.map((r) => ({
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const staticRoutes = ROUTES.map((r) => ({
     url: `${BASE}${r.path}`,
     lastModified: new Date(),
     changeFrequency: r.changeFreq,
     priority: r.priority,
   }));
+
+  let blogRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const blogs = await prisma.blog.findMany({
+      where: { published: true },
+      select: { slug: true, updatedAt: true },
+    });
+    blogRoutes = blogs.map((b) => ({
+      url: `${BASE}/blogs/${b.slug}`,
+      lastModified: b.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }));
+  } catch {
+    // DB query may fail in build; skip blog routes
+  }
+
+  return [...staticRoutes, ...blogRoutes];
 }
