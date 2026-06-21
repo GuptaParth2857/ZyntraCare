@@ -166,7 +166,7 @@ export const authOptions: NextAuthConfig = {
   ],
 
   pages: {
-    signIn: '/',
+    signIn: '/auth/signin',
     error: '/?error=1',
   },
 
