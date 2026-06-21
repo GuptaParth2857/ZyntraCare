@@ -100,6 +100,49 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {!isHackathon && adNetwork === 'adsterra' && (
           <script src="https://pl29830215.effectivecpmnetwork.com/6b/3c/a8/6b3ca83ac9d45dd570e4569136f825eb.js" />
         )}
+
+        {/* Schema.org Healthcare Organization + LocalBusiness structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": ["MedicalOrganization", "LocalBusiness"],
+              name: "ZyntraCare",
+              url: process.env.NEXT_PUBLIC_APP_URL || "https://zyntracare.com",
+              logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://zyntracare.com"}/images/publiczyntracare-logo.png`,
+              description:
+                "India's leading healthcare platform connecting patients with hospitals, specialists, labs, pharmacies, and emergency services.",
+              areaServed: { "@type": "Country", name: "India" },
+              availableLanguage: ["English", "Hindi"],
+              medicalSpecialty: [
+                "Cardiology",
+                "Neurology",
+                "Orthopedics",
+                "Pediatrics",
+                "Gynecology",
+                "Dermatology",
+                "Ophthalmology",
+                "Psychiatry",
+              ],
+              makesOffer: [
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Doctor Appointment Booking" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Hospital Bed Availability" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Lab Test Booking" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Online Doctor Consultation" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Emergency Services" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Pharmacy Services" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Ambulance Services" } },
+              ],
+              sameAs: [
+                "https://zyntracare.com",
+                "https://twitter.com/zyntracare",
+                "https://facebook.com/zyntracare",
+                "https://instagram.com/zyntracare",
+              ],
+            }),
+          }}
+        />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-inter antialiased bg-slate-950">
         <a href="#main-content" className="skip-to-content focus:top-4">
