@@ -37,13 +37,6 @@ export default function BluetoothHRMPage() {
     setSupported(!!(navigator as any).bluetooth);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const disconnect = useCallback(() => {
     if (hrIntervalRef.current) clearInterval(hrIntervalRef.current);
     if (deviceRef.current?.gatt?.connected) {
@@ -57,6 +50,12 @@ export default function BluetoothHRMPage() {
     setRrInterval(null);
     setHistory([]);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
 
   const connect = useCallback(async () => {
     if (!(navigator as any).bluetooth) {
