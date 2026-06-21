@@ -3,13 +3,22 @@ import Link from 'next/link';
 import prisma from '@/lib/prisma';
 
 export async function generateStaticParams() {
-  const blogs = await prisma.blog.findMany({ where: { published: true }, select: { slug: true } });
-  return blogs.map((b) => ({ slug: b.slug }));
+  try {
+    const blogs = await prisma.blog.findMany({ where: { published: true }, select: { slug: true } });
+    return blogs.map((b) => ({ slug: b.slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const blog = await prisma.blog.findUnique({ where: { slug } });
+  let blog;
+  try {
+    const { slug } = await params;
+    blog = await prisma.blog.findUnique({ where: { slug } });
+  } catch {
+    // DB unavailable
+  }
   if (!blog) return { title: 'Blog Not Found | ZyntraCare' };
 
   return {
@@ -29,16 +38,26 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const blog = await prisma.blog.findUnique({ where: { slug, published: true } });
+  let blog;
+  try {
+    blog = await prisma.blog.findUnique({ where: { slug, published: true } });
+  } catch {
+    // DB unavailable
+  }
   if (!blog) notFound();
 
   const tags: string[] = JSON.parse(blog.tags || '[]');
 
-  const related = await prisma.blog.findMany({
-    where: { published: true, category: blog.category, slug: { not: slug } },
-    orderBy: { createdAt: 'desc' },
-    take: 3,
-  });
+  let related: any[] = [];
+  try {
+    related = await prisma.blog.findMany({
+      where: { published: true, category: blog.category, slug: { not: slug } },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+    });
+  } catch {
+    // DB unavailable
+  }
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">

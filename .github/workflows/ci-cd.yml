@@ -41,12 +41,12 @@ jobs:
       - run: npm ci
 
       - name: Setup database
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
         env:
           DATABASE_URL: file:./dev.db
 
       - name: Seed database
-        run: npx tsx scripts/seed-doctors.ts
+        run: npx tsx prisma/seed.ts
         env:
           DATABASE_URL: file:./dev.db
 
@@ -66,12 +66,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Build application
-        run: npm run build
+      - name: Setup database
+        run: npx prisma db push
         env:
           DATABASE_URL: file:./dev.db
-          NEXTAUTH_SECRET: ci-test-secret
-          NEXTAUTH_URL: http://localhost:3000
+
+      - name: Build application
+        run: npm run build
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
