@@ -62,7 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning={true}>
       <head>
         {/* Google Search Console verification */}
-        <meta name="google-site-verification" content="googlee966699af55c42fa" />
+        <meta name="google-site-verification" content="bQZyFM4ZeZTHQnmVGfddMj0Xb8DH-AvZ3xduExjVhbA" />
 
         {/* Critical resource hints */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
