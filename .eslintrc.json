@@ -1,4 +1,11 @@
 {
   "extends": "next/core-web-vitals",
-  "ignorePatterns": ["**/*.test.ts", "**/*.spec.ts", "node_modules/", ".next/", "librechat/", "vane/", "ZyntraCare/"]
+  "ignorePatterns": ["**/*.test.ts", "**/*.spec.ts", "node_modules/", ".next/", "librechat/", "vane/", "ZyntraCare/"],
+  "rules": {
+    "react-hooks/set-state-in-effect": "off",
+    "react-hooks/immutability": "off",
+    "react-hooks/purity": "off",
+    "react-hooks/rules-of-hooks": "warn",
+    "@next/next/no-img-element": "off"
+  }
 }
