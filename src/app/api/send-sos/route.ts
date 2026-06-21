@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { authRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
-  const rateLimitCheck = authRateLimit(request as any, 5, 60000);
+  const rateLimitCheck = await authRateLimit(request as any, 5, 60000);
   if (rateLimitCheck) return rateLimitCheck;
+
   try {
     const { patientName, location, message, phone } = await request.json();
 
@@ -18,17 +19,9 @@ export async function POST(request: Request) {
 
     if (!accountSid || !authToken || !twilioFrom || !alertTo) {
       return NextResponse.json({
-        message: 'SMS service not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, and EMERGENCY_ALERT_PHONE in .env.local',
-        demo: true,
-        simulated: true,
-        alert: {
-          patient: patientName || 'Unknown',
-          location: `${location.lat}, ${location.lng}`,
-          mapsUrl: `https://www.google.com/maps?q=${location.lat},${location.lng}`,
-          message: message || 'Emergency SOS alert from ZyntraCare',
-          timestamp: new Date().toISOString(),
-        },
-      }, { status: 200 });
+        error: 'SMS service not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, and EMERGENCY_ALERT_PHONE in .env.local',
+        configured: false,
+      }, { status: 503 });
     }
 
     const twilio = await import('twilio');
@@ -49,15 +42,27 @@ export async function POST(request: Request) {
       to: alertTo,
     });
 
+    // Also send to user's phone if provided
+    if (phone) {
+      try {
+        await client.messages.create({
+          body: `🚨 Emergency alert sent from ZyntraCare. Help is on the way. Location: ${mapsUrl}`,
+          from: twilioFrom,
+          to: `+91${phone.replace(/^\+91/, '')}`,
+        });
+      } catch (error) {
+        console.error('Failed to send confirmation to user:', error);
+      }
+    }
+
     return NextResponse.json({
-      message: 'SMS sent successfully',
-      demo: false,
-      simulated: false,
+      success: true,
+      message: 'Emergency SOS sent successfully',
       alert: {
         patient: patientName || 'Unknown',
         location: `${location.lat}, ${location.lng}`,
         mapsUrl,
-        message: message || 'Emergency SOS alert from ZyntraCare',
+        message: message || 'Emergency alert',
         timestamp: new Date().toISOString(),
       },
     });

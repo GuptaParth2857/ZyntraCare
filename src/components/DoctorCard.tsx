@@ -2,6 +2,7 @@
 'use client';
 
 import { Doctor } from '@/types';
+import { toArray } from '@/lib/utils';
 import { FiMapPin, FiStar, FiClock, FiPhone, FiVideo, FiMessageCircle, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -90,7 +91,7 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
                 className={`relative w-20 h-20 rounded-[1rem] overflow-hidden border-2 ${isLight ? 'border-slate-100 shadow-sm' : 'border-white/10'}`}
               >
                 <Image
-                  src={doctor.image || '/placeholder-doctor.jpg'}
+                  src={doctor.image || '/placeholder-doctor.svg'}
                   alt={`Dr. ${doctor.name}`}
                   fill
                   sizes="80px"
@@ -141,11 +142,23 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
 
         {/* Hospital Info */}
         <div className={`mt-4 p-2.5 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-100' : 'bg-white/5 border-white/5'}`}>
-          <p className={`text-[13px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-white'}`}>{doctor.hospitalName}</p>
+          <p className={`text-[13px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-white'}`}>
+            {doctor.hospitals?.[0]?.name || doctor.hospitalName || 'Independent Practice'}
+          </p>
           <p className={`text-[11px] flex items-center gap-1.5 mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
             <FiMapPin size={11} className={isLight ? 'text-blue-500' : ''} aria-hidden="true" />
-            {doctor.hospitalName}
+            {doctor.hospitals?.[0]?.city}{doctor.hospitals?.[0]?.state ? `, ${doctor.hospitals?.[0]?.state}` : ''}
+            {!doctor.hospitals?.length && (doctor.city || '')}
           </p>
+          {doctor.hospitals?.[0]?.phone && (
+            <a
+              href={`tel:${doctor.hospitals[0].phone}`}
+              className={`text-[11px] flex items-center gap-1.5 mt-1 font-medium hover:text-blue-400 transition ${isLight ? 'text-blue-600' : 'text-blue-400'}`}
+            >
+              <FiPhone size={11} aria-hidden="true" />
+              {doctor.hospitals[0].phone}
+            </a>
+          )}
         </div>
 
         {/* Availability & Price */}
@@ -168,7 +181,7 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
 
         {/* Languages */}
         <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Languages spoken">
-          {(doctor.languages || []).map(lang => (
+          {toArray(doctor.languages).map((lang: string) => (
             <span
               key={lang}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${

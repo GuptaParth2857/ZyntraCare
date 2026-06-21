@@ -55,6 +55,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const isHackathon = process.env.NEXT_PUBLIC_HACKATHON_MODE === 'true';
+  const adNetwork = process.env.NEXT_PUBLIC_AD_NETWORK || 'adsense';
+
   return (
     <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning={true}>
       <head>
@@ -64,43 +67,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://unpkg.com" />
 
-        {/* Premium fonts — display=swap for performance */}
+        {/* Premium fonts */}
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap"
           rel="stylesheet"
         />
 
-        {/* Leaflet CSS — loaded after fonts */}
+        {/* Leaflet CSS */}
         <link
           rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           crossOrigin="anonymous"
         />
 
-        {/* Favicon - ZyntraCare Logo */}
-        <link
-          rel="icon"
-          href="/images/publiczyntracare-logo.png"
-          type="image/png"
-        />
+        {/* Favicon */}
+        <link rel="icon" href="/images/publiczyntracare-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/images/publiczyntracare-logo.png" />
 
-        {/* Apple touch icon */}
-        <link
-          rel="apple-touch-icon"
-          href="/images/publiczyntracare-logo.png"
-        />
-
-        {/* iOS Smart App Banner - Shows "Download on App Store" prompt */}
+        {/* iOS Smart App Banner */}
         <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=partner=zyntracare" />
-        
-        {/* Android/Play Store - TWA support */}
         <link rel="manifest" href="/manifest.json" />
-
-        {/* Color scheme */}
         <meta name="color-scheme" content="dark light" />
+
+        {/* Google AdSense */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5241033119281791"
+          crossOrigin="anonymous"
+        />
+
+        {/* Adsterra Popunder (#4) — 1 per page visit */}
+        {!isHackathon && adNetwork === 'adsterra' && (
+          <script src="https://pl29830215.effectivecpmnetwork.com/6b/3c/a8/6b3ca83ac9d45dd570e4569136f825eb.js" />
+        )}
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-inter antialiased bg-slate-950">
-        {/* Accessibility: skip to main content */}
         <a href="#main-content" className="skip-to-content focus:top-4">
           Skip to main content
         </a>
@@ -111,6 +112,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ServiceWorkerRegistration />
           {children}
         </ClientProviders>
+
+        {/* Adsterra Social Bar (#1) — before closing body */}
+        {!isHackathon && (
+          <script src="https://pl29830212.effectivecpmnetwork.com/99/54/2a/99542a03d87e169a60f1448534ab29e9.js" />
+        )}
       </body>
     </html>
   );

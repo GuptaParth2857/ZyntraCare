@@ -118,7 +118,7 @@ async function main() {
         },
       });
 
-      await prisma.doctor.create({
+      const doctor = await prisma.doctor.create({
         data: {
           userId: doctorUser.id,
           specialty,
@@ -130,6 +130,11 @@ async function main() {
           isAvailable: Math.random() > 0.2,
         },
       });
+
+      await prisma.doctorHospital.create({
+        data: { doctorId: doctor.id, hospitalId: hospital.id },
+      }).catch(() => {});
+
       doctorCount++;
     }
   }

@@ -1,13 +1,19 @@
-// src/app/emergency/page.tsx
 'use client';
 
-import { useState, useMemo } from 'react';
-import { FiPhone, FiMapPin, FiAlertCircle, FiShield, FiActivity, FiInfo, FiChevronRight } from 'react-icons/fi';
+import { useState, useMemo, useEffect } from 'react';
+import { FiPhone, FiMapPin, FiAlertCircle, FiShield, FiActivity, FiInfo, FiChevronRight, FiLoader } from 'react-icons/fi';
 import { FaAmbulance, FaFire, FaHeartbeat } from 'react-icons/fa';
 import { MdLocalHospital } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { emergencyNumbers, states } from '@/data/mockData';
 import { useLanguage } from '@/context/LanguageContext';
+
+interface EmergencyNumber {
+  id: string;
+  state: string;
+  type: string;
+  number: string;
+  description: string;
+}
 
 const typeIcons: Record<string, React.ReactNode> = {
   ambulance: <FaAmbulance />,
@@ -15,6 +21,7 @@ const typeIcons: Record<string, React.ReactNode> = {
   fire: <FaFire />,
   disaster: <FiAlertCircle />,
   medical: <FiActivity />,
+  child: <FaHeartbeat />,
 };
 
 const typeColors: Record<string, { bg: string; glow: string; text: string; border: string }> = {
@@ -23,6 +30,7 @@ const typeColors: Record<string, { bg: string; glow: string; text: string; borde
   fire:      { bg: 'bg-orange-500/15', glow: 'shadow-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
   disaster:  { bg: 'bg-purple-500/15', glow: 'shadow-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
   medical:   { bg: 'bg-emerald-500/15', glow: 'shadow-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  child:     { bg: 'bg-pink-500/15', glow: 'shadow-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30' },
 };
 
 const QUICK_DIALS = [
@@ -46,6 +54,27 @@ export default function EmergencyPage() {
   const [selectedState, setSelectedState] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [activeTip, setActiveTip] = useState<number | null>(null);
+  const [emergencyNumbers, setEmergencyNumbers] = useState<EmergencyNumber[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/emergency')
+      .then(res => res.json())
+      .then(data => {
+        if (data.emergencyNumbers) {
+          const formatted = data.emergencyNumbers.map((en: any, i: number) => ({
+            id: en.id || `en-${i}`,
+            state: en.state,
+            type: en.type,
+            number: en.number,
+            description: en.name || en.description || '',
+          }));
+          setEmergencyNumbers(formatted);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredNumbers = useMemo(() => {
     return emergencyNumbers.filter(num => {
@@ -53,11 +82,14 @@ export default function EmergencyPage() {
       if (selectedType && num.type !== selectedType) return false;
       return true;
     });
-  }, [selectedState, selectedType]);
+  }, [emergencyNumbers, selectedState, selectedType]);
+
+  const allStates = useMemo(() => {
+    return ['All India', ...Array.from(new Set(emergencyNumbers.map(n => n.state).filter(s => s !== 'All India')))];
+  }, [emergencyNumbers]);
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      {/* Pulsing ambient glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <motion.div
           animate={{ opacity: [0.12, 0.28, 0.12], scale: [1, 1.1, 1] }}
@@ -69,7 +101,6 @@ export default function EmergencyPage() {
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
           className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-red-800/20 rounded-full blur-[120px]"
         />
-        {/* Scan line effect */}
         <motion.div
           animate={{ y: ['-100%', '200vh'] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'linear', repeatDelay: 3 }}
@@ -77,7 +108,6 @@ export default function EmergencyPage() {
         />
       </div>
 
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -85,18 +115,11 @@ export default function EmergencyPage() {
         className="relative z-10 pt-24 pb-10"
       >
         <div className="max-w-7xl mx-auto px-4 text-center">
-          {/* Animated icon */}
           <div className="relative inline-flex mb-6">
             <motion.div
               animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
               className="absolute inset-0 bg-red-500/40 rounded-full"
-              aria-hidden="true"
-            />
-            <motion.div
-              animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0, 0.4] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
-              className="absolute inset-0 bg-red-500/30 rounded-full"
               aria-hidden="true"
             />
             <div className="relative p-5 bg-red-500/15 border border-red-500/40 rounded-full backdrop-blur-sm">
@@ -126,7 +149,6 @@ export default function EmergencyPage() {
             <strong className="text-red-300"> In life-threatening situations, always call 112 first.</strong>
           </motion.p>
 
-          {/* Live badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -134,12 +156,11 @@ export default function EmergencyPage() {
             className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-full px-4 py-1.5 text-sm text-red-300"
           >
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" aria-hidden="true" />
-            All numbers are active and verified — Updated April 2026
+            All numbers are active and verified — Updated 2026
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Quick Dial Grid */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 mb-12">
         <motion.h2
           initial={{ opacity: 0 }}
@@ -163,9 +184,7 @@ export default function EmergencyPage() {
               aria-label={`Call ${item.label}: ${item.number}`}
               className={`relative flex flex-col items-center justify-center gap-3 p-6 rounded-3xl text-white bg-gradient-to-br ${item.color} shadow-2xl ${item.shadow} border border-white/20 overflow-hidden group`}
             >
-              {/* Shimmer overlay */}
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true" />
-              {/* Pulse ring */}
               <motion.div
                 animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
                 transition={{ duration: 2.5, repeat: Infinity, delay: idx * 0.3 }}
@@ -183,7 +202,6 @@ export default function EmergencyPage() {
         </div>
       </div>
 
-      {/* First Aid Tips */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 mb-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -242,7 +260,6 @@ export default function EmergencyPage() {
         </motion.div>
       </div>
 
-      {/* Filters */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 mb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -254,19 +271,17 @@ export default function EmergencyPage() {
             <FiMapPin size={15} aria-hidden="true" />
             <span className="font-bold uppercase tracking-wider text-xs">{t('filters')}:</span>
           </div>
-
           <select
             value={selectedState}
             onChange={e => setSelectedState(e.target.value)}
             aria-label="Filter by state"
             className="flex-1 min-w-[180px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition text-white text-sm"
           >
-            <option value="" className="bg-slate-900">{t('allStates')}</option>
-            {states.filter(s => s !== 'All India').map(state => (
+            <option value="" className="bg-slate-900">All States</option>
+            {allStates.filter(s => s !== 'All India').map(state => (
               <option key={state} value={state} className="bg-slate-900">{state}</option>
             ))}
           </select>
-
           <select
             value={selectedType}
             onChange={e => setSelectedType(e.target.value)}
@@ -274,13 +289,13 @@ export default function EmergencyPage() {
             className="flex-1 min-w-[180px] px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition text-white text-sm"
           >
             <option value="" className="bg-slate-900">All Emergency Types</option>
-            <option value="ambulance" className="bg-slate-900">{t('ambulance')}</option>
-            <option value="police" className="bg-slate-900">{t('police')}</option>
-            <option value="fire" className="bg-slate-900">{t('fire')}</option>
+            <option value="ambulance" className="bg-slate-900">Ambulance</option>
+            <option value="police" className="bg-slate-900">Police</option>
+            <option value="fire" className="bg-slate-900">Fire</option>
             <option value="disaster" className="bg-slate-900">Disaster Response</option>
             <option value="medical" className="bg-slate-900">Medical Helpline</option>
+            <option value="child" className="bg-slate-900">Child Helpline</option>
           </select>
-
           {(selectedState || selectedType) && (
             <button
               onClick={() => { setSelectedState(''); setSelectedType(''); }}
@@ -292,55 +307,59 @@ export default function EmergencyPage() {
         </motion.div>
       </div>
 
-      {/* Emergency Numbers List */}
       <div className="relative z-10 max-w-5xl mx-auto px-4">
         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 mb-4">
           All Emergency Numbers — {filteredNumbers.length} found
         </h2>
-        <div className="space-y-3" role="list">
-          <AnimatePresence>
-            {filteredNumbers.map((num, idx) => {
-              const colors = typeColors[num.type] ?? typeColors.medical;
-              return (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.35, delay: idx * 0.04 }}
-                  key={num.id}
-                  role="listitem"
-                  className={`bg-slate-900/60 backdrop-blur-xl border ${colors.border} rounded-2xl shadow-xl hover:shadow-2xl p-5 flex flex-col md:flex-row items-start md:items-center gap-5 hover:bg-slate-800/60 transition-all duration-300 group`}
-                >
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg text-xl shrink-0 transition-transform group-hover:scale-110 ${colors.bg} ${colors.border} ${colors.text}`}>
-                    {typeIcons[num.type]}
-                  </div>
-
-                  <div className="flex-1">
-                    <p className="font-bold text-white text-base">{num.state}</p>
-                    <p className="text-sm text-gray-400 mt-0.5">{num.description}</p>
-                    <span className={`inline-block mt-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${colors.bg} ${colors.text} ${colors.border}`}>
-                      {num.type}
-                    </span>
-                  </div>
-
-                  <motion.a
-                    href={`tel:${num.number}`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.97 }}
-                    aria-label={`Call ${num.description}: ${num.number}`}
-                    className="flex items-center justify-center gap-3 bg-red-600/20 hover:bg-red-600 text-red-100 hover:text-white px-8 py-4 rounded-xl font-black text-2xl border border-red-500/30 hover:border-red-500 transition-all duration-200 shadow-[0_0_20px_rgba(220,38,38,0.15)] hover:shadow-[0_0_30px_rgba(220,38,38,0.4)] w-full md:w-auto"
+        {loading ? (
+          <div className="text-center py-16">
+            <FiLoader className="animate-spin text-red-400 mx-auto mb-4" size={32} />
+            <p className="text-gray-400">Loading emergency numbers...</p>
+          </div>
+        ) : (
+          <div className="space-y-3" role="list">
+            <AnimatePresence>
+              {filteredNumbers.map((num, idx) => {
+                const colors = typeColors[num.type] ?? typeColors.medical;
+                return (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.35, delay: idx * 0.04 }}
+                    key={num.id}
+                    role="listitem"
+                    className={`bg-slate-900/60 backdrop-blur-xl border ${colors.border} rounded-2xl shadow-xl hover:shadow-2xl p-5 flex flex-col md:flex-row items-start md:items-center gap-5 hover:bg-slate-800/60 transition-all duration-300 group`}
                   >
-                    <FiPhone className="animate-pulse" aria-hidden="true" />
-                    {num.number}
-                  </motion.a>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg text-xl shrink-0 transition-transform group-hover:scale-110 ${colors.bg} ${colors.border} ${colors.text}`}>
+                      {typeIcons[num.type] || <FiActivity />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-white text-base">{num.state}</p>
+                      <p className="text-sm text-gray-400 mt-0.5">{num.description}</p>
+                      <span className={`inline-block mt-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${colors.bg} ${colors.text} ${colors.border}`}>
+                        {num.type}
+                      </span>
+                    </div>
+                    <motion.a
+                      href={`tel:${num.number}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.97 }}
+                      aria-label={`Call ${num.description}: ${num.number}`}
+                      className="flex items-center justify-center gap-3 bg-red-600/20 hover:bg-red-600 text-red-100 hover:text-white px-8 py-4 rounded-xl font-black text-2xl border border-red-500/30 hover:border-red-500 transition-all duration-200 shadow-[0_0_20px_rgba(220,38,38,0.15)] hover:shadow-[0_0_30px_rgba(220,38,38,0.4)] w-full md:w-auto"
+                    >
+                      <FiPhone className="animate-pulse" aria-hidden="true" />
+                      {num.number}
+                    </motion.a>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
 
-        {filteredNumbers.length === 0 && (
+        {filteredNumbers.length === 0 && !loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
             <FiAlertCircle size={48} className="mx-auto text-gray-600 mb-4" aria-hidden="true" />
             <p className="text-gray-400 text-lg">{t('noResults')}</p>
@@ -348,7 +367,6 @@ export default function EmergencyPage() {
         )}
       </div>
 
-      {/* Important Note */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

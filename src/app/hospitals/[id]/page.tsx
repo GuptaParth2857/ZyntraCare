@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { toArray } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiPhone, FiMapPin, FiClock, FiStar, FiShield, FiActivity, FiAlertCircle, FiNavigation, FiArrowLeft, FiArrowRight, FiHeart, FiCheckCircle, FiAlertTriangle, FiThermometer, FiDroplet, FiEye, FiZap, FiTarget, FiTruck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { hospitals as allHospitals } from '@/data/mockData';
-import { Hospital } from '@/types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DirectionsModal from '@/components/DirectionsModal';
@@ -17,7 +16,7 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const router = useRouter();
   const { t, lang } = useLanguage();
-  const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [hospital, setHospital] = useState<any>(null);
   const [bedData, setBedData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
@@ -49,16 +48,28 @@ const specialtyIcons: Record<string, React.ReactNode> = {
 };
 
   useEffect(() => {
-    const found = allHospitals.find(h => h.id === id);
-    setHospital(found || null);
-    
-    fetch('/api/beds')
-      .then(res => res.json())
-      .then(data => {
-        const hospitalBed = data.hospitals?.find((h: any) => h.id === id);
-        setBedData(hospitalBed);
-      })
-      .finally(() => setLoading(false));
+    const fetchHospital = async () => {
+      try {
+        const res = await fetch(`/api/hospitals?id=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const found = data.hospitals?.find((h: any) => h.id === id);
+          setHospital(found || null);
+        }
+      } catch {}
+      
+      try {
+        const bedRes = await fetch('/api/beds');
+        if (bedRes.ok) {
+          const bedData = await bedRes.json();
+          const hospitalBed = bedData.hospitals?.find((h: any) => h.id === id);
+          setBedData(hospitalBed);
+        }
+      } catch {}
+      
+      setLoading(false);
+    };
+    fetchHospital();
   }, [id]);
 
   if (loading) {
@@ -299,7 +310,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
             >
               <h3 className="text-xl font-bold text-white mb-4">Specialties & Services</h3>
               <div className="grid grid-cols-2 gap-3">
-                {(hospital.specialties || []).map((specialty, idx) => (
+                {toArray(hospital.specialties).map((specialty: string, idx: number) => (
                   <div key={idx} className="flex items-center gap-2 bg-slate-800/50 px-3 py-2 rounded-xl">
                     {specialtyIcons[specialty] || specialtyIcons.default}
                     <span className="text-white text-sm">{specialty}</span>

@@ -7,7 +7,7 @@ import {
   FiNavigation, FiRefreshCw, FiPlus, FiMinus,
   FiActivity, FiWifi, FiWifiOff, FiPhone, FiAlertCircle, FiCloudOff
 } from 'react-icons/fi';
-import { hospitals as mockHospitals } from '@/data/mockData';
+// Hospital data fetched from /api/hospitals instead of static mockData
 import { useGeolocation } from '@/hooks/useGeolocation';
 import DirectionsModal from './DirectionsModal';
 
@@ -172,24 +172,34 @@ export default function NearbyHospitalsMap({
   /* ---------------------------------------------------------------- */
   /*  Data fetching                                                    */
   /* ---------------------------------------------------------------- */
-  const loadMockHospitals = useCallback((lat: number, lng: number) => {
-    const withDist = mockHospitals
-      .filter(h => h.location?.lat && h.location?.lng)
-      .map(h => ({
-        ...h,
-        distance: parseFloat(calcDistance(lat, lng, h.location!.lat, h.location!.lng).toFixed(2)),
-        source: 'mock' as const,
-        website: '',
-        directionsUrl: h.location ? `https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}` : '#',
-        googleMapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(h.name)}`,
-        address: h.address || '',
-      }))
-      .sort((a, b) => a.distance - b.distance);
-    setAllHospitals(withDist as any);
+  const loadMockHospitals = useCallback(async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`/api/hospitals?lat=${lat}&lng=${lng}&limit=50`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hospitals?.length > 0) {
+          const withDist = data.hospitals
+            .filter((h: any) => h.location?.lat && h.location?.lng)
+            .map((h: any) => ({
+              ...h,
+              distance: parseFloat(calcDistance(lat, lng, h.location.lat, h.location.lng).toFixed(2)),
+              source: 'openstreetmap' as const,
+              website: '',
+              directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${h.location.lat},${h.location.lng}`,
+              googleMapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(h.name)}`,
+              address: h.address || '',
+            }))
+            .sort((a: any, b: any) => a.distance - b.distance);
+          setAllHospitals(withDist as any);
+          setIsRealData(true);
+          saveHospitalsToCache(withDist as any);
+          return;
+        }
+      }
+    } catch {}
+    // If API fails, show empty state
+    setAllHospitals([]);
     setIsRealData(false);
-    
-    // Cache for offline use
-    saveHospitalsToCache(withDist as any);
   }, []);
 
   const fetchRealHospitals = useCallback(async (lat: number, lng: number, radiusKm: number) => {

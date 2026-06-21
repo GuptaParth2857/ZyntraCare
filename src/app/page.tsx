@@ -5,17 +5,17 @@ import { FiArrowRight, FiShield, FiHeart, FiMapPin, FiPhone, FiActivity, FiUsers
 import { FaHeartbeat, FaBrain, FaBone, FaBaby, FaSpa, FaEye, FaTooth, FaStethoscope, FaLungs, FaRibbon, FaHeart, FaDna, FaUserMd } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
-import { hospitals, doctors, specialties } from '@/data/mockData';
+const SPECIALTIES_LIST = ['Cardiology', 'Oncology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Nephrology', 'Dermatology', 'Ophthalmology', 'Pulmonology', 'Gynecology'];
 import { useLanguage } from '@/context/LanguageContext';
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import Image from 'next/image';
 
 import { AnimatedGradientText, MorphingBlob, FloatingIcon, PulseRing } from '@/components/PremiumAnimations';
 import ClientOnly from '@/components/ClientOnly';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useNearbyPlaces, RADIUS_OPTIONS, Place } from '@/hooks/useNearbyPlaces';
-import { PlaceCard, PlaceCardSkeleton } from '@/components/PlaceCard';
-import LocationPermission from '@/components/LocationPermission';
+import { PlaceCard } from '@/components/PlaceCard';
+import { AdSlot } from '@/components/ads';
+import { AD_PLACEMENTS } from '@/lib/ads/config';
 
 const SearchBar = dynamic(() => import('@/components/SearchBar'), { ssr: false, loading: () => <div className="h-14 bg-white/5 animate-pulse rounded-2xl" /> });
 const HospitalCard = dynamic(() => import('@/components/HospitalCard'), { ssr: false });
@@ -116,108 +116,78 @@ const MemoizedStatCard = memo(StatCard);
 const DEFAULT_POSITION = { lat: 28.6139, lng: 77.2090 };
 
 function HeroNearbyMap() {
-  const { position, loading, error, requestLocation, hasPermission } = useGeolocation();
-  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'clinic' | 'pharmacy'>('all');
-  const [radius, setRadius] = useState(5);
-  const [dismissedPermission, setDismissedPermission] = useState(false);
+  const { position, requestLocation } = useGeolocation();
+  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'lab' | 'pharmacy'>('all');
+  const [radius, setRadius] = useState(10);
+  const [allPlaces, setAllPlaces] = useState<any[]>([]);
+  const [fetchState, setFetchState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const latRef = useRef(0);
+  const lngRef = useRef(0);
 
-  // Use default immediately while getting user location
-  const effectivePosition = position || (dismissedPermission ? DEFAULT_POSITION : null);
+  useEffect(() => { requestLocation(); }, []);
 
-  // Request location on mount but don't wait - use default immediately
+  const userLat = position?.lat ?? DEFAULT_POSITION.lat;
+  const userLng = position?.lng ?? DEFAULT_POSITION.lng;
+
   useEffect(() => {
-    if (!dismissedPermission && !position) {
-      requestLocation();
-      const timer = setTimeout(() => setDismissedPermission(true), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+    const lat = userLat;
+    const lng = userLng;
+    if (lat === latRef.current && lng === lngRef.current && fetchState === 'done') return;
+    latRef.current = lat;
+    lngRef.current = lng;
 
-  // Always use a position - user position if available, otherwise default
-  const mapPosition = position || DEFAULT_POSITION;
+    let cancelled = false;
+    setFetchState('loading');
 
-  const {
-    places,
-    hospitals: hospitalList,
-    clinics: clinicList,
-    pharmacies: pharmacyList,
-    loading: placesLoading,
-    error: placesError,
-    totalCount,
-  } = useNearbyPlaces(mapPosition.lat, mapPosition.lng, {
-    initialRadius: radius,
-    autoFetch: true,
-  });
+    fetch(`/api/hospitals/nearby?lat=${lat}&lng=${lng}&radius=${radius * 1000}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        if (data.hospitals) {
+          setAllPlaces(data.hospitals);
+          setFetchState('done');
+        } else {
+          setFetchState('error');
+        }
+      })
+      .catch(() => { if (!cancelled) setFetchState('error'); });
 
-  // Sample fallback places when API fails
-  const samplePlaces = useMemo(() => [
-    { id: '1', name: 'City Hospital', type: 'hospital' as const, lat: mapPosition.lat + 0.01, lng: mapPosition.lng + 0.01, address: 'Main Road', phone: '102', distance: 0.5 },
-    { id: '2', name: 'Health Clinic', type: 'clinic' as const, lat: mapPosition.lat - 0.008, lng: mapPosition.lng + 0.005, address: 'Market Area', phone: '', distance: 0.8 },
-    { id: '3', name: 'MediCare Pharmacy', type: 'pharmacy' as const, lat: mapPosition.lat + 0.005, lng: mapPosition.lng - 0.008, address: 'Local Market', phone: '', distance: 0.3 },
-  ], [mapPosition]);
+    return () => { cancelled = true; };
+  }, [userLat, userLng, radius]); // eslint-disable-line
 
-  // Use sample data if no places from API
-  const displayPlaces = places.length > 0 ? places : samplePlaces;
+  const places = useMemo(() => {
+    return allPlaces.map((h: any) => ({
+      id: h.id,
+      name: h.name,
+      type: (h.type || 'hospital') as 'hospital' | 'lab' | 'pharmacy',
+      lat: h.location?.lat || userLat,
+      lng: h.location?.lng || userLng,
+      address: h.address || h.city || '',
+      phone: h.phone || '',
+      distance: h.distance || 0,
+      rating: h.rating,
+      workingHours: h.workingHours,
+    }));
+  }, [allPlaces, userLat, userLng]);
 
-  // Filter by type
   const filteredPlaces = useMemo(() => {
-    if (selectedType === 'all') return displayPlaces;
-    return displayPlaces.filter(p => p.type === selectedType);
-  }, [displayPlaces, selectedType]);
+    if (selectedType === 'all') return places;
+    return places.filter(p => p.type === selectedType);
+  }, [places, selectedType]);
 
-  // Show top 3 places
-  const topPlaces = filteredPlaces.slice(0, 3);
-
-  // No permission state - show permission request or use default location
-  if (hasPermission === false && !dismissedPermission) {
-    return (
-      <div className="w-full h-full flex flex-col">
-        <div className="flex-1 flex items-center justify-center p-4">
-          <LocationPermission
-            onRequestPermission={requestLocation}
-            loading={loading}
-            error={error}
-          />
-        </div>
-        <div className="p-4 border-t border-white/10">
-          <button
-            onClick={() => setDismissedPermission(true)}
-            className="w-full text-center text-slate-400 text-sm hover:text-slate-300"
-          >
-            Use default location (Delhi) instead
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show map - always display with position
-
-  // Show error fallback if places fail to load
-  const showMapFallback = !placesLoading && placesError && places.length === 0;
+  const counts = useMemo(() => ({
+    hospital: places.filter(p => p.type === 'hospital').length,
+    lab: places.filter(p => p.type === 'lab').length,
+    pharmacy: places.filter(p => p.type === 'pharmacy').length,
+  }), [places]);
 
   return (
     <div className="w-full h-full flex flex-col min-h-[300px]">
-      {/* Map Section */}
       <div className="flex-1 w-full h-full min-h-[250px] relative">
-        {showMapFallback ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 z-50">
-            <div className="text-center p-4">
-              <FiMapPin size={48} className="text-slate-500 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm mb-2">Unable to load nearby places</p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="text-teal-400 text-xs hover:text-teal-300"
-              >
-                Tap to retry
-              </button>
-            </div>
-          </div>
-        ) : null}
         <NearbyMap
           places={filteredPlaces}
-          userLat={mapPosition.lat}
-          userLng={mapPosition.lng}
+          userLat={userLat}
+          userLng={userLng}
           radius={radius}
           height={220}
           compact
@@ -225,100 +195,50 @@ function HeroNearbyMap() {
         />
       </div>
       
-      {/* Bottom Section - Type filters + List */}
       <div className="bg-slate-900/90 backdrop-blur-sm p-4 space-y-3">
-        {/* Type Filter Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button
-            onClick={() => setSelectedType('all')}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-              selectedType === 'all'
-                ? 'bg-teal-500 text-white'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            All ({totalCount})
+          <button onClick={() => setSelectedType('all')} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'all' ? 'bg-teal-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+            All ({places.length})
           </button>
-          <button
-            onClick={() => setSelectedType('hospital')}
-            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-              selectedType === 'hospital'
-                ? 'bg-red-500 text-white'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            🏥 {hospitalList.length}
+          <button onClick={() => setSelectedType('hospital')} className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'hospital' ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+            🏥 {counts.hospital}
           </button>
-          <button
-            onClick={() => setSelectedType('clinic')}
-            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-              selectedType === 'clinic'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            🏨 {clinicList.length}
+          <button onClick={() => setSelectedType('lab')} className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'lab' ? 'bg-purple-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+            🔬 {counts.lab}
           </button>
-          <button
-            onClick={() => setSelectedType('pharmacy')}
-            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-              selectedType === 'pharmacy'
-                ? 'bg-emerald-500 text-white'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            💊 {pharmacyList.length}
+          <button onClick={() => setSelectedType('pharmacy')} className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'pharmacy' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+            💊 {counts.pharmacy}
           </button>
           
-          {/* Radius selector */}
           <div className="ml-auto flex items-center gap-1">
             <FiFilter size={12} className="text-slate-500" />
-            <select
-              value={radius}
-              onChange={(e) => setRadius(Number(e.target.value))}
-              className="bg-white/5 text-slate-400 text-xs px-2 py-1.5 rounded-lg border-none outline-none"
-            >
-              {RADIUS_OPTIONS.map(r => (
-                <option key={r} value={r}>{r}km</option>
-              ))}
+            <select value={radius} onChange={(e) => { setRadius(Number(e.target.value)); latRef.current = 0; }} className="bg-white/5 text-slate-400 text-xs px-2 py-1.5 rounded-lg border-none outline-none">
+              {[5, 10, 15, 20, 30, 50].map(r => (<option key={r} value={r}>{r}km</option>))}
             </select>
           </div>
         </div>
         
-        {/* Places List */}
-        {placesLoading ? (
-          <div className="space-y-2">
-            <PlaceCardSkeleton />
-            <PlaceCardSkeleton />
-          </div>
-        ) : topPlaces.length > 0 ? (
+        {filteredPlaces.length > 0 ? (
           <div className="space-y-2 max-h-[120px] overflow-y-auto scrollbar-thin">
-            {topPlaces.map((place, idx) => (
-              <PlaceCard
-                key={`${place.id}_${idx}`}
-                place={place}
-                compact
-              />
+            {filteredPlaces.slice(0, 4).map((place: any, idx: number) => (
+              <PlaceCard key={`${place.id}_${idx}`} place={place} compact />
             ))}
-            {filteredPlaces.length > 3 && (
-              <Link
-                href="/hospitals"
-                className="flex items-center justify-center gap-2 text-teal-400 text-xs font-semibold py-2 hover:text-teal-300 transition"
-              >
-                View all {filteredPlaces.length} places
-                <FiArrowRight size={12} />
+            {filteredPlaces.length > 4 && (
+              <Link href="/hospitals" className="flex items-center justify-center gap-2 text-teal-400 text-xs font-semibold py-2 hover:text-teal-300 transition">
+                View all {filteredPlaces.length} places <FiArrowRight size={12} />
               </Link>
             )}
           </div>
         ) : (
           <div className="text-center py-4">
-            <p className="text-slate-500 text-sm">No places found within {radius}km</p>
-            <button
-              onClick={() => setRadius(10)}
-              className="text-teal-400 text-xs mt-1 hover:text-teal-300"
-            >
-              Expand search radius
-            </button>
+            <p className="text-slate-500 text-sm">
+              {fetchState === 'loading' ? 'Searching nearby...' : `No places found within ${radius}km`}
+            </p>
+            {fetchState !== 'loading' && (
+              <button onClick={() => setRadius(Math.min(radius + 10, 50))} className="text-teal-400 text-xs mt-1 hover:text-teal-300">
+                Expand search to {Math.min(radius + 10, 50)}km
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -937,6 +857,19 @@ export default function Home() {
   const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
   const hasFull3D = false;
   const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
+  const [topHospitals, setTopHospitals] = useState<any[]>([]);
+  const [topDoctors, setTopDoctors] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/hospitals?limit=3')
+      .then(r => r.json())
+      .then(d => { if (d.hospitals) setTopHospitals(d.hospitals); })
+      .catch(() => {});
+    fetch('/api/doctors?limit=4')
+      .then(r => r.json())
+      .then(d => { if (d.doctors) setTopDoctors(d.doctors); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen text-white overflow-hidden">
@@ -1055,6 +988,8 @@ export default function Home() {
         </div>
       </section>
 
+      <AdSlot placement={AD_PLACEMENTS.HOME_AFTER_HERO} size="LEADERBOARD" className="py-4" />
+
       <section className="py-24 relative z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/50 to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 relative">
@@ -1075,7 +1010,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {specialties.slice(0, 10).map((specialty, idx) => (
+            {SPECIALTIES_LIST.slice(0, 10).map((specialty, idx) => (
               <motion.div
                 key={specialty}
                 initial={{ opacity: 0, scale: 0.85, y: 20 }}
@@ -1216,7 +1151,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-24">
-            {hospitals.slice(0, 3).map((hospital, idx) => (
+            {topHospitals.map((hospital, idx) => (
               <motion.div
                 key={hospital.id}
                 initial={{ opacity: 0, y: 40 }}
@@ -1261,7 +1196,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {doctors.slice(0, 4).map((doctor, idx) => (
+            {topDoctors.map((doctor, idx) => (
               <motion.div
                 key={doctor.id}
                 initial={{ opacity: 0, y: 40 }}
@@ -1368,7 +1303,10 @@ export default function Home() {
         </div>
       </section>
 
+      <AdSlot placement={AD_PLACEMENTS.HOME_BEFORE_AI} size="MEDIUM_RECTANGLE" className="py-4 flex justify-center" />
+
       <BlogSection posts={blogPosts} />
+      <AdSlot placement={AD_PLACEMENTS.HOME_IN_BLOG} size="MEDIUM_RECTANGLE" className="py-4 flex justify-center" />
       <VideoSection videos={videoMasterclasses} />
 
       <section className="py-24 relative z-10">

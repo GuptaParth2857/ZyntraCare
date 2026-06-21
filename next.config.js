@@ -1,8 +1,11 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
+  output: 'standalone',
 
   // Faster compilation
   turbopack: {},
@@ -72,4 +75,9 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  // Additional config options for the Sentry webpack plugin
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+});

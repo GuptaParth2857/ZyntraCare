@@ -19,7 +19,7 @@ const EMERGENCY_NUMBERS = [
 ];
 
 export async function GET(req: NextRequest) {
-  const rateLimitCheck = authRateLimit(req, 30, 60000);
+  const rateLimitCheck = await authRateLimit(req, 30, 60000);
   if (rateLimitCheck) return rateLimitCheck;
 
   const { searchParams } = new URL(req.url);
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const rateLimitCheck = authRateLimit(req, 10, 60000);
+  const rateLimitCheck = await authRateLimit(req, 10, 60000);
   if (rateLimitCheck) return rateLimitCheck;
 
   try {

@@ -59,23 +59,19 @@ function SpecialistsContent() {
       try {
         const params = new URLSearchParams();
         if (selectedSpecialty) params.set('specialty', selectedSpecialty);
-        if (selectedLocation) params.set('city', selectedLocation);
+        if (selectedLocation && selectedLocation !== 'All India') params.set('state', selectedLocation);
         if (showAvailableOnly) params.set('available', 'true');
-        if (userLocation) {
-          params.set('lat', userLocation.lat.toString());
-          params.set('lng', userLocation.lng.toString());
-        }
         
-        const res = await fetch(`/api/doctors?${params}`);
+        const res = await fetch(`/api/specialists?${params}`);
         const data = await res.json();
         setDoctors(data.doctors || []);
       } catch (err) {
-        console.error('Failed to fetch doctors:', err);
+        console.error('Failed to fetch specialists:', err);
       }
       setLoading(false);
     };
     fetchDoctors();
-  }, [selectedSpecialty, selectedLocation, showAvailableOnly, userLocation]);
+  }, [selectedSpecialty, selectedLocation, showAvailableOnly]);
 
   const featuredSpecialties = ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Pediatrics', 'Gynecology'];
 

@@ -1,105 +1,204 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { getDistanceKm } from '@/utils/distance';
+import { generateNearbyAll } from '@/utils/fallback';
+
+// Helper to query Overpass API for real nearby places
+async function fetchFromOverpass(lat: number, lng: number, radiusM: number, filterType: string) {
+  const radius = Math.min(radiusM, 50000); // cap at 50km
+
+  let queries = '';
+  if (filterType === 'all' || filterType === 'hospital') {
+    queries += `node["amenity"="hospital"](around:${radius},${lat},${lng});
+way["amenity"="hospital"](around:${radius},${lat},${lng});
+node["amenity"="clinic"](around:${radius},${lat},${lng});
+way["amenity"="clinic"](around:${radius},${lat},${lng});`;
+  }
+  if (filterType === 'all' || filterType === 'pharmacy') {
+    queries += `node["amenity"="pharmacy"](around:${radius},${lat},${lng});
+node["shop"="chemist"](around:${radius},${lat},${lng});`;
+  }
+  if (filterType === 'all' || filterType === 'lab') {
+    queries += `node["amenity"="laboratory"](around:${radius},${lat},${lng});
+node["healthcare"="laboratory"](around:${radius},${lat},${lng});
+node["amenity"="doctors"](around:${radius},${lat},${lng});`;
+  }
+
+  const query = `[out:json][timeout:30];(${queries});out center 60;`;
+
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body: `data=${encodeURIComponent(query)}`,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'ZyntraCare/1.0 (healthcare platform)',
+    },
+    signal: AbortSignal.timeout(20000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Overpass API error: ${res.status} ${text.slice(0, 100)}`);
+  }
+  const data = await res.json();
+  return data.elements || [];
+}
+
+function determineType(el: any): 'hospital' | 'clinic' | 'pharmacy' | 'lab' {
+  const amenity = el.tags?.amenity;
+  const shop = el.tags?.shop;
+  const healthcare = el.tags?.healthcare;
+
+  if (amenity === 'hospital') return 'hospital';
+  if (amenity === 'clinic' || amenity === 'doctors') return 'clinic';
+  if (amenity === 'pharmacy' || shop === 'chemist') return 'pharmacy';
+  if (amenity === 'laboratory' || healthcare === 'laboratory') return 'lab';
+  return 'hospital';
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lat = parseFloat(searchParams.get('lat') || '28.6139');
   const lng = parseFloat(searchParams.get('lng') || '77.2090');
-  const radius = parseInt(searchParams.get('radius') || '10000');
+  const radiusM = parseInt(searchParams.get('radius') || '10000');
+  const radiusKm = radiusM / 1000;
+  const type = searchParams.get('type') as 'all' | 'hospital' | 'lab' | 'pharmacy' | null;
+  const filterType = type || 'all';
 
+  // Try database first (exact radius only)
+  let dbResults: any[] = [];
   try {
-    const hospitals = await prisma.hospital.findMany({
-      where: { verified: true },
-      take: 50,
-    });
+    const prisma = (await import('@/lib/prisma')).default;
 
-    if (hospitals.length > 0) {
-      const withDistance = hospitals
-        .filter(h => h.lat && h.lng)
-        .map(h => {
-          const distance = getDistanceKm(lat, lng, h.lat!, h.lng!);
-          let beds = { total: 0, occupied: 0, available: 0, icu: 0, icuAvailable: 0 };
-          try { beds = JSON.parse(h.beds); } catch { beds = { total: 0, occupied: 0, available: 0, icu: 0, icuAvailable: 0 }; }
-          let specs: string[] = [];
-          try { specs = JSON.parse(h.specialties); } catch { specs = []; }
-          return {
-            id: h.id,
-            name: h.name,
-            address: h.address,
-            city: h.city,
-            state: h.state,
-            phone: h.phone,
-            website: h.website,
-            specialties: specs,
-            beds,
-            emergency: h.emergency,
-            location: { lat: h.lat, lng: h.lng },
-            rating: h.rating,
-            image: h.image,
-            workingHours: h.workingHours,
-            doctors: h.doctors,
-            source: 'database',
-            distance: parseFloat(distance.toFixed(2)),
-          };
-        })
-        .filter(h => h.distance <= radius / 1000)
-        .sort((a, b) => a.distance - b.distance)
-        .slice(0, 50);
-
-      if (withDistance.length > 0) {
-        return NextResponse.json({ hospitals: withDistance, count: withDistance.length, source: 'database' });
+    if (filterType === 'all' || filterType === 'hospital') {
+      const hospitals = await prisma.hospital.findMany({
+        where: { verified: true, lat: { not: 0 }, lng: { not: 0 } },
+        take: 100,
+      });
+      for (const h of hospitals) {
+        if (!h.lat || !h.lng) continue;
+        const distance = getDistanceKm(lat, lng, h.lat, h.lng);
+        if (distance > radiusKm) continue;
+        let beds = { total: 0, occupied: 0, available: 0, icu: 0, icuAvailable: 0 };
+        try { beds = JSON.parse(h.beds); } catch {}
+        let specs: string[] = [];
+        try { specs = JSON.parse(h.specialties); } catch {}
+        dbResults.push({
+          id: h.id, name: h.name, type: 'hospital',
+          address: h.address, city: h.city, state: h.state,
+          phone: h.phone, website: h.website, specialties: specs, beds,
+          emergency: h.emergency,
+          location: { lat: h.lat, lng: h.lng },
+          rating: h.rating, image: h.image, workingHours: h.workingHours,
+          distance: parseFloat(distance.toFixed(1)),
+        });
       }
     }
 
-    const overpassQuery = `
-      [out:json][timeout:15];
-      (
-        node["amenity"="hospital"](around:${radius},${lat},${lng});
-        way["amenity"="hospital"](around:${radius},${lat},${lng});
-      );
-      out center 20;`;
-
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: overpassQuery,
-      headers: { 'Content-Type': 'text/plain' },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ hospitals: [], count: 0, source: 'none' });
+    if (filterType === 'all' || filterType === 'lab') {
+      const labs = await prisma.lab.findMany({
+        where: { lat: { not: 0 }, lng: { not: 0 } }, take: 100,
+      });
+      for (const l of labs) {
+        if (!l.lat || !l.lng) continue;
+        const distance = getDistanceKm(lat, lng, l.lat, l.lng);
+        if (distance > radiusKm) continue;
+        let tests: string[] = [];
+        try { tests = JSON.parse(l.tests); } catch {}
+        dbResults.push({
+          id: l.id, name: l.name, type: 'lab',
+          address: l.address, city: l.city, phone: l.phone,
+          location: { lat: l.lat, lng: l.lng },
+          rating: l.rating, workingHours: l.workingHours,
+          distance: parseFloat(distance.toFixed(1)),
+        });
+      }
     }
 
-    const data = await response.json();
-    const hospitals2 = data.elements
-      .filter((el: any) => el.tags?.name)
-      .map((el: any) => {
-        const elLat = el.lat || el.center?.lat || lat;
-        const elLng = el.lon || el.center?.lon || lng;
-        const distance = getDistanceKm(lat, lng, elLat, elLng);
-        return {
-          id: `osm_${el.id}`,
-          name: el.tags.name,
-          address: [el.tags['addr:housenumber'], el.tags['addr:street']].filter(Boolean).join(', ') || '',
-          city: el.tags['addr:city'] || '',
-          state: el.tags['addr:state'] || '',
-          phone: el.tags.phone || '',
-          specialties: el.tags['healthcare:speciality'] ? el.tags['healthcare:speciality'].split(';') : ['General Medicine'],
-          beds: { total: 0, occupied: 0, available: 0, icu: 0, icuAvailable: 0 },
-          emergency: el.tags.emergency === 'yes' || el.tags.amenity === 'hospital',
-          location: { lat: elLat, lng: elLng },
-          rating: 0,
-          source: 'openstreetmap',
-          distance: parseFloat(distance.toFixed(2)),
-        };
-      })
-      .sort((a: any, b: any) => a.distance - b.distance)
-      .slice(0, 50);
-
-    return NextResponse.json({ hospitals: hospitals2, count: hospitals2.length, source: 'openstreetmap' });
-  } catch (error) {
-    console.error('Nearby hospitals error:', error);
-    return NextResponse.json({ hospitals: [], count: 0, source: 'error' }, { status: 500 });
+    if (filterType === 'all' || filterType === 'pharmacy') {
+      const pharmacies = await prisma.pharmacy.findMany({
+        where: { lat: { not: 0 }, lng: { not: 0 } }, take: 100,
+      });
+      for (const p of pharmacies) {
+        if (!p.lat || !p.lng) continue;
+        const distance = getDistanceKm(lat, lng, p.lat, p.lng);
+        if (distance > radiusKm) continue;
+        dbResults.push({
+          id: p.id, name: p.name, type: 'pharmacy',
+          address: p.address, city: p.city, phone: p.phone,
+          location: { lat: p.lat, lng: p.lng },
+          rating: p.rating, workingHours: p.workingHours,
+          open24Hours: p.open24Hours,
+          distance: parseFloat(distance.toFixed(1)),
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Database query failed, falling back to Overpass:', err);
   }
+
+  // Overpass — real nearby places (only if DB had no results within radius)
+  let overpassResults: any[] = [];
+  if (dbResults.length === 0) {
+    try {
+      const elements = await fetchFromOverpass(lat, lng, Math.max(radiusM, 5000), filterType);
+
+      overpassResults = elements
+        .filter((el: any) => el.lat || el.center?.lat)
+        .map((el: any) => {
+          const elLat = el.lat ?? el.center?.lat;
+          const elLng = el.lon ?? el.center?.lon;
+          const distance = parseFloat(getDistanceKm(lat, lng, elLat, elLng).toFixed(1));
+          const type = determineType(el);
+          const name = el.tags?.name || el.tags?.['name:en'] ||
+            (type === 'hospital' ? 'Hospital' :
+             type === 'clinic' ? 'Clinic' :
+             type === 'pharmacy' ? 'Pharmacy' : 'Lab');
+
+          return {
+            id: `op-${el.id}`,
+            name,
+            type,
+            address: [
+              el.tags?.['addr:houseno'],
+              el.tags?.['addr:street'],
+              el.tags?.['addr:city'],
+            ].filter(Boolean).join(', ') || el.tags?.['addr:full'] || '',
+            city: el.tags?.['addr:city'] || '',
+            phone: el.tags?.phone || el.tags?.['contact:phone'] || '',
+            website: el.tags?.website || el.tags?.['contact:website'] || '',
+            specialties: [],
+            emergency: el.tags?.emergency === 'yes' || type === 'hospital',
+            location: { lat: elLat, lng: elLng },
+            rating: 0,
+            workingHours: el.tags?.opening_hours || '',
+            distance,
+          };
+        })
+        .filter((p: any) => p.distance <= radiusKm)
+        .sort((a: any, b: any) => a.distance - b.distance);
+    } catch (overpassErr) {
+      console.warn('Overpass API error:', overpassErr);
+    }
+  }
+
+  // Dynamic fallback — fills gaps so users always see enough results
+  const fallbackAll = generateNearbyAll(lat, lng, radiusKm, filterType);
+
+  // Merge DB + Overpass + Fallback (deduped)
+  const merged = [...dbResults, ...overpassResults, ...fallbackAll]
+    .filter((p: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.name === p.name) === i)
+    .sort((a: any, b: any) => a.distance - b.distance);
+
+  const sourceLabel = overpassResults.length > 0 ? 'overpass'
+    : dbResults.length > 0 ? 'database'
+    : 'fallback';
+
+  return NextResponse.json({
+    hospitals: merged, count: merged.length, source: sourceLabel,
+    types: {
+      hospital: merged.filter((r: any) => r.type === 'hospital').length,
+      lab: merged.filter((r: any) => r.type === 'lab').length,
+      pharmacy: merged.filter((r: any) => r.type === 'pharmacy').length,
+    },
+  });
 }

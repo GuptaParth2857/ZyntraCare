@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import { FiCheck, FiStar, FiShield } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { FiCheck, FiStar, FiShield, FiLoader, FiExternalLink } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 const plans = [
   {
     name: 'Free',
-    price: '0',
+    price: 0,
+    priceDisplay: '0',
     period: 'forever',
     features: [
       'Basic hospital search',
       'Limited doctor listings',
       'Community support',
+      'Basic symptom checking',
     ],
     popular: false,
     color: 'from-gray-500 to-gray-600',
@@ -20,14 +24,17 @@ const plans = [
   },
   {
     name: 'Premium Monthly',
-    price: '499',
+    price: 499,
+    priceDisplay: '499',
     period: 'month',
     features: [
       'Unlimited doctor consultations',
       'Priority appointment booking',
       'Access to premium health records',
       '24/7 priority support',
-      'Exclusive health tips',
+      'AI-powered health insights',
+      'Medicine reminders',
+      'Family member profiles',
     ],
     popular: true,
     color: 'from-blue-500 to-purple-600',
@@ -35,13 +42,16 @@ const plans = [
   },
   {
     name: 'Premium Yearly',
-    price: '4999',
+    price: 4999,
+    priceDisplay: '4,999',
     period: 'year',
     features: [
       'All monthly features',
       '2 months free',
       'Annual health checkup voucher',
       'Free medicine delivery',
+      'Exclusive health tips',
+      'Early access to new features',
     ],
     popular: false,
     color: 'from-emerald-500 to-teal-600',
@@ -50,31 +60,146 @@ const plans = [
 ];
 
 export default function SubscriptionPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [currentPlan, setCurrentPlan] = useState('Free');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
-  const handleSubscribe = async (planName: string) => {
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => setRazorpayLoaded(true);
+    script.onerror = () => console.error('Failed to load Razorpay script');
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handleSubscribe = async (plan: typeof plans[0]) => {
+    if (status !== 'authenticated') {
+      router.push('/auth/signin?callbackUrl=/subscription');
+      return;
+    }
+
+    if (plan.price === 0) {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      try {
+        const res = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'downgrade' }),
+        });
+        if (res.ok) {
+          setCurrentPlan('Free');
+          setSuccess('Switched to Free plan successfully!');
+        } else {
+          const err = await res.json();
+          setError(err.error || 'Failed to switch plan');
+        }
+      } catch {
+        setError('An error occurred. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!razorpayLoaded) {
+      setError('Payment system is loading. Please try again in a moment.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
+
     try {
-      const res = await fetch('/api/subscribe', {
+      const orderRes = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planName }),
+        body: JSON.stringify({
+          amount: plan.price,
+          currency: 'INR',
+          receipt: `sub_${plan.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
+        }),
       });
-      if (res.ok) {
-        setCurrentPlan(planName);
-        setSuccess(`Subscribed to ${planName} successfully!`);
-      } else {
-        const err = await res.json();
-        setError(err.error || 'Subscription failed');
+
+      if (!orderRes.ok) {
+        const err = await orderRes.json();
+        throw new Error(err.error || 'Failed to create payment order');
       }
-    } catch (error) {
-      setError('An error occurred. Please try again.');
-    } finally {
+
+      const order = await orderRes.json();
+
+      const user = session?.user as any;
+
+      const RazorpayClass = window.Razorpay as any;
+      if (!RazorpayClass) {
+        throw new Error('Razorpay SDK not loaded. Please refresh the page.');
+      }
+      const razorpay = new RazorpayClass({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'ZyntraCare',
+        description: `${plan.name} Subscription`,
+        order_id: order.orderId,
+        handler: async (response: any) => {
+          try {
+            const subRes = await fetch('/api/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'subscribe',
+                plan: plan.name,
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                signature: response.razorpay_signature,
+              }),
+            });
+
+            if (subRes.ok) {
+              setCurrentPlan(plan.name);
+              setSuccess(`Subscribed to ${plan.name} successfully!`);
+            } else {
+              throw new Error('Subscription activation failed');
+            }
+          } catch {
+            setError('Payment received but subscription activation failed. Contact support.');
+          }
+          setLoading(false);
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: '',
+        },
+        theme: {
+          color: '#0ea5e9',
+          backdrop_color: 'rgba(0,0,0,0.6)',
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          },
+        },
+      });
+
+      razorpay.on('payment.failed', (response: any) => {
+        setError(response.error?.description || 'Payment failed. Please try again.');
+        setLoading(false);
+      });
+
+      razorpay.open();
+    } catch (err: any) {
+      setError(err.message || 'Failed to initiate payment. Please try again.');
       setLoading(false);
     }
   };
@@ -143,7 +268,7 @@ export default function SubscriptionPage() {
                   {plan.name}
                 </h3>
                 <div className="mb-8 flex items-baseline gap-2">
-                  <span className="text-5xl font-black">₹{plan.price}</span>
+                  <span className="text-5xl font-black">₹{plan.priceDisplay}</span>
                   <span className="text-gray-400 font-medium">/{plan.period}</span>
                 </div>
                 
@@ -167,15 +292,24 @@ export default function SubscriptionPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleSubscribe(plan.name)}
+                    onClick={() => handleSubscribe(plan)}
                     disabled={loading}
-                    className={`w-full py-4 rounded-xl font-bold transition uppercase tracking-wide shadow-lg ${
+                    className={`w-full py-4 rounded-xl font-bold transition uppercase tracking-wide shadow-lg flex items-center justify-center gap-2 ${
                       plan.name === 'Free'
                         ? 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
-                        : `bg-gradient-to-r ${plan.color} text-white hover:shadow-${plan.color.split('-')[1]}-500/25`
+                        : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90`
                     }`}
                   >
-                    {plan.name === 'Free' ? 'Downgrade' : 'Subscribe Now'}
+                    {loading ? (
+                      <><FiLoader className="animate-spin" size={18} /> Processing...</>
+                    ) : plan.name === 'Free' ? (
+                      'Downgrade'
+                    ) : (
+                      <>
+                        Pay ₹{plan.priceDisplay}
+                        <FiExternalLink size={14} />
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -184,7 +318,7 @@ export default function SubscriptionPage() {
         </div>
 
         <div className="mt-16 text-center text-gray-500 text-sm max-w-2xl mx-auto bg-slate-900/40 p-6 rounded-2xl backdrop-blur-md border border-white/5">
-          <FiShield className="inline mr-2 mb-1" /> All plans are non-refundable. Premium features become available instantly after a successful transaction. Your data is protected by enterprise-grade encryption.
+          <FiShield className="inline mr-2 mb-1" /> Payments are processed securely via Razorpay. All plans are non-refundable. Premium features become available instantly after a successful transaction.
         </div>
       </div>
     </div>

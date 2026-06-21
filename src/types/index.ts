@@ -36,6 +36,21 @@ export interface Hospital {
   directionsUrl?: string;
 }
 
+export interface DoctorHospitalInfo {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode?: string;
+  phone: string;
+  email?: string;
+  website?: string;
+  location?: { lat: number; lng: number };
+  rating?: number;
+  workingHours?: string;
+}
+
 export interface Doctor {
   id: string;
   name: string;
@@ -55,6 +70,10 @@ export interface Doctor {
     lng: number;
   };
   city?: string;
+  state?: string;
+  hospitals?: DoctorHospitalInfo[];
+  userEmail?: string;
+  userPhone?: string;
 }
 
 export interface Camp {

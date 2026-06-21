@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 interface SymptomResult {
   symptoms: string[];
@@ -6,8 +9,10 @@ interface SymptomResult {
   urgencyLevel: 'self-care' | 'consult-doctor' | 'emergency';
   redFlags: string[];
   suggestedTests: string[];
+  aiAnalysis?: string;
 }
 
+// Rule-based fallback for when Gemini is not available
 const SYMPTOM_CONDITIONS: Record<string, { conditions: string[]; redFlags: string[]; tests: string[] }> = {
   'fever': {
     conditions: ['Viral Infection', 'Typhoid', 'Malaria', 'Dengue', 'COVID-19'],
@@ -48,96 +53,8 @@ const SYMPTOM_CONDITIONS: Record<string, { conditions: string[]; redFlags: strin
     conditions: ['Allergy', 'Eczema', 'Psoriasis', 'Fungal', 'Chickenpox'],
     redFlags: ['Rapid spread', 'Blisters', 'Fever', 'Swelling of face', 'Difficulty breathing'],
     tests: ['Skin Biopsy', 'Allergy Test', 'Blood Test']
-  }
+  },
 };
-
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { symptoms, duration, severity, additionalInfo } = body;
-
-    if (!symptoms || symptoms.length === 0) {
-      return NextResponse.json({ error: 'Please provide at least one symptom' }, { status: 400 });
-    }
-
-    const results: SymptomResult = {
-      symptoms,
-      possibleConditions: [],
-      urgencyLevel: 'self-care',
-      redFlags: [],
-      suggestedTests: []
-    };
-
-    // Analyze each symptom
-    const allRedFlags: string[] = [];
-    const allTests: Set<string> = new Set();
-
-    symptoms.forEach((symptom: string) => {
-      const lowerSymptom = symptom.toLowerCase();
-      Object.keys(SYMPTOM_CONDITIONS).forEach(key => {
-        if (lowerSymptom.includes(key)) {
-          const data = SYMPTOM_CONDITIONS[key];
-          data.redFlags.forEach(flag => {
-            if (!allRedFlags.includes(flag)) allRedFlags.push(flag);
-          });
-          data.tests.forEach(test => allTests.add(test));
-        }
-      });
-    });
-
-    // Generate possible conditions based on symptoms
-    const conditionsMap: Record<string, { count: number; severity: string }> = {};
-    
-    symptoms.forEach((symptom: string) => {
-      const lowerSymptom = symptom.toLowerCase();
-      Object.keys(SYMPTOM_CONDITIONS).forEach(key => {
-        if (lowerSymptom.includes(key)) {
-          SYMPTOM_CONDITIONS[key].conditions.forEach(cond => {
-            if (!conditionsMap[cond]) {
-              conditionsMap[cond] = { count: 0, severity: 'mild' };
-            }
-            conditionsMap[cond].count++;
-          });
-        }
-      });
-    });
-
-    // Calculate probabilities and determine severity
-    const maxCount = Math.max(...Object.values(conditionsMap).map(c => c.count));
-    
-    results.possibleConditions = Object.entries(conditionsMap)
-      .map(([name, data]) => ({
-        name,
-        probability: Math.round((data.count / maxCount) * 80 + 20),
-        severity: data.count >= maxCount ? 'high' : data.count >= maxCount * 0.7 ? 'medium' : 'low',
-        category: getCategory(name),
-        recommendation: getRecommendation(name)
-      }))
-      .sort((a, b) => b.probability - a.probability)
-      .slice(0, 5);
-
-    // Determine urgency level
-    if (allRedFlags.length > 0 || severity === 'severe') {
-      results.urgencyLevel = 'emergency';
-      results.redFlags = allRedFlags.slice(0, 5);
-    } else if (duration && duration.includes('week')) {
-      results.urgencyLevel = 'consult-doctor';
-      results.redFlags = allRedFlags.slice(0, 3);
-    } else {
-      results.urgencyLevel = 'self-care';
-    }
-
-    results.suggestedTests = Array.from(allTests).slice(0, 5);
-
-    return NextResponse.json({
-      success: true,
-      result: results
-    });
-
-  } catch (error) {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  }
-}
 
 function getCategory(condition: string): string {
   if (['Heart Attack', 'Angina'].includes(condition)) return 'Cardiovascular';
@@ -156,4 +73,148 @@ function getRecommendation(condition: string): string {
     'Diabetes': 'Monitor blood sugar, consult endocrinologist.',
   };
   return recs[condition] || 'Consult a healthcare provider for proper diagnosis.';
+}
+
+async function analyzeWithGemini(symptoms: string[], duration: string, severity: string): Promise<SymptomResult | null> {
+  if (!GEMINI_API_KEY) return null;
+
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `You are a medical AI assistant. Analyze the following symptoms and provide a structured response.
+
+Patient Symptoms: ${symptoms.join(', ')}
+Duration: ${duration}
+Severity: ${severity}
+
+Please provide:
+1. Possible conditions (top 5) with probability percentages
+2. Urgency level (self-care, consult-doctor, or emergency)
+3. Red flags to watch for
+4. Suggested diagnostic tests
+5. Brief analysis
+
+Format your response as JSON with this structure:
+{
+  "conditions": [
+    { "name": "Condition Name", "probability": 75, "severity": "high/medium/low", "category": "Category", "recommendation": "..." }
+  ],
+  "urgencyLevel": "consult-doctor",
+  "redFlags": ["..."],
+  "suggestedTests": ["..."],
+  "aiAnalysis": "Brief analysis text"
+}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    return {
+      symptoms,
+      possibleConditions: parsed.conditions || [],
+      urgencyLevel: parsed.urgencyLevel || 'consult-doctor',
+      redFlags: parsed.redFlags || [],
+      suggestedTests: parsed.suggestedTests || [],
+      aiAnalysis: parsed.aiAnalysis || '',
+    };
+  } catch (error) {
+    console.error('Gemini analysis failed:', error);
+    return null;
+  }
+}
+
+function analyzeWithRules(symptoms: string[], duration: string, severity: string): SymptomResult {
+  const results: SymptomResult = {
+    symptoms,
+    possibleConditions: [],
+    urgencyLevel: 'self-care',
+    redFlags: [],
+    suggestedTests: [],
+  };
+
+  const allRedFlags: string[] = [];
+  const allTests: Set<string> = new Set();
+  const conditionsMap: Record<string, { count: number; severity: string }> = {};
+
+  symptoms.forEach((symptom: string) => {
+    const lowerSymptom = symptom.toLowerCase();
+    Object.keys(SYMPTOM_CONDITIONS).forEach(key => {
+      if (lowerSymptom.includes(key)) {
+        const data = SYMPTOM_CONDITIONS[key];
+        data.redFlags.forEach(flag => {
+          if (!allRedFlags.includes(flag)) allRedFlags.push(flag);
+        });
+        data.tests.forEach(test => allTests.add(test));
+        data.conditions.forEach(cond => {
+          if (!conditionsMap[cond]) {
+            conditionsMap[cond] = { count: 0, severity: 'mild' };
+          }
+          conditionsMap[cond].count++;
+        });
+      }
+    });
+  });
+
+  const maxCount = Math.max(...Object.values(conditionsMap).map(c => c.count), 1);
+
+  results.possibleConditions = Object.entries(conditionsMap)
+    .map(([name, data]) => ({
+      name,
+      probability: Math.round((data.count / maxCount) * 80 + 20),
+      severity: data.count >= maxCount ? 'high' : data.count >= maxCount * 0.7 ? 'medium' : 'low',
+      category: getCategory(name),
+      recommendation: getRecommendation(name),
+    }))
+    .sort((a, b) => b.probability - a.probability)
+    .slice(0, 5);
+
+  if (allRedFlags.length > 0 || severity === 'severe') {
+    results.urgencyLevel = 'emergency';
+    results.redFlags = allRedFlags.slice(0, 5);
+  } else if (duration && duration.includes('week')) {
+    results.urgencyLevel = 'consult-doctor';
+    results.redFlags = allRedFlags.slice(0, 3);
+  } else {
+    results.urgencyLevel = 'self-care';
+  }
+
+  results.suggestedTests = Array.from(allTests).slice(0, 5);
+
+  return results;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { symptoms, duration, severity, additionalInfo } = body;
+
+    if (!symptoms || symptoms.length === 0) {
+      return NextResponse.json({ error: 'Please provide at least one symptom' }, { status: 400 });
+    }
+
+    // Try Gemini AI first
+    let aiResult = await analyzeWithGemini(symptoms, duration || 'few-days', severity || 'moderate');
+
+    // Fall back to rule-based analysis if Gemini fails
+    if (!aiResult) {
+      aiResult = analyzeWithRules(symptoms, duration || 'few-days', severity || 'moderate');
+    }
+
+    return NextResponse.json({
+      success: true,
+      result: aiResult,
+      source: GEMINI_API_KEY ? 'gemini' : 'rules',
+    });
+
+  } catch (error) {
+    console.error('Symptom analysis error:', error);
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
 }

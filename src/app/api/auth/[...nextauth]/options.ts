@@ -20,14 +20,15 @@ export const authOptions: NextAuthConfig = {
     },
   },
   providers: [
-    // GitHub Provider (no API key needed for basic auth)
+    // GitHub Provider
     ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? [
       GitHubProvider({
         clientId: process.env.GITHUB_CLIENT_ID,
         clientSecret: process.env.GITHUB_CLIENT_SECRET,
       })
     ] : []),
-    // Only add GoogleProvider if credentials exist
+
+    // Google Provider
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
@@ -51,7 +52,7 @@ export const authOptions: NextAuthConfig = {
       })
     ] : []),
 
-    // For demo: accept any valid email/password combo
+    // Email/Password Provider - PRODUCTION MODE
     CredentialsProvider({
       id: 'credentials',
       name: 'Email & Password',
@@ -100,6 +101,7 @@ export const authOptions: NextAuthConfig = {
       },
     }),
 
+    // Phone OTP Provider - PRODUCTION MODE
     CredentialsProvider({
       id: 'phone-otp',
       name: 'Phone OTP',
@@ -170,7 +172,7 @@ export const authOptions: NextAuthConfig = {
 
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
 
-  secret: process.env.NEXTAUTH_SECRET || 'dev-secret-min-32-chars-long-for-safety!!',
+  secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
     async jwt({ token, user, trigger, session }: { token: JWT; user?: User; trigger?: string; session?: any }) {

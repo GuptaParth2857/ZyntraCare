@@ -7,13 +7,36 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendSMSGateway(phone: string, otp: string): Promise<boolean> {
-  console.log(`[OTP SMS] To: ${phone} | OTP: ${otp}`);
-  return true;
+async function sendSMSGateway(phone: string, otp: string): Promise<{ success: boolean; error?: string }> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !authToken || !twilioFrom) {
+    console.error('[SMS] Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER');
+    return { success: false, error: 'SMS service not configured' };
+  }
+
+  try {
+    const twilio = await import('twilio');
+    const client = twilio.default(accountSid, authToken);
+
+    const message = await client.messages.create({
+      body: `Your ZyntraCare OTP is: ${otp}. Valid for 5 minutes. Do not share this code.`,
+      from: twilioFrom,
+      to: `+91${phone.replace(/^\+91/, '')}`,
+    });
+
+    console.log(`[SMS] Sent to ${phone}: ${message.sid}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[SMS] Failed to send:', error.message);
+    return { success: false, error: error.message };
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const rateLimitCheck = authRateLimit(req);
+  const rateLimitCheck = await authRateLimit(req);
   if (rateLimitCheck) return rateLimitCheck;
 
   try {
@@ -64,8 +87,19 @@ export async function POST(req: NextRequest) {
         data: { phone: normalizedPhone, otp, expiresAt: expires }
       });
 
-      const sent = await sendSMSGateway(phone, otp);
-      if (!sent) {
+      const smsResult = await sendSMSGateway(normalizedPhone, otp);
+      
+      if (!smsResult.success) {
+        // In development, still return success but log the OTP
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEV] OTP for ${normalizedPhone}: ${otp}`);
+          return NextResponse.json({
+            success: true,
+            message: `OTP sent to ${phone.slice(0, -4).replace(/./g, '*')}XXXX`,
+            expiresIn: 300,
+            devOtp: otp,
+          });
+        }
         return NextResponse.json({ error: 'Failed to send OTP. Please try again.' }, { status: 500 });
       }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCached, setCache } from './cache';
+import { getCacheValue, setCacheValue } from './cache';
 import { authRateLimit } from './rate-limit';
 
 interface ApiHandlerOptions {
@@ -18,7 +18,7 @@ type ApiHandler = (request: Request, ...args: any[]) => Promise<NextResponse>;
 export function withMiddleware(handler: ApiHandler, options: ApiHandlerOptions = {}): ApiHandler {
   return async (request: Request, ...args: any[]) => {
     if (options.rateLimit) {
-      const rateLimitResponse = authRateLimit(
+      const rateLimitResponse = await authRateLimit(
         request as any,
         options.rateLimit.limit,
         options.rateLimit.windowMs
@@ -27,7 +27,7 @@ export function withMiddleware(handler: ApiHandler, options: ApiHandlerOptions =
     }
 
     if (options.cache && request.method === 'GET') {
-      const cached = getCached<any>(options.cache.key);
+      const cached = await getCacheValue<any>(options.cache.key);
       if (cached) {
         return NextResponse.json(cached, {
           headers: { 'X-Cache': 'HIT', 'Cache-Control': 'public, max-age=60' },
@@ -39,7 +39,7 @@ export function withMiddleware(handler: ApiHandler, options: ApiHandlerOptions =
 
     if (options.cache && request.method === 'GET' && response.ok) {
       const data = await response.clone().json();
-      setCache(options.cache.key, data, options.cache.ttl);
+      await setCacheValue(options.cache.key, data, options.cache.ttl);
     }
 
     return response;

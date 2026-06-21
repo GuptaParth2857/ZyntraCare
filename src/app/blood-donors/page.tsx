@@ -40,7 +40,20 @@ export default function BloodDonorsPage() {
         setLoading(true);
         const res = await fetch('/api/blood-donors');
         const data = await res.json();
-        setDonors(data.donors || data || []);
+        const rawDonors = data.donors || data || [];
+        const mapped = rawDonors.map((d: any) => ({
+          id: d.id || String(Math.random()),
+          name: d.name || 'Anonymous',
+          bloodType: d.bloodType || d.bloodGroup || '',
+          location: d.location || d.city || '',
+          distance: d.distance || 'N/A',
+          phone: d.phone || '',
+          available: d.available !== undefined ? d.available : true,
+          lastDonated: d.lastDonated || 'Never',
+          donations: d.donations || 0,
+          verified: d.verified || false,
+        }));
+        setDonors(mapped);
       } catch (err) {
         setError('Failed to load donors');
         console.error('Error fetching donors:', err);

@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDistanceKm, sortByDistance } from '@/utils/distance';
 
-export type PlaceType = 'hospital' | 'clinic' | 'pharmacy';
+export type PlaceType = 'hospital' | 'clinic' | 'pharmacy' | 'lab';
 
 export interface Place {
   id: string;
@@ -25,6 +25,7 @@ export interface UseNearbyPlacesReturn {
   hospitals: Place[];
   clinics: Place[];
   pharmacies: Place[];
+  labs: Place[];
   loading: boolean;
   error: string | null;
   radius: number;
@@ -74,7 +75,7 @@ export function useNearbyPlaces(
       const transformedPlaces: Place[] = hospitals2.map((h: any) => ({
         id: h.id,
         name: h.name,
-        type: 'hospital' as PlaceType,
+        type: (h.type || 'hospital') as PlaceType,
         lat: h.location?.lat || userLat,
         lng: h.location?.lng || userLng,
         address: h.address || '',
@@ -106,12 +107,14 @@ export function useNearbyPlaces(
   const hospitals = places.filter((p) => p.type === 'hospital');
   const clinics = places.filter((p) => p.type === 'clinic');
   const pharmacies = places.filter((p) => p.type === 'pharmacy');
+  const labs = places.filter((p) => p.type === 'lab');
 
   return {
     places,
     hospitals,
     clinics,
     pharmacies,
+    labs,
     loading,
     error,
     radius,

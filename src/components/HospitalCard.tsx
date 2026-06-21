@@ -2,6 +2,7 @@
 'use client';
 
 import { Hospital } from '@/types';
+import { toArray } from '@/lib/utils';
 import { FiMapPin, FiPhone, FiClock, FiStar, FiHeart, FiShield, FiActivity, FiTrendingUp, FiUsers } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -256,7 +257,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
 
         {/* Specialties */}
         <div className="flex flex-wrap gap-1.5" aria-label="Specialties">
-          {(hospital.specialties || []).slice(0, 3).map(specialty => (
+          {toArray(hospital.specialties).slice(0, 3).map(specialty => (
             <span
               key={specialty}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${

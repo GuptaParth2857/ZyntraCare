@@ -1,473 +1,203 @@
 'use client';
 
-// NearbyMap.tsx - Interactive Map with Real Hospital Markers
-// Uses Leaflet + OpenStreetMap (free, no API key required)
+import { useEffect, useState, useMemo, CSSProperties } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-import { useEffect, useState, useRef } from 'react';
-import { Place } from '@/hooks/useNearbyPlaces';
-import { formatDistance } from '@/utils/distance';
+interface Place {
+  id: string;
+  name: string;
+  type: 'hospital' | 'clinic' | 'pharmacy' | 'lab';
+  lat: number;
+  lng: number;
+  address?: string;
+  phone?: string;
+  distance?: number;
+  rating?: number;
+  workingHours?: string;
+}
 
 interface NearbyMapProps {
   places: Place[];
   userLat: number;
   userLng: number;
-  centerLat?: number;
-  centerLng?: number;
   radius?: number;
   height?: string | number;
+  compact?: boolean;
+  showRadiusCircle?: boolean;
   onPlaceSelect?: (place: Place) => void;
   selectedPlaceId?: string;
-  showRadiusCircle?: boolean;
-  compact?: boolean;
 }
 
-// Type definitions for Leaflet
-declare global {
-  interface Window {
-    L: any;
-  }
+// Fix default Leaflet icon path
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+function createIcon(color: string, label: string) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:32px;height:32px;background:${color};border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900;font-family:Arial,sans-serif;">${label}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+const userIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:20px;height:20px;position:relative;">
+    <div style="position:absolute;inset:-6px;background:rgba(245,158,11,0.3);border-radius:50%;animation:mpulse 2s infinite;"></div>
+    <div style="width:20px;height:20px;background:#f59e0b;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);position:relative;z-index:2;"></div>
+  </div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+
+const typeIcons: Record<string, { color: string; label: string }> = {
+  hospital: { color: '#ef4444', label: 'H' },
+  lab: { color: '#8b5cf6', label: 'L' },
+  pharmacy: { color: '#22c55e', label: 'P' },
+  clinic: { color: '#3b82f6', label: 'C' },
+  pet_shop: { color: '#f97316', label: '🐾' },
+  pet_pharmacy: { color: '#22c55e', label: '💊' },
+};
+
+function FitBounds({ places, userLat, userLng }: { places: Place[]; userLat: number; userLng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (places.length === 0) {
+      map.setView([userLat, userLng], 12);
+      return;
+    }
+    const bounds = L.latLngBounds([
+      [userLat, userLng],
+      ...places.map(p => [p.lat, p.lng] as [number, number]),
+    ]);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+  }, [places, userLat, userLng, map]);
+  return null;
 }
 
 export default function NearbyMap({
   places,
   userLat,
   userLng,
-  centerLat,
-  centerLng,
   radius = 10,
   height = '400px',
-  onPlaceSelect,
-  selectedPlaceId,
-  showRadiusCircle = true,
   compact = false,
+  showRadiusCircle = true,
+  onPlaceSelect,
 }: NearbyMapProps) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const userMarkerRef = useRef<any>(null);
-  const radiusCircleRef = useRef<any>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [mapLoading, setMapLoading] = useState(true);
+  const heightStr = typeof height === 'number' ? `${height}px` : height;
 
-  // Load Leaflet dynamically
-  useEffect(() => {
-    // Check if already loaded
-    if (window.L) {
-      setIsMapReady(true);
-      setMapLoading(false);
-      return;
-    }
-
-    // Load Leaflet CSS
-    const linkEl = document.createElement('link');
-    linkEl.rel = 'stylesheet';
-    linkEl.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(linkEl);
-
-    // Load Leaflet JS
-    const scriptEl = document.createElement('script');
-    scriptEl.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    scriptEl.async = true;
-    scriptEl.onload = () => {
-      setIsMapReady(true);
-      setMapLoading(false);
-    };
-    scriptEl.onerror = () => {
-      setLoadError('Failed to load map');
-      setMapLoading(false);
-    };
-    document.head.appendChild(scriptEl);
-
-    return () => {
-      // Cleanup is handled by component unmount
-    };
-  }, []);
-
-  // Initialize map
-  useEffect(() => {
-    if (!isMapReady || !mapRef.current || mapInstanceRef.current) return;
-
-    try {
-      const L = window.L;
-      
-      // Create map centered on user location
-      const map = L.map(mapRef.current, {
-        center: [centerLat ?? userLat, centerLng ?? userLng],
-        zoom: 13,
-        zoomControl: true,
-        scrollWheelZoom: !compact,
-      });
-
-      // Add OpenStreetMap tiles (free, no API key)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(map);
-
-      mapInstanceRef.current = map;
-    } catch (err) {
-      console.error('Map initialization error:', err);
-      setLoadError('Failed to initialize map');
-    }
-  }, [isMapReady, userLat, userLng, centerLat, centerLng, compact]);
-
-  // Add/update markers when places change
-  useEffect(() => {
-    if (!mapInstanceRef.current || !isMapReady) return;
-
-    const L = window.L;
-
-    // Clear existing markers
-    markersRef.current.forEach((marker) => {
-      if (marker) marker.remove();
+  const markers = useMemo(() => {
+    return places.map(place => {
+      const t = typeIcons[place.type] || typeIcons.hospital;
+      return { ...place, icon: createIcon(t.color, t.label), color: t.color };
     });
-    markersRef.current = [];
-
-    // Remove radius circle
-    if (radiusCircleRef.current) {
-      radiusCircleRef.current.remove();
-      radiusCircleRef.current = null;
-    }
-
-    // Add user location marker (pulsing blue dot)
-    const userIcon = L.divIcon({
-      className: 'user-marker',
-      html: `
-        <div class="user-marker-container">
-          <div class="user-marker-pulse"></div>
-          <div class="user-marker-dot"></div>
-        </div>
-      `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-    });
-
-    if (userMarkerRef.current) {
-      userMarkerRef.current.remove();
-    }
-
-    userMarkerRef.current = L.marker([userLat, userLng], { icon: userIcon })
-      .addTo(mapInstanceRef.current)
-      .bindPopup('<strong>Your Location</strong>');
-
-    // Add radius circle
-    if (showRadiusCircle) {
-      radiusCircleRef.current = L.circle([userLat, userLng], {
-        radius: radius * 1000,
-        color: '#14b8a6',
-        fillColor: '#14b8a6',
-        fillOpacity: 0.1,
-        weight: 2,
-        dashArray: '5, 10',
-      }).addTo(mapInstanceRef.current);
-    }
-
-    // Add place markers
-    const seenKeys = new Set<string>();
-    places.forEach((place, index) => {
-      const isSelected = selectedPlaceId === place.id;
-      
-      // Generate unique key to avoid React duplicate key error
-      const uniqueKey = `${place.type}_${place.id}_${index}`;
-      if (seenKeys.has(uniqueKey)) {
-        return; // Skip duplicate
-      }
-      seenKeys.add(uniqueKey);
-      
-      // Different colors for different types - Hospital(Red), Clinic(Blue), Pharmacy(Green)
-      let markerColor = '#6b7280'; // default gray
-      let markerIcon = '📍';
-      if (place.type === 'hospital') {
-        markerColor = '#ef4444'; // Red
-        markerIcon = 'H';
-      } else if (place.type === 'pharmacy') {
-        markerColor = '#22c55e'; // Green
-        markerIcon = 'P';
-      } else if (place.type === 'clinic') {
-        markerColor = '#3b82f6'; // Blue
-        markerIcon = 'C';
-      }
-
-      const iconHtml = `<div class="marker-color" style="background-color: ${markerColor}; ${isSelected ? 'transform: scale(1.2);' : ''}">
-        <span class="marker-letter">${markerIcon}</span>
-      </div>`;
-
-      const icon = L.divIcon({
-        className: 'custom-marker',
-        html: iconHtml,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-      });
-
-      const distance = place.distance ? formatDistance(place.distance) : 'N/A';
-      
-      const popupContent = `
-        <div class="map-popup">
-          <h4>${place.name}</h4>
-          <p class="popup-type">${place.type.charAt(0).toUpperCase() + place.type.slice(1)}</p>
-          <p class="popup-distance">📍 ${distance} away</p>
-          ${place.address ? `<p class="popup-address">${place.address}</p>` : ''}
-          ${place.openingHours ? `<p class="popup-hours">⏰ ${place.openingHours}</p>` : ''}
-          <div class="popup-actions">
-            ${place.phone ? `<a href="tel:${place.phone}" class="popup-btn call">📞 Call</a>` : ''}
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}" target="_blank" class="popup-btn directions">📍 Directions</a>
-          </div>
-        </div>
-      `;
-
-      const marker = L.marker([place.lat, place.lng], { icon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(popupContent, {
-          maxWidth: 250,
-          className: 'custom-popup',
-        });
-
-      marker.on('click', () => {
-        if (onPlaceSelect) {
-          onPlaceSelect(place);
-        }
-      });
-
-      markersRef.current.push(marker);
-    });
-
-    // Fit bounds to show all markers
-    if (places.length > 0) {
-      const bounds = L.latLngBounds([
-        [userLat, userLng],
-        ...places.map((p) => [p.lat, p.lng]),
-      ]);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
-    }
-  }, [places, userLat, userLng, isMapReady, selectedPlaceId, onPlaceSelect, showRadiusCircle, radius]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, []);
-
-  if (loadError) {
-    return (
-      <div className="relative" style={{ height }}>
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 rounded-2xl">
-          <div className="text-center p-4">
-            <p className="text-red-400 mb-2">{loadError}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="text-teal-400 hover:text-teal-300 text-sm"
-            >
-              Reload page
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (mapLoading || !isMapReady) {
-    return (
-      <div className="relative" style={{ height }}>
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 rounded-2xl">
-          <div className="text-center">
-            <div className="w-10 h-10 border-3 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-teal-400 text-sm">Loading map...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [places]);
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-slate-900" style={{ height }}>
-      <div ref={mapRef} style={{ height: '100%' }} className="w-full" />
-      
-      {/* Map Legend */}
-      {!compact && (
-        <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm rounded-lg p-2 z-[1000]">
-          <div className="flex flex-wrap gap-3 text-xs">
-            <span className="flex items-center gap-1">
-              <span className="text-lg">🏥</span> Hospital
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="text-lg">🏨</span> Clinic
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="text-lg">💊</span> Pharmacy
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Loading Overlay */}
-      {!isMapReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90">
-          <div className="text-center">
-            <div className="w-10 h-10 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin mb-3 mx-auto" />
-            <p className="text-teal-400 text-sm">Loading map...</p>
-          </div>
-        </div>
-      )}
-
-      <style jsx global>{`
-        .user-marker-container {
-          position: relative;
-          width: 24px;
-          height: 24px;
-        }
-        
-        .user-marker-pulse {
-          position: absolute;
-          inset: -6px;
-          background: rgba(245, 158, 11, 0.3);
-          border-radius: 50%;
-          animation: userPulse 2s ease-out infinite;
-        }
-        
-        .user-marker-dot {
-          position: absolute;
-          inset: 4px;
-          background: #f59e0b;
-          border-radius: 50%;
-          border: 2px solid white;
-        }
-        
-        @keyframes userPulse {
-          0% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(2.5); opacity: 0; }
-        }
-        
-        .custom-marker {
-          background: none;
-          border: none;
-        }
-        
-        .marker-color {
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-          transition: all 0.2s;
-          cursor: pointer;
-          border: 2px solid white;
-        }
-        
-        .marker-letter {
-          color: white;
-          font-size: 14px;
-          font-weight: 800;
-          font-family: sans-serif;
-        }
-        
-        .marker-hospital, .marker-clinic, .marker-pharmacy {
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 22px;
-          background: rgba(10, 22, 18, 0.9);
-          border-radius: 50%;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-          transition: all 0.2s;
-          cursor: pointer;
-        }
-        
-        .marker-hospital:hover, .marker-clinic:hover, .marker-pharmacy:hover {
-          transform: scale(1.2);
-        }
-        
-        .marker-hospital.selected {
-          background: #14b8a6;
-          box-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
-        }
-        
-        .marker-clinic.selected {
-          background: #3b82f6;
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-        }
-        
-        .marker-pharmacy.selected {
-          background: #22c55e;
-          box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
-        }
-        
-        .custom-popup .leaflet-popup-content-wrapper {
-          background: rgba(10, 22, 18, 0.95);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .custom-popup .leaflet-popup-tip {
-          background: rgba(10, 22, 18, 0.95);
-        }
-        
-        .map-popup h4 {
-          margin: 0 0 4px 0;
-          font-size: 14px;
-          font-weight: 700;
-        }
-        
-        .map-popup .popup-type {
-          color: #14b8a6;
-          font-size: 12px;
-          margin: 0 0 8px 0;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        
-        .map-popup .popup-distance {
-          color: #94a3b8;
-          font-size: 12px;
-          margin: 0 0 4px 0;
-        }
-        
-        .map-popup .popup-address, .map-popup .popup-hours {
-          color: #94a3b8;
-          font-size: 11px;
-          margin: 0 0 8px 0;
-        }
-        
-        .map-popup .popup-actions {
-          display: flex;
-          gap: 8px;
-        }
-        
-        .map-popup .popup-btn {
-          flex: 1;
-          padding: 6px 8px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 600;
-          text-align: center;
-          text-decoration: none;
-          transition: all 0.2s;
-        }
-        
-        .map-popup .popup-btn.call {
-          background: #14b8a6;
-          color: white;
-        }
-        
-        .map-popup .popup-btn.directions {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-        
-        .map-popup .popup-btn:hover {
-          opacity: 0.9;
-        }
+    <div style={{ position: 'relative', borderRadius: '1rem', overflow: 'hidden', height: heightStr, width: '100%', background: '#0f172a' }}>
+      <style>{`
+        @keyframes mpulse { 0%,100% { transform:scale(1); opacity:0.6; } 50% { transform:scale(1.8); opacity:0; } }
+        .leaflet-container { background: #0f172a !important; }
       `}</style>
+      <MapContainer
+        center={[userLat, userLng]}
+        zoom={compact ? 11 : 12}
+        style={{ height: '100%', width: '100%' }}
+        zoomControl={!compact}
+        scrollWheelZoom={!compact}
+        attributionControl={false}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={compact ? '' : '&copy; OpenStreetMap'}
+          maxZoom={19}
+        />
+
+        <FitBounds places={places} userLat={userLat} userLng={userLng} />
+
+        {/* User marker */}
+        <Marker position={[userLat, userLng]} icon={userIcon}>
+          <Popup><b>Your Location</b></Popup>
+        </Marker>
+
+        {/* Radius circle */}
+        {showRadiusCircle && (
+          <Circle
+            center={[userLat, userLng]}
+            radius={radius * 1000}
+            pathOptions={{
+              color: '#14b8a6',
+              fillColor: '#14b8a6',
+              fillOpacity: 0.06,
+              weight: 2,
+              dashArray: '6,8',
+            }}
+          />
+        )}
+
+        {/* Place markers */}
+        {markers.map((place, idx) => (
+          <Marker
+            key={`${place.id}_${idx}`}
+            position={[place.lat, place.lng]}
+            icon={place.icon}
+            eventHandlers={{
+              click: () => onPlaceSelect?.(place),
+            }}
+          >
+            <Popup maxWidth={240}>
+              <div style={{ fontFamily: 'Arial, sans-serif' }}>
+                <b style={{ fontSize: '13px' }}>{place.name}</b>
+                <div style={{ color: place.color, fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, margin: '2px 0' }}>
+                  {place.type}
+                </div>
+                {place.distance != null && (
+                  <div style={{ color: '#666', fontSize: '11px' }}>
+                    {place.distance < 1 ? `${Math.round(place.distance * 1000)} m` : `${place.distance.toFixed(1)} km`}
+                  </div>
+                )}
+                {place.address && (
+                  <div style={{ color: '#666', fontSize: '11px', marginTop: 2 }}>{place.address}</div>
+                )}
+                {place.rating != null && place.rating > 0 && (
+                  <div style={{ color: '#f59e0b', fontSize: '11px', marginTop: 2 }}>
+                    {'★'.repeat(Math.round(place.rating))} {place.rating.toFixed(1)}
+                  </div>
+                )}
+                <div style={{ marginTop: 6, display: 'flex', gap: 4 }}>
+                  {place.phone && (
+                    <a href={`tel:${place.phone}`} style={{ background: place.color, color: '#fff', padding: '3px 8px', borderRadius: 4, fontSize: 10, textDecoration: 'none', fontWeight: 600 }}>
+                      Call
+                    </a>
+                  )}
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ background: '#f3f4f6', color: '#333', padding: '3px 8px', borderRadius: 4, fontSize: 10, textDecoration: 'none', fontWeight: 600 }}
+                  >
+                    Directions
+                  </a>
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+
+      {places.length === 0 && (
+        <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', color: '#94a3b8', padding: '6px 14px', borderRadius: 8, fontSize: 12, zIndex: 1000, pointerEvents: 'none' }}>
+          No places found nearby
+        </div>
+      )}
     </div>
   );
 }

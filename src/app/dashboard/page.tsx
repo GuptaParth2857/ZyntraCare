@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight, FiZap } from 'react-icons/fi';
+import { useSession } from 'next-auth/react';
+import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight, FiZap, FiLoader } from 'react-icons/fi';
 import { FaStethoscope, FaPills, FaNotesMedical, FaHeartbeat } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import PremiumGuard from '@/components/PremiumGuard';
@@ -17,7 +18,6 @@ const NearbyHospitalsMap = dynamic(() => import('@/components/NearbyHospitalsMap
 
 const LazyLineChart = dynamic(
   () => import('recharts').then(mod => {
-    // Handle recharts v3.8.1 module structure
     const { 
       AreaChart: AreaChartComp, 
       Area: AreaComp, 
@@ -59,56 +59,84 @@ const TABS = [
   { id: 'predictions', label: 'AI Health Trends', short: 'AI Hub', icon: <FiTrendingUp /> },
 ];
 
-const APPOINTMENTS = [
-  { id: 1, doctor: 'Dr. Amit Kumar', specialty: 'Cardiology', hospital: 'Fortis Memorial', date: '2026-04-10', time: '10:00 AM', status: 'Upcoming', type: 'Teleconsult' },
-  { id: 2, doctor: 'Dr. Priya Sharma', specialty: 'Oncology', hospital: 'Max Super Speciality', date: '2026-03-20', time: '2:00 PM', status: 'Completed', type: 'In-Person' },
-];
-
-const RECORDS = [
-  { id: 1, title: 'Complete Blood Count', date: '2026-03-15', hospital: 'Apollo Hospital', type: 'report' },
-  { id: 2, title: 'Electrocardiogram (ECG)', date: '2026-03-10', hospital: 'Fortis Memorial', type: 'report' },
-  { id: 3, title: 'Cardiology Prescription', date: '2026-03-05', hospital: 'AIIMS Delhi', type: 'prescription' },
-];
-
-const HEALTH_METRICS = [
-  { label: 'Blood Pressure', val: '120/80', unit: 'mmHg', color: 'from-rose-500 to-red-600', shadow: 'shadow-rose-500/30' },
-  { label: 'Heart Rate', val: '72', unit: 'BPM', color: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/30' },
-  { label: 'Blood Oxygen', val: '98', unit: '% SpO2', color: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/30' },
-  { label: 'BMI Index', val: '24.2', unit: 'Normal', color: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/30' },
-];
-
 export default function DashboardPage() {
-  const status = 'authenticated';
-  const session = { user: { image: undefined, name: undefined } };
+  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState('appointments');
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
+  const [loadingRecords, setLoadingRecords] = useState(true);
 
   const handleTabChange = useCallback((tabId: string) => setActiveTab(tabId), []);
 
+  const isPremium = (session?.user as any)?.isPremium || false;
+  const isLoggedIn = status === 'authenticated';
+  const userName = isLoggedIn ? (session?.user?.name || 'User') : 'Guest User';
+  const userEmail = session?.user?.email || '';
+
   useEffect(() => {
     const controller = new AbortController();
+    
     fetch('/api/predict-flow', { signal: controller.signal })
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setPredictions(data); })
       .catch(() => {});
-    fetch('/api/beds', { signal: controller.signal })
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setBedStats(data); })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
 
-  // For guest mode, hide loading and use guest user
-  const isPremium = false; // Guest users can see basic features
-  const isLoggedIn = false;
-  const userName = 'Guest User';
-  const userEmail = '';
+    fetch('/api/beds?limit=5', { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => { 
+        if (data.hospitals) setBedStats(data.hospitals); 
+      })
+      .catch(() => {});
+
+    if (isLoggedIn) {
+      fetch('/api/bookings?limit=5', { signal: controller.signal })
+        .then(res => res.json())
+        .then(data => {
+          if (data.bookings) {
+            setAppointments(data.bookings.map((b: any) => ({
+              id: b.id,
+              doctor: b.doctorName || b.doctor?.user?.name || 'Doctor',
+              specialty: b.specialty || b.doctor?.specialty || 'General',
+              hospital: b.hospitalName || b.hospital?.name || '',
+              date: b.date ? new Date(b.date).toLocaleDateString() : '',
+              time: b.time || '',
+              status: b.status || 'Upcoming',
+              type: b.type || 'In-Person',
+            })));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingAppointments(false));
+
+      fetch('/api/patient-records?limit=5', { signal: controller.signal })
+        .then(res => res.json())
+        .then(data => {
+          if (data.records) {
+            setRecords(data.records.map((r: any) => ({
+              id: r.id,
+              title: r.title || r.type || 'Medical Record',
+              date: r.date ? new Date(r.date).toLocaleDateString() : '',
+              hospital: r.hospitalName || '',
+              type: r.recordType || 'report',
+            })));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingRecords(false));
+    } else {
+      setLoadingAppointments(false);
+      setLoadingRecords(false);
+    }
+
+    return () => controller.abort();
+  }, [isLoggedIn]);
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-x-hidden font-inter pb-32 text-white">
       
-      {/* ── CINEMATIC BG ── */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(14,165,233,0.15) 0%, transparent 60%)' }} />
         <div className="absolute bottom-0 left-[10%] w-[500px] h-[500px] bg-teal-500/10 rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '8s' }} />
@@ -117,7 +145,6 @@ export default function DashboardPage() {
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 relative z-10 pt-28">
         
-        {/* ── HEADER / PROFILE CARD ── */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
           className="relative bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-6 md:p-10 mb-10 backdrop-blur-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row gap-8 items-center justify-between">
           
@@ -170,16 +197,16 @@ export default function DashboardPage() {
           <div className="flex flex-col md:flex-row gap-3 md:gap-4 relative z-10 w-full md:w-auto">
             {isLoggedIn ? (
               <>
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                <button onClick={() => window.location.href = '/specialists'} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
                   <FiPlus size={15} /> Book Appointment
                 </button>
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                <button onClick={() => window.location.href = '/teleconsult'} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
                   <FiVideo size={15} /> Teleconsult
                 </button>
               </>
             ) : (
               <div className="w-full flex gap-2">
-                <button onClick={() => window.location.href = '/'} className="flex-1 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+                <button onClick={() => window.location.href = '/auth/signin'} className="flex-1 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">
                   <FiUser size={15} /> Sign In
                 </button>
                 <button onClick={() => window.location.href = '/emergency'} className="flex-1 flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-xl font-semibold text-sm transition">
@@ -190,7 +217,6 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* ── Quick Access for Non-Logged Users ── */}
         {!isLoggedIn && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-gradient-to-br from-teal-950/60 to-sky-950/40 border border-teal-500/20 rounded-[2rem] p-6 mb-10 backdrop-blur-xl">
@@ -226,17 +252,16 @@ export default function DashboardPage() {
 
         <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar relative z-10">
             {[
-              { icon: <FiVideo />, label: 'Fast Teleconsult', bg: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
-              { icon: <FiCalendar />, label: 'Book Doctor', bg: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
-              { icon: <FaNotesMedical />, label: 'Upload Meds', bg: 'from-purple-500 to-indigo-600', shadow: 'shadow-purple-500/20' },
+              { icon: <FiVideo />, label: 'Fast Teleconsult', href: '/teleconsult', bg: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
+              { icon: <FiCalendar />, label: 'Book Doctor', href: '/specialists', bg: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/20' },
+              { icon: <FaNotesMedical />, label: 'Pill Scanner', href: '/pill-scanner', bg: 'from-purple-500 to-indigo-600', shadow: 'shadow-purple-500/20' },
             ].map((btn, i) => (
-              <button key={i} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-gradient-to-r ${btn.bg} shadow-lg ${btn.shadow} text-white font-bold text-sm transition-all hover:scale-105 active:scale-95 whitespace-nowrap`}>
+              <Link key={i} href={btn.href} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-gradient-to-r ${btn.bg} shadow-lg ${btn.shadow} text-white font-bold text-sm transition-all hover:scale-105 active:scale-95 whitespace-nowrap`}>
                 {btn.icon} {btn.label}
-              </button>
+              </Link>
             ))}
           </div>
 
-        {/* ── WELLNESS MISSIONS (GAMIFICATION) ── */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-10">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <FiZap className="text-blue-400" /> Daily Health Missions
@@ -244,7 +269,6 @@ export default function DashboardPage() {
           <WellnessMissions />
         </motion.div>
 
-        {/* ── TAB NAVIGATION ── */}
         <div className="flex gap-2 overflow-x-auto pb-6 custom-scrollbar mb-4 relative">
           <div className="absolute bottom-6 left-0 w-full h-[1px] bg-white/5" />
           {TABS.map((tab) => {
@@ -263,69 +287,87 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* ── TAB CONTENT AREAS ── */}
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3, type: 'spring', damping: 25 }}>
             
-            {/* 1. APPOINTMENTS */}
             {activeTab === 'appointments' && (
               <div className="grid lg:grid-cols-2 gap-6">
-                {APPOINTMENTS.map((apt, i) => (
-                  <div key={apt.id} className="group bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 md:p-8 hover:bg-white/[0.04] transition-all relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
-                    
-                    <div className="flex justify-between items-start mb-8 relative z-10">
-                      <div className="flex gap-5">
-                        <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl flex items-center justify-center shadow-lg group-hover:border-sky-500/50 transition-colors">
-                          <FaStethoscope className="text-white text-2xl" />
+                {!isLoggedIn ? (
+                  <div className="col-span-full text-center py-12 bg-white/[0.02] border border-white/10 rounded-[2rem]">
+                    <FiCalendar className="mx-auto text-gray-600 mb-4" size={48} />
+                    <p className="text-gray-400 mb-4">Sign in to view your appointments</p>
+                    <button onClick={() => window.location.href = '/auth/signin'} className="text-sky-400 hover:text-sky-300 font-bold">Sign In</button>
+                  </div>
+                ) : loadingAppointments ? (
+                  <div className="col-span-full text-center py-12">
+                    <FiLoader className="animate-spin text-sky-400 mx-auto mb-4" size={32} />
+                    <p className="text-gray-400">Loading appointments...</p>
+                  </div>
+                ) : appointments.length === 0 ? (
+                  <div className="col-span-full text-center py-12 bg-white/[0.02] border border-white/10 rounded-[2rem]">
+                    <FiCalendar className="mx-auto text-gray-600 mb-4" size={48} />
+                    <p className="text-gray-400 mb-4">No appointments yet</p>
+                    <Link href="/specialists" className="text-sky-400 hover:text-sky-300 font-bold">Book Your First Appointment</Link>
+                  </div>
+                ) : (
+                  appointments.map((apt, i) => (
+                    <div key={apt.id || i} className="group bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 md:p-8 hover:bg-white/[0.04] transition-all relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex justify-between items-start mb-8 relative z-10">
+                        <div className="flex gap-5">
+                          <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 rounded-2xl flex items-center justify-center shadow-lg group-hover:border-sky-500/50 transition-colors">
+                            <FaStethoscope className="text-white text-2xl" />
+                          </div>
+                          <div>
+                            <h3 className="font-black text-white text-xl leading-snug">{apt.doctor}</h3>
+                            <p className="text-sky-400 font-bold text-sm tracking-wide">{apt.specialty}</p>
+                            <p className="text-white/40 text-xs mt-1 font-medium">{apt.hospital}</p>
+                          </div>
+                        </div>
+                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                          apt.status === 'Upcoming' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.2)]' : 'bg-white/5 text-white/40 border-white/10'
+                        }`}>
+                          {apt.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 bg-[#0f172a] rounded-2xl p-5 border border-white/5 mb-8">
+                        <div>
+                          <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mb-1 pl-1">Date</p>
+                          <p className="text-white font-bold flex items-center gap-2"><FiCalendar className="text-sky-400"/> {apt.date}</p>
                         </div>
                         <div>
-                          <h3 className="font-black text-white text-xl leading-snug">{apt.doctor}</h3>
-                          <p className="text-sky-400 font-bold text-sm tracking-wide">{apt.specialty}</p>
-                          <p className="text-white/40 text-xs mt-1 font-medium">{apt.hospital}</p>
+                          <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mb-1 pl-1">Time</p>
+                          <p className="text-white font-bold flex items-center gap-2"><FiClock className="text-indigo-400"/> {apt.time}</p>
                         </div>
                       </div>
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                        apt.status === 'Upcoming' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.2)]' : 'bg-white/5 text-white/40 border-white/10'
-                      }`}>
-                        {apt.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 bg-[#0f172a] rounded-2xl p-5 border border-white/5 mb-8">
-                      <div>
-                        <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mb-1 pl-1">Date</p>
-                        <p className="text-white font-bold flex items-center gap-2"><FiCalendar className="text-sky-400"/> {apt.date}</p>
-                      </div>
-                      <div>
-                        <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mb-1 pl-1">Time</p>
-                        <p className="text-white font-bold flex items-center gap-2"><FiClock className="text-indigo-400"/> {apt.time}</p>
-                      </div>
-                    </div>
-
-                    {apt.status === 'Upcoming' ? (
-                      <div className="flex gap-4">
-                        <button className="flex-[2] bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
-                          {apt.type === 'Teleconsult' ? <><FiVideo /> Join Room</> : <><FiMapPin /> Directions</>}
+                      {apt.status === 'Upcoming' ? (
+                        <div className="flex gap-4">
+                          <button className="flex-[2] bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                            {apt.type === 'Teleconsult' ? <><FiVideo /> Join Room</> : <><FiMapPin /> Directions</>}
+                          </button>
+                          <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
+                            <FiMessageCircle size={18} /> Chat
+                          </button>
+                        </div>
+                      ) : (
+                        <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all">
+                          View Summary
                         </button>
-                        <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
-                          <FiMessageCircle size={18} /> Chat
-                        </button>
-                      </div>
-                    ) : (
-                      <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all">
-                        View Summary
-                      </button>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
-            {/* 2. HEALTH METRICS */}
             {activeTab === 'health' && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                {HEALTH_METRICS.map((metric, i) => (
+                {[
+                  { label: 'Blood Pressure', val: '--/--', unit: 'mmHg', color: 'from-rose-500 to-red-600', shadow: 'shadow-rose-500/30' },
+                  { label: 'Heart Rate', val: '--', unit: 'BPM', color: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/30' },
+                  { label: 'Blood Oxygen', val: '--', unit: '% SpO2', color: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/30' },
+                  { label: 'BMI Index', val: '--', unit: 'kg/m²', color: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/30' },
+                ].map((metric, i) => (
                   <div key={i} className={`bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 lg:p-8 relative overflow-hidden group hover:bg-white/[0.04] transition-colors`}>
                     <div className={`absolute -right-10 -top-10 w-32 h-32 bg-gradient-to-br ${metric.color} rounded-full blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity`} />
                     <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${metric.color} mb-6 flex items-center justify-center shadow-lg ${metric.shadow}`}>
@@ -336,12 +378,12 @@ export default function DashboardPage() {
                       <span className="text-3xl lg:text-4xl font-black text-white">{metric.val}</span>
                       <span className="text-white/40 font-bold text-sm tracking-wide">{metric.unit}</span>
                     </div>
+                    <p className="text-white/20 text-xs mt-2">Connect a wearable to track</p>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* 3. AI PREDICTIONS */}
             {activeTab === 'predictions' && (
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden">
@@ -357,20 +399,20 @@ export default function DashboardPage() {
                   <div className="h-[350px] w-full">
                     {predictions.length > 0 ? (
                       <ClientOnly><LazyLineChart data={predictions.map((val, hr) => ({ hour: hr, count: val }))} /></ClientOnly>
-                    ) : <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold">Querying Gemini AI...</p></div>}
+                    ) : <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold">Querying AI Model...</p></div>}
                   </div>
                 </div>
 
                 <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 md:p-8">
                   <h3 className="font-black text-white text-xl mb-6 flex items-center gap-3"><FiServer className="text-emerald-400" /> Resource Nodes</h3>
                   <div className="space-y-4">
-                    {Array.isArray(bedStats) && bedStats.slice(0, 5).map((h, i) => (
+                    {bedStats.slice(0, 5).map((h, i) => (
                       <div key={i} className="flex justify-between items-center bg-[#0f172a] p-4 rounded-2xl border border-white/5">
-                        <span className="text-white/80 font-bold text-sm truncate max-w-[120px]">{h?.id.split('_')[0]}...</span>
+                        <span className="text-white/80 font-bold text-sm truncate max-w-[140px]">{h.name}</span>
                         <div className="flex gap-3 text-xs bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                          <span className="text-white"><span className="text-emerald-400 font-black">{h?.beds?.available ?? 0}</span> Bed</span>
+                          <span className="text-white"><span className="text-emerald-400 font-black">{h.beds?.available ?? 0}</span> Bed</span>
                           <span className="text-white/20">|</span>
-                          <span className="text-white"><span className="text-sky-400 font-black">{h?.beds?.icuAvailable ?? 0}</span> ICU</span>
+                          <span className="text-white"><span className="text-sky-400 font-black">{h.beds?.icu?.available ?? 0}</span> ICU</span>
                         </div>
                       </div>
                     ))}
@@ -379,13 +421,12 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* 4. HOSPITAL RADAR (MAP) */}
             {activeTab === 'map' && (
               <div className="rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl relative bg-[#020617] ring-1 ring-sky-500/20">
                 <div className="bg-white/[0.02] border-b border-white/10 p-6 md:p-8 z-10 relative flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-black text-white flex items-center gap-3 mb-1"><FiMapPin className="text-sky-400" /> ZyntraCare Radar</h2>
-                    <p className="text-white/40 text-sm font-bold tracking-widest uppercase">Overpass Global Database Active</p>
+                    <p className="text-white/40 text-sm font-bold tracking-widest uppercase">Nearby Hospitals Live</p>
                   </div>
                   <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
                 </div>
@@ -395,30 +436,50 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* 5. MEDICAL RECORDS */}
             {activeTab === 'records' && (
               <PremiumGuard>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {RECORDS.map((rec, i) => (
-                    <div key={rec.id} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 rounded-[2rem] p-6 md:p-8 group transition-all relative overflow-hidden cursor-pointer hover:bg-white/[0.04]">
-                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform">
-                        {rec.type === 'report' ? <FaNotesMedical size={24} /> : <FaPills size={24} />}
+                  {!isLoggedIn ? (
+                    <div className="col-span-full text-center py-12 bg-white/[0.02] border border-white/10 rounded-[2rem]">
+                      <FiFileText className="mx-auto text-gray-600 mb-4" size={48} />
+                      <p className="text-gray-400 mb-4">Sign in to view medical records</p>
+                      <button onClick={() => window.location.href = '/auth/signin'} className="text-sky-400 hover:text-sky-300 font-bold">Sign In</button>
+                    </div>
+                  ) : loadingRecords ? (
+                    <div className="col-span-full text-center py-12">
+                      <FiLoader className="animate-spin text-emerald-400 mx-auto mb-4" size={32} />
+                      <p className="text-gray-400">Loading records...</p>
+                    </div>
+                  ) : records.length === 0 ? (
+                    <div className="col-span-full text-center py-12 bg-white/[0.02] border border-white/10 rounded-[2rem]">
+                      <FiFileText className="mx-auto text-gray-600 mb-4" size={48} />
+                      <p className="text-gray-400 mb-4">No medical records yet</p>
+                      <p className="text-white/20 text-sm">Records from consultations will appear here</p>
+                    </div>
+                  ) : (
+                    records.map((rec, i) => (
+                      <div key={rec.id || i} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 rounded-[2rem] p-6 md:p-8 group transition-all relative overflow-hidden cursor-pointer hover:bg-white/[0.04]">
+                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                          {rec.type === 'report' ? <FaNotesMedical size={24} /> : <FaPills size={24} />}
+                        </div>
+                        <h3 className="font-black text-white text-lg mb-2">{rec.title}</h3>
+                        <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-6">{rec.hospital} • {rec.date}</p>
+                        <button className="text-emerald-400 text-sm font-black uppercase tracking-wide flex items-center gap-2 group-hover:text-emerald-300 transition-colors">
+                          View Document <FiChevronRight />
+                        </button>
                       </div>
-                      <h3 className="font-black text-white text-lg mb-2">{rec.title}</h3>
-                      <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-6">{rec.hospital} • {rec.date}</p>
-                      <button className="text-emerald-400 text-sm font-black uppercase tracking-wide flex items-center gap-2 group-hover:text-emerald-300 transition-colors">
-                        View Document <FiChevronRight />
-                      </button>
-                    </div>
-                  ))}
+                    ))
+                  )}
                   
-                  <div className="bg-white/[0.01] backdrop-blur-xl border-2 border-dashed border-white/10 hover:border-sky-500/50 rounded-[2rem] p-8 flex flex-col items-center justify-center min-h-[250px] cursor-pointer transition-colors group hover:bg-sky-500/5">
-                    <div className="w-16 h-16 bg-white/5 text-white/50 group-hover:bg-sky-500/20 group-hover:text-sky-400 rounded-full flex items-center justify-center mb-4 transition-colors">
-                      <FiPlus size={32} />
+                  {isLoggedIn && (
+                    <div className="bg-white/[0.01] backdrop-blur-xl border-2 border-dashed border-white/10 hover:border-sky-500/50 rounded-[2rem] p-8 flex flex-col items-center justify-center min-h-[250px] cursor-pointer transition-colors group hover:bg-sky-500/5">
+                      <div className="w-16 h-16 bg-white/5 text-white/50 group-hover:bg-sky-500/20 group-hover:text-sky-400 rounded-full flex items-center justify-center mb-4 transition-colors">
+                        <FiPlus size={32} />
+                      </div>
+                      <span className="font-black text-white/50 group-hover:text-white uppercase tracking-widest text-sm transition-colors">Upload Record</span>
                     </div>
-                    <span className="font-black text-white/50 group-hover:text-white uppercase tracking-widest text-sm transition-colors">Upload Record</span>
-                  </div>
+                  )}
                 </div>
               </PremiumGuard>
             )}

@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { FiPhone, FiMail, FiMapPin, FiFacebook, FiTwitter, FiInstagram, FiLinkedin, FiHeart, FiStar } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/context/LanguageContext';
+import { AdsterraSmartlink } from '@/components/ads';
+import { ADSTERRA_CONFIG } from '@/lib/ads/config';
 
 export default function Footer() {
   const { t } = useLanguage();
@@ -202,8 +204,9 @@ export default function Footer() {
           <p className="text-gray-500 text-sm flex items-center gap-1">
             © 2026 ZyntraCare. Made with <FiHeart className="text-red-500" size={14} /> in India.
           </p>
-          <p className="text-gray-600 text-xs">
+          <p className="text-gray-600 text-xs flex items-center gap-3">
             Version 2.0 | Building the future of healthcare 🚀
+            <AdsterraSmartlink href={ADSTERRA_CONFIG.smartlinkUrl} label="Sponsored" />
           </p>
         </div>
       </div>
