@@ -1,7 +1,28 @@
 import type { MetadataRoute } from 'next';
-import { prisma } from '@/lib/prisma';
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zyntracare.com';
+
+const BLOG_SLUGS = [
+  'managing-high-blood-pressure-naturally', 'plant-based-nutrition-guide-india',
+  'mental-health-digital-age-balance', 'yoga-beginners-5-poses-morning',
+  'understanding-diabetes-prevention-early-warning', 'eye-care-tips-screen-generation',
+  'science-of-sleep-fix-schedule', 'immunity-boosters-ayurvedic-secrets',
+  'daily-water-intake-guide', 'signs-of-dehydration-warning',
+  'viral-fever-symptoms-treatment', 'dengue-fever-prevention-guide',
+  'typhoid-fever-recovery-diet', 'home-remedies-cough-cold',
+  'dry-cough-vs-wet-cough-treatment', 'tension-headache-vs-migraine',
+  'natural-headache-relief-remedies', 'heart-attack-symptoms-women-men',
+  'cholesterol-levels-diet-indians', 'blood-sugar-levels-normal-range',
+  'diabetes-diet-indian-food', 'acidity-heartburn-relief-remedies',
+  'constipation-relief-natural-remedies', 'food-poisoning-treatment-recovery',
+  'pcos-symptoms-diet-treatment', 'iron-deficiency-anemia-diet',
+  'pregnancy-diet-trimester-guide', 'vitamin-d-deficiency-india',
+  'vitamin-b12-deficiency-vegetarians', 'cpr-steps-emergency-guide',
+  'snake-bite-first-aid-guide', 'monsoon-health-tips-seasonal-diseases',
+  'summer-health-tips-heat-hydration', 'acne-treatment-indian-skin',
+  'hair-fall-causes-treatments', 'protein-requirements-indian-diet',
+  'weight-loss-diet-plan-indians', 'long-covid-symptoms-recovery',
+];
 
 const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' | 'monthly' }[] = [
   { path: '/', priority: 1.0, changeFreq: 'daily' },
@@ -123,7 +144,7 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/lab-booking', priority: 0.4, changeFreq: 'weekly' },
 ];
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = ROUTES.map((r) => ({
     url: `${BASE}${r.path}`,
     lastModified: new Date(),
@@ -131,21 +152,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: r.priority,
   }));
 
-  let blogRoutes: MetadataRoute.Sitemap = [];
-  try {
-    const blogs = await prisma.blog.findMany({
-      where: { published: true },
-      select: { slug: true, updatedAt: true },
-    });
-    blogRoutes = blogs.map((b) => ({
-      url: `${BASE}/blogs/${b.slug}`,
-      lastModified: b.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }));
-  } catch {
-    // DB query may fail in build; skip blog routes
-  }
+  const blogRoutes: MetadataRoute.Sitemap = BLOG_SLUGS.map((slug) => ({
+    url: `${BASE}/blogs/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
 
   return [...staticRoutes, ...blogRoutes];
 }
