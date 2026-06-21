@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo, CSSProperties } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 interface Place {
@@ -30,15 +29,7 @@ interface NearbyMapProps {
   selectedPlaceId?: string;
 }
 
-// Fix default Leaflet icon path
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-function createIcon(color: string, label: string) {
+function createIcon(L: any, color: string, label: string) {
   return L.divIcon({
     className: '',
     html: `<div style="width:32px;height:32px;background:${color};border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900;font-family:Arial,sans-serif;">${label}</div>`,
@@ -46,16 +37,6 @@ function createIcon(color: string, label: string) {
     iconAnchor: [16, 16],
   });
 }
-
-const userIcon = L.divIcon({
-  className: '',
-  html: `<div style="width:20px;height:20px;position:relative;">
-    <div style="position:absolute;inset:-6px;background:rgba(245,158,11,0.3);border-radius:50%;animation:mpulse 2s infinite;"></div>
-    <div style="width:20px;height:20px;background:#f59e0b;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);position:relative;z-index:2;"></div>
-  </div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
 
 const typeIcons: Record<string, { color: string; label: string }> = {
   hospital: { color: '#ef4444', label: 'H' },
@@ -69,15 +50,18 @@ const typeIcons: Record<string, { color: string; label: string }> = {
 function FitBounds({ places, userLat, userLng }: { places: Place[]; userLat: number; userLng: number }) {
   const map = useMap();
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (places.length === 0) {
       map.setView([userLat, userLng], 12);
       return;
     }
-    const bounds = L.latLngBounds([
-      [userLat, userLng],
-      ...places.map(p => [p.lat, p.lng] as [number, number]),
-    ]);
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    import('leaflet').then(L => {
+      const bounds = L.latLngBounds([
+        [userLat, userLng],
+        ...places.map(p => [p.lat, p.lng] as [number, number]),
+      ]);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    });
   }, [places, userLat, userLng, map]);
   return null;
 }
@@ -92,14 +76,55 @@ export default function NearbyMap({
   showRadiusCircle = true,
   onPlaceSelect,
 }: NearbyMapProps) {
+  const [mounted, setMounted] = useState(false);
+  const [L, setL] = useState<any>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    import('leaflet').then(leaflet => {
+      delete (leaflet.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
+      leaflet.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      });
+      setL(leaflet);
+    });
+  }, []);
+
   const heightStr = typeof height === 'number' ? `${height}px` : height;
 
+  const userIcon = useMemo(() => {
+    if (!L) return null;
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:20px;height:20px;position:relative;">
+        <div style="position:absolute;inset:-6px;background:rgba(245,158,11,0.3);border-radius:50%;animation:mpulse 2s infinite;"></div>
+        <div style="width:20px;height:20px;background:#f59e0b;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);position:relative;z-index:2;"></div>
+      </div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+  }, [L]);
+
   const markers = useMemo(() => {
+    if (!L) return [];
     return places.map(place => {
       const t = typeIcons[place.type] || typeIcons.hospital;
-      return { ...place, icon: createIcon(t.color, t.label), color: t.color };
+      return { ...place, icon: createIcon(L, t.color, t.label), color: t.color };
     });
-  }, [places]);
+  }, [places, L]);
+
+  if (!mounted || !L) {
+    return (
+      <div style={{ height: heightStr, width: '100%', borderRadius: '1rem', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-400 text-sm">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'relative', borderRadius: '1rem', overflow: 'hidden', height: heightStr, width: '100%', background: '#0f172a' }}>
@@ -124,9 +149,11 @@ export default function NearbyMap({
         <FitBounds places={places} userLat={userLat} userLng={userLng} />
 
         {/* User marker */}
-        <Marker position={[userLat, userLng]} icon={userIcon}>
-          <Popup><b>Your Location</b></Popup>
-        </Marker>
+        {userIcon && (
+          <Marker position={[userLat, userLng]} icon={userIcon}>
+            <Popup><b>Your Location</b></Popup>
+          </Marker>
+        )}
 
         {/* Radius circle */}
         {showRadiusCircle && (

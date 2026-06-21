@@ -471,15 +471,15 @@ export default function HospitalsPage() {
             )}
           </div>
         ) : (
-          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex gap-4">
-            <div className="flex-1 rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative" style={{ filter: 'drop-shadow(0 0 40px rgba(20, 184, 166, 0.1))' }}>
+          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative" style={{ height: 'clamp(400px, 60vh, 600px)', filter: 'drop-shadow(0 0 40px rgba(20, 184, 166, 0.1))' }}>
               {position ? (
                 <NearbyMap
                   places={sortedPlaces}
                   userLat={position.lat}
                   userLng={position.lng}
                   radius={radius}
-                  height="600px"
+                  height="100%"
                   selectedPlaceId={selectedPlaceId}
                   onPlaceSelect={(place) => {
                     setSelectedPlaceId(place.id);
@@ -488,7 +488,7 @@ export default function HospitalsPage() {
                   showRadiusCircle
                 />
               ) : (
-                <div className="h-[600px] flex items-center justify-center bg-slate-900/80">
+                <div className="h-full flex items-center justify-center bg-slate-900/80">
                   <LocationPermission
                     onRequestPermission={requestLocation}
                     loading={locationLoading}
@@ -503,7 +503,7 @@ export default function HospitalsPage() {
               <motion.div 
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="w-80 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-4"
+                className="w-full lg:w-80 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-4"
               >
                 <div className="flex items-center justify-between">
                   <span className={`px-2 py-1 rounded-full text-xs font-bold ${

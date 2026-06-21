@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiPhone, FiMail, FiMapPin, FiFacebook, FiTwitter, FiInstagram, FiLinkedin, FiHeart, FiStar } from 'react-icons/fi';
+import { FaYoutube } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/context/LanguageContext';
 import { AdsterraSmartlink } from '@/components/ads';
@@ -97,7 +98,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-2 text-gray-400 text-sm">
                 <FiMail className="text-teal-400 shrink-0" size={14} />
-                <a href="mailto:contact@zyntracare.com" className="hover:text-teal-400">contact@zyntracare.com</a>
+                <a href="mailto:contact.zenvyx@gmail.com" className="hover:text-teal-400">contact.zenvyx@gmail.com</a>
               </div>
               <div className="flex items-center gap-2 text-gray-400 text-sm">
                 <FiMapPin className="text-teal-400 shrink-0" size={14} />
@@ -107,10 +108,18 @@ export default function Footer() {
 
             {/* Social Links */}
             <div className="flex gap-3">
-              {[FiFacebook, FiTwitter, FiInstagram, FiLinkedin].map((Icon, idx) => (
-                <a 
-                  key={idx} 
-                  href="#" 
+              {[
+                { Icon: FiFacebook, href: 'https://www.facebook.com/profile.php?id=61584572784224' },
+                { Icon: FiTwitter, href: 'https://x.com/GuptaParth2857' },
+                { Icon: FiInstagram, href: 'https://www.instagram.com/gupta.parth1015/' },
+                { Icon: FiLinkedin, href: 'https://www.linkedin.com/in/guptaparth2857/' },
+                { Icon: FaYoutube, href: 'https://www.youtube.com/@Itz_parth_2007' },
+              ].map(({ Icon, href }, idx) => (
+                <a
+                  key={idx}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-teal-400 hover:bg-teal-500/20 transition-all"
                 >
                   <Icon size={16} />

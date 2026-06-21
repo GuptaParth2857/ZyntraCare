@@ -213,16 +213,16 @@ export default function PharmaciesPage() {
         ) : (
           <AnimatePresence mode="wait">
             {viewMode === 'map' ? (
-              <motion.div key="map" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex gap-4">
+              <motion.div key="map" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-4">
                 {/* Map */}
-                <div className="flex-1 rounded-3xl border border-white/10 overflow-hidden shadow-2xl" style={{ height: '600px' }}>
+                <div className="flex-1 rounded-3xl border border-white/10 overflow-hidden shadow-2xl" style={{ height: 'clamp(400px, 60vh, 600px)' }}>
                   {userLocation ? (
                     <NearbyMap
                       places={mapPlaces}
                       userLat={userLocation.lat}
                       userLng={userLocation.lng}
                       radius={radius}
-                      height="600px"
+                      height="100%"
                       showRadiusCircle
                       onPlaceSelect={(place) => {
                         const pharmacy = pharmacies.find(p => p.id === place.id);
@@ -240,7 +240,7 @@ export default function PharmaciesPage() {
                 </div>
 
                 {/* Side list */}
-                <div className="w-80 space-y-3 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
+                <div className="w-full lg:w-80 space-y-3 max-h-[300px] lg:max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
                   <p className="text-slate-400 text-sm font-medium px-1">
                     <span className="text-emerald-400 font-bold text-base">{filteredPharmacies.length}</span> pharmacies within {radius}km
                   </p>

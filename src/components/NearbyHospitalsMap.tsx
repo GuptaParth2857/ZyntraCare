@@ -647,7 +647,7 @@ export default function NearbyHospitalsMap({
       <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
 
       {/* ---- Controls: Top Left ---- */}
-      <div className="absolute top-4 left-4 z-[1000] hidden sm:flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
         {/* Radius adjuster */}
         <div
           className="rounded-2xl p-3 shadow-2xl"
@@ -713,44 +713,22 @@ export default function NearbyHospitalsMap({
 
       {/* ---- Stats: Top Right ---- */}
       <div className="absolute top-4 right-4 z-[1000] hidden sm:block">
-        <div
-          className="rounded-2xl p-3 shadow-2xl min-w-[170px]"
-          style={{ background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' }}
-        >
-          {/* Online/Offline Status */}
+        <div className="rounded-2xl p-3 shadow-2xl min-w-[170px]"
+          style={{ background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div className="flex items-center gap-2 mb-2">
             {!isOnline ? (
-              <>
-                <div className="relative">
-                  <FiCloudOff size={14} className="text-yellow-400" />
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full" />
-                </div>
-                <span className="text-xs font-bold text-yellow-400">Offline Mode</span>
-              </>
+              <><FiCloudOff size={14} className="text-yellow-400" /><span className="text-xs font-bold text-yellow-400">Offline</span></>
             ) : isRealData ? (
-              <>
-                <FiWifi size={14} className="text-purple-400" />
-                <span className="text-xs font-bold text-purple-400">Live Data</span>
-              </>
+              <><FiWifi size={14} className="text-purple-400" /><span className="text-xs font-bold text-purple-400">Live</span></>
             ) : (
-              <>
-                <FiWifiOff size={14} className="text-gray-400" />
-                <span className="text-xs font-bold text-gray-400">Sample Data</span>
-              </>
+              <><FiWifiOff size={14} className="text-gray-400" /><span className="text-xs font-bold text-gray-400">Sample</span></>
             )}
           </div>
-          
-          <div className="flex items-center gap-2 mb-1">
-            <FiActivity size={13} className="text-green-400" />
-            <p className="text-xs font-bold text-white">{allHospitals.length} Hospitals Found</p>
-          </div>
-          <p className="text-xs text-gray-400">
-            {allHospitals.reduce((a, h) => a + h.beds.available, 0)} total beds free
-          </p>
+          <p className="text-xs font-bold text-white">{allHospitals.length} hospitals</p>
           {(geoLoading || realDataLoading) && (
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
-              <p className="text-xs text-blue-300">{geoLoading ? 'Getting location…' : 'Fetching hospitals…'}</p>
+              <p className="text-xs text-blue-300">{geoLoading ? 'Locating…' : 'Fetching…'}</p>
             </div>
           )}
           {dataError && (
@@ -762,12 +740,28 @@ export default function NearbyHospitalsMap({
         </div>
       </div>
 
+      {/* ---- Mobile Mini Stats ---- */}
+      <div className="absolute top-4 right-4 z-[1000] sm:hidden">
+        <div className="rounded-xl px-2.5 py-1.5 flex items-center gap-2"
+          style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          {!isOnline ? (
+            <FiCloudOff size={12} className="text-yellow-400" />
+          ) : isRealData ? (
+            <FiWifi size={12} className="text-purple-400" />
+          ) : (
+            <FiWifiOff size={12} className="text-gray-400" />
+          )}
+          <span className="text-xs font-bold text-white">{allHospitals.length}</span>
+          {realDataLoading && <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />}
+        </div>
+      </div>
+
       {/* ---- Sidebar Hospital List ---- */}
       <AnimatePresence>
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="absolute top-36 right-4 z-[1000] w-60 max-h-72 overflow-y-auto rounded-2xl shadow-2xl hidden md:block"
+          className="absolute top-36 right-4 z-[1000] w-60 max-h-72 overflow-y-auto rounded-2xl shadow-2xl hidden lg:block"
           style={{ background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)' }}
           role="list"
           aria-label="Nearby hospitals list"
@@ -816,8 +810,21 @@ export default function NearbyHospitalsMap({
         </motion.div>
       </AnimatePresence>
 
+      {/* ---- Mobile List Toggle Button ---- */}
+      {allHospitals.length > 0 && (
+        <div className="absolute bottom-4 right-4 z-[1000] lg:hidden">
+          <button
+            onClick={() => setShowDataGrid(true)}
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold text-white transition-all"
+            style={{ background: 'rgba(59,130,246,0.9)', backdropFilter: 'blur(16px)', border: '1px solid rgba(59,130,246,0.4)' }}
+          >
+            🏥 {allHospitals.length} Hospitals
+          </button>
+        </div>
+      )}
+
       {/* ---- Legend: Bottom Left ---- */}
-      <div className="absolute bottom-4 left-4 z-[1000] hidden md:block">
+      <div className="absolute bottom-4 left-4 z-[1000] hidden lg:block">
         <div
           className="rounded-xl p-2.5 text-xs flex flex-col gap-1"
           style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)' }}

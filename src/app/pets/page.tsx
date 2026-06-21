@@ -344,13 +344,13 @@ export default function PetsPage() {
             )}
 
             {!locationLoading && (
-              <div className="flex gap-4">
+              <div className="flex flex-col lg:flex-row gap-4">
                 {/* Map */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex-1 rounded-3xl border border-white/10 overflow-hidden shadow-xl relative"
-                  style={{ height: '500px' }}
+                  style={{ height: 'clamp(350px, 55vh, 500px)' }}
                 >
                   {venuesLoading && (
                     <div className="absolute inset-0 z-50 bg-slate-900/70 flex items-center justify-center rounded-3xl">
@@ -363,7 +363,7 @@ export default function PetsPage() {
                       userLat={userLocation.lat}
                       userLng={userLocation.lng}
                       radius={radius}
-                      height="500px"
+                      height="100%"
                       showRadiusCircle
                       onPlaceSelect={(place) => {
                         const venue = petVenues.find(v => v.id === place.id);
@@ -378,7 +378,7 @@ export default function PetsPage() {
                 </motion.div>
 
                 {/* Side list */}
-                <div className="w-80 space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+                <div className="w-full lg:w-80 space-y-3 max-h-[300px] lg:max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
                   {/* Search */}
                   <div className="relative">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={14} />
