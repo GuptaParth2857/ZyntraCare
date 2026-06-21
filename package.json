@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate",
+
     "db:seed": "npx tsx prisma/seed.ts",
     "db:hospitals": "npx tsx scripts/seed-hospitals.ts",
     "db:doctors": "npx tsx scripts/seed-doctors.ts",
