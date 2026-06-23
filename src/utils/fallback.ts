@@ -1,3 +1,16 @@
+const FALLBACK_HOSPITAL_IMAGES = [
+  'https://images.unsplash.com/photo-1764885449332-7eb941d53b7e?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1764885518098-781b23d50e7f?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1764885415563-8b868745e9e2?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1769698678497-c41f0ab47c3e?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1720608594472-bc29045eef28?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1720463903383-c45df62da719?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1627372043170-f9cf2706f5f2?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1769147555720-71fc71bfc216?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&q=80&w=800',
+];
+
 const LAB_BRANDS = [
   'Dr. Lal PathLabs', 'SRL Diagnostics', 'Metropolis', 'Thyrocare',
   'Apollo Diagnostics', 'Fortis Lab', 'Max Lab', 'Core Diagnostics',
@@ -218,19 +231,22 @@ export function generateNearbyAll(
 
   if (filterType === 'all' || filterType === 'hospital') {
     const HOSPITAL_NAMES = ['Fortis Hospital', 'Medanta Hospital', 'Sarvodaya Hospital', 'Asian Hospital', 'Metro Hospital', 'City Hospital', 'National Hospital', 'Prime Hospital', 'Global Hospital', 'LifeCare Hospital'];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 15; i++) {
       const angle = (i * 157.3) % 360;
       const dist = 0.5 + i * 1.2;
       if (dist > radiusKm) continue;
       const offsetLat = (dist / 111.32) * Math.cos(angle * Math.PI / 180);
       const offsetLng = (dist / (111.32 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle * Math.PI / 180);
+      const name = HOSPITAL_NAMES[i % HOSPITAL_NAMES.length];
+      const imgHash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
       results.push({
-        id: `fb-hosp-${i}`, name: HOSPITAL_NAMES[i % HOSPITAL_NAMES.length], type: 'hospital' as const,
+        id: `fb-hosp-${i}`, name, type: 'hospital' as const,
         address: `${getCityName(lat, lng)} Main Road`, city: getCityName(lat, lng),
         phone: `+91-${String(1000000000 + Math.floor(Math.random() * 900000000))}`,
         location: { lat: lat + offsetLat, lng: lng + offsetLng },
         distance: parseFloat(dist.toFixed(1)), specialties: ['Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics'].slice(0, 2 + i % 3),
         emergency: i % 2 === 0, rating: parseFloat((4 + Math.random()).toFixed(1)), workingHours: '24/7',
+        image: FALLBACK_HOSPITAL_IMAGES[imgHash % FALLBACK_HOSPITAL_IMAGES.length],
       });
     }
   }

@@ -7,4 +7,5 @@ export { default as AdsterraNativeWidget } from './AdsterraNativeWidget';
 export { default as AdsterraPopunder } from './AdsterraPopunder';
 export { default as AdsterraSmartlink } from './AdsterraSmartlink';
 export { default as AdsterraMobileBanner } from './AdsterraMobileBanner';
+export { default as PageAdsInjector } from './PageAdsInjector';
 export { AdProvider, useAdContext } from './AdProvider';

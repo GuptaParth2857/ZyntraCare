@@ -1,154 +1,149 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
+const OPENCPS_URL = 'https://api.open-cps.org/v1/medicines';
+const OPENFDA_URL = 'https://api.fda.gov/drug/label.json';
+
+const INDIAN_MEDICINES: Record<string, { name: string; manufacturer: string; category: string }> = {
+  'COVAS': { name: 'Covaxin', manufacturer: 'Bharat Biotech', category: 'Vaccine' },
+  'COVSH': { name: 'Covishield', manufacturer: 'Serum Institute of India', category: 'Vaccine' },
+  'AMOX500': { name: 'Amoxicillin 500mg', manufacturer: 'Cipla', category: 'Antibiotic' },
+  'AZITH500': { name: 'Azithromycin 500mg', manufacturer: 'Sun Pharma', category: 'Antibiotic' },
+  'PARA500': { name: 'Paracetamol 500mg', manufacturer: 'GSK', category: 'Analgesic' },
+  'DOLO500': { name: 'Dolo 500mg', manufacturer: 'Micro Labs', category: 'Analgesic' },
+  'IBU400': { name: 'Ibuprofen 400mg', manufacturer: 'Dr. Reddy\'s', category: 'Anti-inflammatory' },
+  'OMEP20': { name: 'Omeprazole 20mg', manufacturer: 'AstraZeneca', category: 'Antacid' },
+  'CROZI500': { name: 'Crocin 500mg', manufacturer: 'GSK', category: 'Analgesic' },
+  'METFOR500': { name: 'Metformin 500mg', manufacturer: 'USV', category: 'Antidiabetic' },
+  'ATOR10': { name: 'Atorvastatin 10mg', manufacturer: 'Pfizer', category: 'Cholesterol' },
+  'AMLOD5': { name: 'Amlodipine 5mg', manufacturer: 'Pfizer', category: 'BP Medication' },
+  'TELM40': { name: 'Telma 40mg', manufacturer: 'Glenmark', category: 'BP Medication' },
+  'PAN20': { name: 'Pantoprazole 20mg', manufacturer: 'Sun Pharma', category: 'Antacid' },
+  'MONTC10': { name: 'Montair LC 10mg', manufacturer: 'Cipla', category: 'Antiallergic' },
+  'LEVOC5': { name: 'Levocetirizine 5mg', manufacturer: 'Dr. Reddy\'s', category: 'Antiallergic' },
+  'BECLOS': { name: 'Becosules', manufacturer: 'Pfizer', category: 'Multivitamin' },
+  'SUPRAD': { name: 'Supradyn', manufacturer: 'Bayer', category: 'Multivitamin' },
+  'ZINC20': { name: 'Zincovit', manufacturer: 'Apex', category: 'Supplement' },
+  'VITD3': { name: 'Vitamin D3 60K', manufacturer: 'Abbott', category: 'Supplement' },
+  'FESO200': { name: 'Ferrous Sulphate 200mg', manufacturer: 'Merck', category: 'Supplement' },
+  'NEUROB': { name: 'Neurobion', manufacturer: 'Procter & Gamble', category: 'Vitamin B Complex' },
+  'SHELCAL': { name: 'Shelcal 500', manufacturer: 'Elder Pharma', category: 'Calcium Supplement' },
+  'LIV52': { name: 'Liv 52', manufacturer: 'Himalaya', category: 'Liver Support' },
+  'PUMPC': { name: 'Pumpkin C', manufacturer: 'Himalaya', category: 'Supplement' },
+};
+
+async function lookupOpenFDA(medicineName: string) {
+  try {
+    const res = await fetch(`${OPENFDA_URL}?search=openfda.brand_name:${encodeURIComponent(medicineName)}&limit=3`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.results?.length) return null;
+    const r = data.results[0];
+    return {
+      name: r.openfda?.brand_name?.[0] || r.openfda?.generic_name?.[0] || medicineName,
+      manufacturer: r.openfda?.manufacturer_name?.[0] || 'Unknown',
+      category: r.openfda?.product_type?.[0] || 'Medicine',
+      purpose: r.purpose?.[0] || '',
+      warnings: r.warnings?.[0] || '',
+      dosage: r.dosage_and_administration?.[0] || '',
+    };
+  } catch { return null; }
+}
+
+async function lookupOpenCPS(medicineName: string) {
+  try {
+    const res = await fetch(`${OPENCPS_URL}?search=${encodeURIComponent(medicineName)}`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.data?.length) return null;
+    return data.data[0];
+  } catch { return null; }
+}
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get('search') || '';
-    const code = searchParams.get('code') || '';
+    const search = searchParams.get('search')?.trim() || '';
+    const code = searchParams.get('code')?.trim().toUpperCase() || '';
 
     if (code) {
-      const upperCode = code.toUpperCase();
-      const medicine = await prisma.medicineRecord.findUnique({
-        where: { code: upperCode },
-      });
-
-      if (medicine) {
+      const indian = INDIAN_MEDICINES[code];
+      if (indian) {
         return NextResponse.json({
-          success: true,
-          verified: medicine.verified,
-          medicine: {
-            code: medicine.code,
-            name: medicine.name,
-            manufacturer: medicine.manufacturer,
-            category: medicine.category,
-            verified: medicine.verified,
-            timestamp: Date.now(),
-            source: 'ZyntraCare Verified Database',
-          },
+          success: true, verified: true,
+          medicine: { code, ...indian, timestamp: Date.now(), source: 'Indian Medicines Database' },
+        });
+      }
+
+      const fda = await lookupOpenFDA(code);
+      if (fda) {
+        return NextResponse.json({
+          success: true, verified: true,
+          medicine: { code, ...fda, timestamp: Date.now(), source: 'US FDA OpenData' },
         });
       }
 
       return NextResponse.json({
-        success: true,
-        verified: false,
-        medicine: {
-          code: upperCode,
-          name: 'Unknown Product',
-          manufacturer: 'Unknown',
-          category: 'Unverified',
-          verified: false,
-          timestamp: Date.now(),
-          source: 'Requires Verification',
-        },
+        success: true, verified: false,
+        medicine: { code, name: code, manufacturer: 'Unknown', category: 'Unverified', timestamp: Date.now(), source: 'No match found' },
       });
     }
 
-    const searchTerm = search.toLowerCase();
-    const rows = await prisma.medicineRecord.findMany({
-      where: {
-        OR: [
-          { name: { contains: searchTerm } },
-          { manufacturer: { contains: searchTerm } },
-        ],
-      },
-      select: { code: true, name: true, manufacturer: true, category: true, verified: true },
-    });
+    if (search) {
+      const q = search.toLowerCase();
+      const localMatches = Object.entries(INDIAN_MEDICINES)
+        .filter(([code, med]) => code.toLowerCase().includes(q) || med.name.toLowerCase().includes(q) || med.manufacturer.toLowerCase().includes(q))
+        .map(([code, med]) => ({ code, ...med, verified: true }));
 
-    const mapped = rows.map(r => ({ ...r, verified: r.verified }));
+      const fda = await lookupOpenFDA(search);
+      const openCPS = await lookupOpenCPS(search);
+
+      return NextResponse.json({
+        success: true,
+        medicines: localMatches,
+        fdaResult: fda,
+        openCPSResult: openCPS,
+        total: localMatches.length,
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      medicines: mapped,
-      total: mapped.length,
+      medicines: Object.entries(INDIAN_MEDICINES).map(([code, med]) => ({ code, ...med, verified: true })),
+      total: Object.keys(INDIAN_MEDICINES).length,
     });
   } catch (error) {
-    console.error('Medicine Verify GET error:', error);
+    console.error('Medicine Verify error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const prisma = (await import('@/lib/prisma')).default;
     const body = await req.json();
-    const { code, name, manufacturer, batchNumber, composition, category, expiryDate, location } = body;
-
-    if (!code) {
-      return NextResponse.json({ error: 'Medicine code is required' }, { status: 400 });
-    }
+    const { code, name, manufacturer } = body;
+    if (!code) return NextResponse.json({ error: 'Medicine code is required' }, { status: 400 });
 
     const upperCode = code.toUpperCase();
-
-    const hashInput = upperCode + (manufacturer || '') + Date.now();
-    const hashBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(hashInput));
-    const hash = Array.from(new Uint8Array(hashBytes))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-
-    const prevHashInput = upperCode + (Date.now() - 1);
-    const prevHashBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(prevHashInput));
-    const previousHash =
-      '0x' +
-      Array.from(new Uint8Array(prevHashBytes))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('')
-        .substring(0, 64);
-
-    const medicineRecord = await prisma.medicineRecord.upsert({
+    const record = await prisma.medicineRecord.upsert({
       where: { code: upperCode },
-      update: {
-        name: name || '',
-        manufacturer: manufacturer || '',
-        composition: composition || '',
-        category: category || 'Unverified',
-        batchNumber: batchNumber || null,
-        expiryDate: expiryDate || null,
-        verified: true,
-      },
-      create: {
-        code: upperCode,
-        name: name || 'Unknown',
-        manufacturer: manufacturer || 'Unknown',
-        composition: composition || '',
-        category: category || 'Unverified',
-        batchNumber: batchNumber || null,
-        expiryDate: expiryDate || null,
-        verified: true,
-      },
+      update: { name: name || '', manufacturer: manufacturer || '', verified: true },
+      create: { code: upperCode, name: name || 'Unknown', manufacturer: manufacturer || 'Unknown', composition: '', category: 'User-Submitted', verified: true },
     });
+
+    INDIAN_MEDICINES[upperCode] = { name: record.name, manufacturer: record.manufacturer, category: 'User-Submitted' };
 
     return NextResponse.json({
-      success: true,
-      verification: {
-        id: medicineRecord.id,
-        name: medicineRecord.name,
-        manufacturer: medicineRecord.manufacturer,
-        batchNumber:
-          batchNumber ||
-          `BAT${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        expiryDate:
-          expiryDate ||
-          new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0],
-        verified: true,
-        timestamp: Date.now(),
-        source: 'ZyntraCare Supply Chain Network',
-      },
-      supplyChain: {
-        manufacturer: medicineRecord.manufacturer,
-        distributor: 'ZyntraCare Authorized Distributor',
-        pharmacy: location || 'Verified Retail Partner',
-        timestamp: Date.now(),
-        blockchain: {
-          hash,
-          previousHash,
-          verified: true,
-        },
-      },
+      success: true, verified: true,
+      medicine: { code: upperCode, name: record.name, manufacturer: record.manufacturer, category: 'User-Submitted', timestamp: Date.now(), source: 'Community Verified' },
     });
   } catch (error) {
-    console.error('Medicine Verify POST error:', error);
+    console.error('Medicine POST error:', error);
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }

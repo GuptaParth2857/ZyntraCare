@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const userId = searchParams.get('userId') || '';
 
   try {
-    const where: any = { type: 'lab_test' };
+    const where: any = {};
     if (userId) where.userId = userId;
 
     const bookings = await prisma.appointment.findMany({

@@ -3,7 +3,7 @@
 
 import { Hospital } from '@/types';
 import { toArray } from '@/lib/utils';
-import { FiMapPin, FiPhone, FiClock, FiStar, FiHeart, FiShield, FiActivity, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiClock, FiStar, FiHeart, FiShield, FiActivity, FiTrendingUp, FiUsers, FiNavigation } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useInView } from 'framer-motion';
@@ -52,7 +52,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
   const imageSrc = hospital.image || '';
 
   const occupancyPercentage = hospital.beds 
-    ? Math.round(((hospital.beds.occupied ?? 0) / hospital.beds.total) * 100) 
+    ? Math.round((((hospital.beds.total - (hospital.beds.available ?? 0)) / hospital.beds.total) * 100)) 
     : 0;
   const isLight = variant === 'light';
 
@@ -104,6 +104,14 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
+
+        {/* Distance Badge */}
+        {hospital.distance != null && (
+          <span className="absolute top-3 left-3 z-20 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 bg-sky-500/90 text-white border border-sky-400/30 shadow-md backdrop-blur-sm">
+            <FiNavigation size={10} />
+            {hospital.distance < 1 ? `${Math.round(hospital.distance * 1000)} m` : `${hospital.distance.toFixed(1)} km`}
+          </span>
+        )}
 
         {/* Emergency Badge */}
         {hospital.emergency && (

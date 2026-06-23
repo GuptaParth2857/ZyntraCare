@@ -61,6 +61,10 @@ function SpecialistsContent() {
         if (selectedSpecialty) params.set('specialty', selectedSpecialty);
         if (selectedLocation && selectedLocation !== 'All India') params.set('state', selectedLocation);
         if (showAvailableOnly) params.set('available', 'true');
+        if (userLocation) {
+          params.set('lat', userLocation.lat.toString());
+          params.set('lng', userLocation.lng.toString());
+        }
         
         const res = await fetch(`/api/specialists?${params}`);
         const data = await res.json();
@@ -71,7 +75,7 @@ function SpecialistsContent() {
       setLoading(false);
     };
     fetchDoctors();
-  }, [selectedSpecialty, selectedLocation, showAvailableOnly]);
+  }, [selectedSpecialty, selectedLocation, showAvailableOnly, userLocation]);
 
   const featuredSpecialties = ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Pediatrics', 'Gynecology'];
 
@@ -96,9 +100,10 @@ function SpecialistsContent() {
     if (sortBy === 'rating') result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     else if (sortBy === 'experience') result.sort((a, b) => (b.experience ?? 0) - (a.experience ?? 0));
     else if (sortBy === 'fee') result.sort((a, b) => (a.consultationFee ?? 0) - (b.consultationFee ?? 0));
+    else if (sortBy === 'distance') result.sort((a, b) => (a.distance ?? 9999) - (b.distance ?? 9999));
 
     return result;
-  }, [selectedSpecialty, activeSpecialtyTab, selectedLocation, showAvailableOnly, sortBy, searchQuery]);
+  }, [doctors, selectedSpecialty, activeSpecialtyTab, selectedLocation, showAvailableOnly, sortBy, searchQuery]);
 
   const handleBookAppointment = (doctor: Doctor) => {
     // handled inside DoctorCard
@@ -293,6 +298,7 @@ function SpecialistsContent() {
             <option value="rating" className="bg-slate-900">Highest Rated</option>
             <option value="experience" className="bg-slate-900">Most Experienced</option>
             <option value="fee" className="bg-slate-900">Lowest Fee</option>
+            <option value="distance" className="bg-slate-900">Nearest First</option>
           </select>
 
           <label className="flex items-center gap-2 cursor-pointer bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 hover:bg-white/10 transition">

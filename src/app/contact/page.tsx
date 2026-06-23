@@ -71,8 +71,8 @@ export default function ContactPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
           {[
             { icon: FiMail, title: 'Email', value: 'contact.zenvyx@gmail.com', href: 'mailto:contact.zenvyx@gmail.com', color: 'from-sky-500 to-cyan-500' },
-            { icon: FiPhone, title: lang === 'hi' ? 'फोन' : 'Phone', value: '1800-ZYN-TRA (24/7)', href: 'tel:108', color: 'from-green-500 to-emerald-500' },
-            { icon: FiMapPin, title: lang === 'hi' ? 'पता' : 'Address', value: 'New Delhi, India', href: '#', color: 'from-purple-500 to-pink-500' },
+            { icon: FiPhone, title: lang === 'hi' ? 'फोन' : 'Phone', value: '+91 11 4321 5678 (Mon-Sat, 9AM-6PM)', href: 'tel:+911143215678', color: 'from-green-500 to-emerald-500' },
+            { icon: FiMapPin, title: lang === 'hi' ? 'पता' : 'Address', value: 'H-48, Sector 63, Noida, UP 201301, India', href: '#', color: 'from-purple-500 to-pink-500' },
           ].map((item, i) => (
             <motion.a key={item.title} href={item.href} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.1 }}

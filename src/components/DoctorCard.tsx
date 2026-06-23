@@ -3,7 +3,7 @@
 
 import { Doctor } from '@/types';
 import { toArray } from '@/lib/utils';
-import { FiMapPin, FiStar, FiClock, FiPhone, FiVideo, FiMessageCircle, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiMapPin, FiStar, FiClock, FiPhone, FiMessageCircle, FiCheckCircle, FiXCircle, FiNavigation } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -142,11 +142,22 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
 
         {/* Hospital Info */}
         <div className={`mt-4 p-2.5 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-100' : 'bg-white/5 border-white/5'}`}>
-          <p className={`text-[13px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-white'}`}>
-            {doctor.hospitals?.[0]?.name || doctor.hospitalName || 'Independent Practice'}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-[13px] font-bold truncate flex-1 ${isLight ? 'text-slate-800' : 'text-white'}`}>
+              {doctor.hospitals?.[0]?.name || doctor.hospitalName || 'Independent Practice'}
+            </p>
+            {doctor.distance != null && (
+              <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                isLight ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
+              }`}>
+                <FiNavigation size={10} />
+                {doctor.distance} km
+              </span>
+            )}
+          </div>
           <p className={`text-[11px] flex items-center gap-1.5 mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
             <FiMapPin size={11} className={isLight ? 'text-blue-500' : ''} aria-hidden="true" />
+            {doctor.hospitals?.[0]?.address ? `${doctor.hospitals[0].address}, ` : ''}
             {doctor.hospitals?.[0]?.city}{doctor.hospitals?.[0]?.state ? `, ${doctor.hospitals?.[0]?.state}` : ''}
             {!doctor.hospitals?.length && (doctor.city || '')}
           </p>
@@ -231,6 +242,34 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
             >
               {booking ? '✓ Confirmed!' : doctor.available ? 'Book Appointment' : 'Unavailable'}
             </button>
+          )}
+
+          {(doctor.userPhone || doctor.hospitals?.[0]?.phone) && (
+            <>
+              {mounted ? (
+                <motion.a
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  href={`tel:${doctor.userPhone || doctor.hospitals?.[0]?.phone}`}
+                  aria-label={`Call ${doctor.name}`}
+                  className={`px-3 py-3 rounded-xl border transition flex items-center justify-center font-bold ${
+                    isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400'
+                  }`}
+                >
+                  <FiPhone size={18} aria-hidden="true" />
+                </motion.a>
+              ) : (
+                <a
+                  href={`tel:${doctor.userPhone || doctor.hospitals?.[0]?.phone}`}
+                  aria-label={`Call ${doctor.name}`}
+                  className={`px-3 py-3 rounded-xl border transition flex items-center justify-center font-bold ${
+                    isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400'
+                  }`}
+                >
+                  <FiPhone size={18} aria-hidden="true" />
+                </a>
+              )}
+            </>
           )}
 
           {mounted ? (

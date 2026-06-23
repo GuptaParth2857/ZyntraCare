@@ -59,14 +59,7 @@ export default function PillScannerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleScan = async () => {
-    setScanning(true);
-    setResult(null);
-    try {
-      const res = await fetch('/api/pill-scanner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'scan' }) });
-      const data = await res.json();
-      if (data.medicine) setResult(data.medicine);
-    } catch { /* fallback handled */ }
-    setScanning(false);
+    fileInputRef.current?.click();
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

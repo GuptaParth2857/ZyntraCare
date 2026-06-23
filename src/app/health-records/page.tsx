@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { FiFileText, FiUpload, FiSearch, FiFilter, FiDownload, FiTrash2, FiEye, FiPlus, FiChevronRight, FiCalendar, FiClock } from 'react-icons/fi';
@@ -16,7 +16,26 @@ const MOCK_RECORDS = [
 export default function HealthRecordsPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
-  const [records] = useState(MOCK_RECORDS);
+  const [records, setRecords] = useState(MOCK_RECORDS);
+
+  useEffect(() => {
+    fetch('/api/patient-records')
+      .then(r => r.json())
+      .then(data => {
+        if (data.records?.length) {
+          setRecords(data.records.map((r: any) => ({
+            id: r.id,
+            title: r.title || r.type || 'Medical Record',
+            type: r.recordType === 'report' ? 'Lab Report' : r.recordType === 'prescription' ? 'Prescription' : r.recordType === 'scan' ? 'Imaging' : 'Immunization',
+            date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
+            hospital: r.hospitalName || '',
+            doctor: r.doctorName || '',
+            fileSize: r.fileSize || '--',
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered = records.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || r.hospital.toLowerCase().includes(search.toLowerCase());

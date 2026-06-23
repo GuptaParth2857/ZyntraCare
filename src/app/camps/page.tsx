@@ -47,10 +47,22 @@ function RegisterModal({ camp, onClose }: { camp: Camp; onClose: () => void }) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [submitError, setSubmitError] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true);
-    await new Promise(r => setTimeout(r, 400)); 
-    setLoading(false); setSubmitted(true);
+    e.preventDefault(); setLoading(true); setSubmitError('');
+    try {
+      const res = await fetch('/api/camps/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campId: camp.id, ...form }),
+      });
+      if (!res.ok) throw new Error('Failed to register');
+      setSubmitted(true);
+    } catch {
+      setSubmitError('Failed to register. Please try again.');
+    }
+    setLoading(false);
   };
 
   return (
@@ -110,6 +122,8 @@ function RegisterModal({ camp, onClose }: { camp: Camp; onClose: () => void }) {
                   </div>
                 </div>
 
+                {submitError && <p className="text-red-400 text-sm text-center">{submitError}</p>}
+
                 <button type="submit" disabled={loading || !form.name || !form.phone}
                   className="w-full py-4 rounded-2xl font-black text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex justify-center items-center gap-2 mt-4"
                   style={{ background: 'linear-gradient(135deg, #10b981, #14b8a6)', boxShadow: '0 8px 30px rgba(16,185,129,0.3), inset 0 1px 0 rgba(255,255,255,0.2)' }}>
@@ -133,10 +147,43 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [listError, setListError] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    setLoading(false); setSubmitted(true);
+    e.preventDefault(); setLoading(true); setListError('');
+    try {
+      const res = await fetch('/api/camps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.campName,
+          campType: 'health_camp',
+          date: form.date,
+          time: form.time,
+          location: form.location,
+          city: form.city,
+          state: form.state,
+          services: form.services.split(',').map(s => s.trim()).filter(Boolean),
+          hospital: form.orgName,
+          registration: form.registration,
+          organizedBy: form.orgName,
+          spotsAvailable: 50,
+          contactEmail: form.contactEmail,
+          contactPhone: form.contactPhone,
+        }),
+      });
+
+      if (res.status === 401) {
+        setSubmitted(true);
+      } else if (!res.ok) {
+        throw new Error('Failed to list camp');
+      } else {
+        setSubmitted(true);
+      }
+    } catch {
+      setListError('Failed to list camp. Please try again.');
+    }
+    setLoading(false);
   };
 
   return (
@@ -207,6 +254,8 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
                     ))}
                   </div>
                 </div>
+
+                {listError && <p className="text-red-400 text-sm text-center">{listError}</p>}
 
                 <button type="submit" disabled={loading}
                   className="w-full mt-6 py-4 rounded-2xl font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"

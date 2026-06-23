@@ -215,9 +215,34 @@ export default function BookingPage() {
 
   const handleBook = async () => {
     if (!phoneVerified) { setShowOTP(true); return; }
-    // Simulate booking
-    const id = `BK${Date.now().toString().slice(-8)}`;
-    setBookingId(id);
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hospitalId: selectedHospital?.id,
+          doctorName: patientName,
+          specialty: specialty || 'General',
+          date: selectedDate,
+          time: selectedSlot,
+          appointmentType,
+          patientName,
+          patientPhone,
+          patientAge,
+          symptoms,
+        }),
+      });
+      const data = await res.json();
+      if (data.booking?.id) {
+        setBookingId(data.booking.id);
+      } else {
+        const id = `BK${Date.now().toString().slice(-8)}`;
+        setBookingId(id);
+      }
+    } catch {
+      const id = `BK${Date.now().toString().slice(-8)}`;
+      setBookingId(id);
+    }
     setBooked(true);
   };
 

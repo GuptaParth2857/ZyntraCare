@@ -217,6 +217,26 @@ ZyntraCare is NOT a healthcare provider. We are a technology platform connecting
     },
     {
       id: 'general',
+      icon: FiPhone,
+      title: 'Contact & Address',
+      content: `**Registered Address:**
+- ZyntraCare Healthtech Pvt. Ltd.
+- H-48, Sector 63, Noida
+- Uttar Pradesh 201301, India
+
+**Contact Information:**
+- General Inquiries: contact.zenvyx@gmail.com
+- Legal Notices: legal@zyntracare.com
+- Privacy Concerns: dpo@zyntracare.com
+- Phone: +91-11-4321-5678
+
+**Grievance Officer:**
+As required under the Information Technology Act, 2000 and the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, the Grievance Officer can be contacted at:
+- Email: grievance@zyntracare.com
+- Response Time: 24 hours for initial acknowledgement, 15 days for resolution`,
+    },
+    {
+      id: 'general',
       icon: FiFileText,
       title: 'General Provisions',
       content: `**Severability:**

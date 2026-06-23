@@ -69,6 +69,7 @@ export interface Doctor {
     lat: number;
     lng: number;
   };
+  distance?: number;
   city?: string;
   state?: string;
   hospitals?: DoctorHospitalInfo[];

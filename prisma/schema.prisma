@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 // ─── USER & AUTH ───────────────────────────────────────────
@@ -401,8 +400,8 @@ model RealTimeBed {
 
 model EmergencyAlert {
   id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
   location    String
   latitude    Float?
   longitude   Float?
@@ -499,6 +498,19 @@ model HealthCamp {
 
   @@index([city])
   @@index([date])
+}
+
+model CampRegistration {
+  id        String   @id @default(cuid())
+  campId    String
+  name      String
+  phone     String
+  email     String   @default("")
+  age       Int?
+  city      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([campId])
 }
 
 // ─── MEDICINE VERIFICATION ─────────────────────────────

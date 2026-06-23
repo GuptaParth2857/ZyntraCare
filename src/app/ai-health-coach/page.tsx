@@ -60,13 +60,13 @@ export default function AIHealthCoachPage() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, context: 'health-coach' }),
+        body: JSON.stringify({ query: input, context: 'health-coach' }),
       });
       const data = await res.json();
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        message: data.reply || "I'm here to help! Ask me about your health metrics, get exercise tips, or advice on diet and lifestyle.",
+        message: data.response || "I'm here to help! Ask me about your health metrics, get exercise tips, or advice on diet and lifestyle.",
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages(prev => [...prev, aiMsg]);

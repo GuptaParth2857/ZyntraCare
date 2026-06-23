@@ -269,7 +269,7 @@ function CinematicDNA({ bloomIntensity = 2.0, particleCount = 80 }: { bloomInten
         <meshBasicMaterial color={cyan} transparent opacity={0.15} toneMapped={false} />
       </mesh>
 
-      <Sparkles count={particleCount} scale={14} size={1.5} speed={0.08} color={cyan} opacity={0.3} toneMapped={false} />
+      <Sparkles count={particleCount} scale={14} size={1.5} speed={0.08} color={cyan} opacity={0.3} />
     </group>
   );
 }

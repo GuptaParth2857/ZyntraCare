@@ -22,6 +22,14 @@ const BLOG_SLUGS = [
   'summer-health-tips-heat-hydration', 'acne-treatment-indian-skin',
   'hair-fall-causes-treatments', 'protein-requirements-indian-diet',
   'weight-loss-diet-plan-indians', 'long-covid-symptoms-recovery',
+  'first-aid-for-burns-treatment', 'heart-attack-warning-signs-symptoms',
+  'importance-regular-health-checkups', 'emergency-numbers-india-list',
+  'healthy-lifestyle-daily-habits', 'heat-stroke-symptoms-first-aid',
+  'diabetes-prevention-lifestyle-changes', 'yoga-beginners-daily-morning-routine',
+  'benefits-walking-daily-guide', 'high-blood-pressure-causes-prevention',
+  'strengthen-immune-system-naturally', 'child-vaccination-schedule-india',
+  'mental-health-stress-reduction-tips', 'oral-health-dental-care-tips',
+  'benefits-warm-water-ayurveda',
 ];
 
 const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' | 'monthly' }[] = [
@@ -46,6 +54,7 @@ const ROUTES: { path: string; priority: number; changeFreq: 'daily' | 'weekly' |
   { path: '/medicine-verify', priority: 0.6, changeFreq: 'weekly' },
   { path: '/camps', priority: 0.6, changeFreq: 'weekly' },
   { path: '/chat', priority: 0.5, changeFreq: 'weekly' },
+  { path: '/about', priority: 0.6, changeFreq: 'monthly' },
   { path: '/contact', priority: 0.5, changeFreq: 'monthly' },
   { path: '/first-aid', priority: 0.6, changeFreq: 'weekly' },
 

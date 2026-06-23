@@ -59,11 +59,61 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     // DB unavailable
   }
 
+  const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zyntracare.com';
+
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
       <div className="relative z-10 max-w-4xl mx-auto px-4 pt-28">
+        {/* Article Schema.org JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              headline: blog.title,
+              description: blog.excerpt,
+              image: blog.image || undefined,
+              datePublished: blog.createdAt.toISOString(),
+              dateModified: blog.updatedAt?.toISOString() || blog.createdAt.toISOString(),
+              author: {
+                "@type": "Person",
+                name: blog.author,
+              },
+              publisher: {
+                "@type": "Organization",
+                name: "ZyntraCare",
+                logo: {
+                  "@type": "ImageObject",
+                  url: `${BASE}/images/publiczyntracare-logo.png`,
+                },
+              },
+              mainEntityOfPage: {
+                "@type": "WebPage",
+                "@id": `${BASE}/blogs/${blog.slug}`,
+              },
+            }),
+          }}
+        />
+
+        {/* BreadcrumbList JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Home", item: BASE },
+                { "@type": "ListItem", position: 2, name: "Blogs", item: `${BASE}/blogs` },
+                { "@type": "ListItem", position: 3, name: blog.title, item: `${BASE}/blogs/${blog.slug}` },
+              ],
+            }),
+          }}
+        />
+
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-slate-400 mb-6 flex-wrap">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-slate-400 mb-6 flex-wrap">
           <Link href="/" className="hover:text-orange-400 transition-colors">Home</Link>
           <span>/</span>
           <Link href="/blogs" className="hover:text-orange-400 transition-colors">Blogs</Link>

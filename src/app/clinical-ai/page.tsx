@@ -33,12 +33,12 @@ export default function ClinicalAISupportPage() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, context: 'clinical' }),
+        body: JSON.stringify({ query: input, context: 'clinical' }),
       });
       const data = await res.json();
       setMessages(prev => [...prev, {
         role: 'ai',
-        content: data.reply || 'I apologize, but I need more information to provide an accurate clinical assessment. Could you please provide more details about your symptoms?',
+        content: data.response || 'I apologize, but I need more information to provide an accurate clinical assessment. Could you please provide more details about your symptoms?',
         sources: data.sources || undefined,
       }]);
     } catch {

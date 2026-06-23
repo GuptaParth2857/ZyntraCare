@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDistanceKm } from '@/utils/distance';
 import { generateNearbyAll } from '@/utils/fallback';
 
+const HOSPITAL_IMAGES = [
+  'https://images.unsplash.com/photo-1764885449332-7eb941d53b7e?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1764885518098-781b23d50e7f?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1764885415563-8b868745e9e2?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1769698678497-c41f0ab47c3e?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1720608594472-bc29045eef28?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1720463903383-c45df62da719?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1627372043170-f9cf2706f5f2?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1769147555720-71fc71bfc216?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&q=80&w=800',
+  'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&q=80&w=800',
+];
+
+function getHospitalImage(name: string): string {
+  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return HOSPITAL_IMAGES[hash % HOSPITAL_IMAGES.length];
+}
+
 // Helper to query Overpass API for real nearby places
 async function fetchFromOverpass(lat: number, lng: number, radiusM: number, filterType: string) {
   const radius = Math.min(radiusM, 50000); // cap at 50km
@@ -136,9 +154,9 @@ export async function GET(req: NextRequest) {
     console.warn('Database query failed, falling back to Overpass:', err);
   }
 
-  // Overpass — real nearby places (only if DB had no results within radius)
+  // Overpass — real nearby places (always try, merges with DB results)
   let overpassResults: any[] = [];
-  if (dbResults.length === 0) {
+  {
     try {
       const elements = await fetchFromOverpass(lat, lng, Math.max(radiusM, 5000), filterType);
 
@@ -171,6 +189,7 @@ export async function GET(req: NextRequest) {
             location: { lat: elLat, lng: elLng },
             rating: 0,
             workingHours: el.tags?.opening_hours || '',
+            image: getHospitalImage(name),
             distance,
           };
         })

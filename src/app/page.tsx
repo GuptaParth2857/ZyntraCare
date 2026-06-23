@@ -857,19 +857,27 @@ export default function Home() {
   const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
   const hasFull3D = false;
   const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
+  const { position, requestLocation } = useGeolocation();
   const [topHospitals, setTopHospitals] = useState<any[]>([]);
   const [topDoctors, setTopDoctors] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/hospitals?limit=3')
-      .then(r => r.json())
-      .then(d => { if (d.hospitals) setTopHospitals(d.hospitals); })
-      .catch(() => {});
-    fetch('/api/doctors?limit=4')
-      .then(r => r.json())
-      .then(d => { if (d.doctors) setTopDoctors(d.doctors); })
-      .catch(() => {});
+    requestLocation();
   }, []);
+
+  useEffect(() => {
+    const userLat = position?.lat ?? 28.6139;
+    const userLng = position?.lng ?? 77.2090;
+
+    fetch(`/api/hospitals?limit=3&lat=${userLat}&lng=${userLng}&nearby=true`)
+      .then(r => r.json())
+      .then(d => { if (d.hospitals?.length) setTopHospitals(d.hospitals); })
+      .catch(() => {});
+    fetch(`/api/doctors?limit=3&lat=${userLat}&lng=${userLng}&nearby=true`)
+      .then(r => r.json())
+      .then(d => { if (d.doctors?.length) setTopDoctors(d.doctors); })
+      .catch(() => {});
+  }, [position?.lat, position?.lng]);
 
   return (
     <div className="min-h-screen text-white overflow-hidden">
@@ -1195,7 +1203,7 @@ export default function Home() {
             </Link>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {topDoctors.map((doctor, idx) => (
               <motion.div
                 key={doctor.id}

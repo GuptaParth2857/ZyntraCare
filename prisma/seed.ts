@@ -1,7 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaLibSql } from '@prisma/adapter-libsql';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaLibSql({ url: process.env.DATABASE_URL || 'file:./dev.db' }),
+});
 
 const CITIES = [
   { city: 'Delhi', lat: 28.6139, lng: 77.2090, state: 'Delhi' },
@@ -401,6 +404,55 @@ async function main() {
 
     // COVID
     { title: 'Long COVID: Symptoms, Management, and Recovery Tips', slug: 'long-covid-symptoms-recovery', content: 'Many COVID patients experience lingering symptoms. Learn about long COVID symptoms (fatigue, brain fog, breathlessness), management strategies, and recovery timeline.', excerpt: 'Understanding long COVID and practical steps to manage persistent symptoms after recovery.', author: 'Dr. Amit Kumar', image: 'https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&q=80&w=800', category: 'Public Health', tags: JSON.stringify(['COVID', 'long COVID', 'recovery', 'post-COVID']), readTime: 7, featured: false, published: true },
+
+    // ════════════════════════════════════════════════════════
+    // NEW ARTICLES — User-requested health topics
+    // ════════════════════════════════════════════════════════
+
+    // First Aid for Burns
+    { title: 'First Aid for Burns: Treatment Guide for Indian Homes', slug: 'first-aid-for-burns-treatment', content: 'Burns are common in Indian kitchens. Learn immediate first aid for thermal, electrical, and chemical burns — cool running water (not ice), sterile dressing, when to pop blisters (never), and when to rush to hospital.', excerpt: 'Step-by-step burn first aid guide — what to do immediately, what NOT to do, and when to see a doctor.', author: 'Dr. Amit Kumar', image: 'https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&q=80&w=800', category: 'Public Health', tags: JSON.stringify(['burns', 'first aid', 'kitchen accidents', 'emergency']), readTime: 6, featured: true, published: true },
+
+    // Heart Attack Warning Signs
+    { title: 'Heart Attack Warning Signs: Symptoms You Should Never Ignore', slug: 'heart-attack-warning-signs-symptoms', content: 'Recognizing a heart attack early saves lives. Learn the classic signs (chest pain, arm numbness, shortness of breath) and atypical signs (jaw pain, indigestion, fatigue). Includes Indian context and when to call 108.', excerpt: 'Know the warning signs of a heart attack — both classic and silent symptoms that every Indian should recognize.', author: 'Dr. Priya Sharma', image: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=800', category: 'Cardiology', tags: JSON.stringify(['heart attack', 'cardiac arrest', 'chest pain', 'emergency', '108']), readTime: 8, featured: true, published: true },
+
+    // Importance of Regular Health Checkups
+    { title: 'Importance of Regular Health Checkups: Preventive Care Guide', slug: 'importance-regular-health-checkups', content: 'Prevention is better than cure. Learn why annual health checkups are crucial for early detection of diabetes, hypertension, heart disease, and cancer. Includes age-wise screening recommendations for Indians.', excerpt: 'Why regular health checkups can save your life — age-wise screening guide for common Indian health risks.', author: 'Dr. Kavita Reddy', image: 'https://images.unsplash.com/photo-1571013459516-f131706a1620?auto=format&fit=crop&q=80&w=800', category: 'Wellness', tags: JSON.stringify(['health checkup', 'preventive care', 'screening', 'annual checkup']), readTime: 7, featured: true, published: true },
+
+    // Emergency Numbers in India
+    { title: 'Emergency Numbers in India: 108, 112, 102 and More', slug: 'emergency-numbers-india-list', content: 'Complete list of emergency helpline numbers in India — 108 (medical), 112 (unified), 102 (ambulance), 100 (police), 101 (fire), 1098 (child helpline), 181 (women helpline) and more state-wise numbers.', excerpt: 'All important emergency helpline numbers in India — save these in your phone today.', author: 'Rohit Singh', image: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&q=80&w=800', category: 'Public Health', tags: JSON.stringify(['emergency numbers', '108', '112', 'ambulance', 'helpline']), readTime: 5, featured: true, published: true },
+
+    // How to Maintain a Healthy Lifestyle
+    { title: 'How to Maintain a Healthy Lifestyle: Daily Habits Guide', slug: 'healthy-lifestyle-daily-habits', content: 'A healthy lifestyle is built on small daily habits. Learn about balanced nutrition, regular exercise, sleep hygiene, stress management, and social connections. Practical tips tailored for busy Indian lifestyles.', excerpt: 'Simple daily habits for a healthier life — nutrition, exercise, sleep, and stress management for Indians.', author: 'Dr. Ananya Verma', image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800', category: 'Wellness', tags: JSON.stringify(['healthy lifestyle', 'daily habits', 'nutrition', 'exercise', 'sleep']), readTime: 9, featured: true, published: true },
+
+    // Heat Stroke: Symptoms and First Aid
+    { title: 'Heat Stroke: Symptoms, First Aid, and Prevention Tips', slug: 'heat-stroke-symptoms-first-aid', content: 'Heat stroke is a medical emergency. Learn to recognize symptoms (high body temperature, confusion, rapid pulse), immediate first aid (cooling techniques), and prevention tips for Indian summers.', excerpt: 'Heat stroke can be fatal — recognize symptoms early and learn life-saving first aid techniques.', author: 'Dr. Rajesh Joshi', image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800', category: 'Public Health', tags: JSON.stringify(['heat stroke', 'summer', 'first aid', 'dehydration']), readTime: 6, featured: false, published: true },
+
+    // Diabetes Prevention
+    { title: 'Diabetes Prevention: 10 Lifestyle Changes That Work', slug: 'diabetes-prevention-lifestyle-changes', content: 'Type 2 diabetes is preventable. Learn 10 evidence-based lifestyle changes — weight management, physical activity, dietary modifications, sleep, and stress reduction. Includes Indian diet tips.', excerpt: 'Prevent type 2 diabetes with these 10 lifestyle changes backed by science and tailored for Indians.', author: 'Dr. Kavita Reddy', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800', category: 'Nutrition', tags: JSON.stringify(['diabetes', 'prevention', 'lifestyle', 'diet', 'exercise']), readTime: 8, featured: false, published: true },
+
+    // Yoga for Beginners
+    { title: 'Yoga for Beginners: 10-Minute Daily Morning Routine', slug: 'yoga-beginners-daily-morning-routine', content: 'Start your day with this simple 10-minute yoga routine. Includes Surya Namaskar, Tadasana, Trikonasana, Bhujangasana, and Shavasana. Step-by-step instructions with breathing techniques for beginners.', excerpt: 'A simple 10-minute morning yoga routine perfect for beginners — no equipment needed.', author: 'Rohit Singh', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=800', category: 'Fitness', tags: JSON.stringify(['yoga', 'beginner', 'morning routine', 'exercise', 'fitness']), readTime: 7, featured: false, published: true },
+
+    // Benefits of Walking
+    { title: 'Benefits of Walking 30 Minutes Daily: Complete Guide', slug: 'benefits-walking-daily-guide', content: 'Walking is the simplest and most effective exercise. Learn the health benefits — weight management, heart health, blood sugar control, mental well-being, joint health. Tips to make walking a daily habit in Indian neighborhoods.', excerpt: 'Discover why walking 30 minutes a day is the best exercise for Indians — benefits and tips to stay consistent.', author: 'Rohit Singh', image: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&q=80&w=800', category: 'Fitness', tags: JSON.stringify(['walking', 'exercise', 'fitness', 'weight loss', 'heart health']), readTime: 6, featured: false, published: true },
+
+    // Blood Pressure Guide
+    { title: 'High Blood Pressure: Causes, Symptoms, and Prevention', slug: 'high-blood-pressure-causes-prevention', content: 'Hypertension affects 1 in 3 Indian adults. Learn about normal BP ranges, causes (salt, stress, obesity), symptoms (often silent), complications, and lifestyle changes to control blood pressure naturally.', excerpt: 'Complete guide to understanding and managing high blood pressure — the silent killer affecting millions of Indians.', author: 'Dr. Priya Sharma', image: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=800', category: 'Cardiology', tags: JSON.stringify(['blood pressure', 'hypertension', 'heart health', 'BP control']), readTime: 8, featured: false, published: true },
+
+    // Immunity Boosting Naturally
+    { title: 'How to Strengthen Your Immune System Naturally', slug: 'strengthen-immune-system-naturally', content: 'Boost your immunity with natural methods — vitamin C rich Indian foods (amla, citrus), zinc sources (pumpkin seeds, chickpeas), sleep, exercise, stress management, and herbs like giloy and ashwagandha.', excerpt: 'Natural ways to boost your immune system using Indian superfoods, herbs, and healthy habits.', author: 'Dr. Ananya Verma', image: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&q=80&w=800', category: 'Nutrition', tags: JSON.stringify(['immunity', 'immune system', 'natural remedies', 'ayurveda', 'nutrition']), readTime: 7, featured: false, published: true },
+
+    // Child Vaccination Schedule India
+    { title: 'Child Vaccination Schedule in India: Complete Guide', slug: 'child-vaccination-schedule-india', content: 'Complete vaccination schedule for children in India as per IAP guidelines. BCG, polio, pentavalent, measles, MMR, typhoid, Hepatitis — age-wise schedule with vaccine details and importance of immunization.', excerpt: 'Complete India vaccination schedule for children from birth to 16 years — age-wise guide for parents.', author: 'Dr. Sneha Patel', image: 'https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&q=80&w=800', category: 'Public Health', tags: JSON.stringify(['vaccination', 'child health', 'immunization', 'vaccine schedule', 'IAP']), readTime: 9, featured: false, published: true },
+
+    // Mental Health Stress Reduction
+    { title: 'Mental Health: Simple Ways to Reduce Stress and Anxiety', slug: 'mental-health-stress-reduction-tips', content: 'Stress and anxiety are rising in India. Learn practical techniques — deep breathing, meditation, journaling, digital detox, exercise, and when to seek professional help. Includes workplace stress management.', excerpt: 'Simple and effective ways to manage stress and anxiety in your daily life — no expensive therapy needed.', author: 'Dr. Arjun Mehta', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=800', category: 'Mental Health', tags: JSON.stringify(['mental health', 'stress', 'anxiety', 'meditation', 'self care']), readTime: 7, featured: false, published: true },
+
+    // Oral Health
+    { title: 'Oral Health: Common Dental Problems and Prevention Tips', slug: 'oral-health-dental-care-tips', content: 'Dental health is often neglected in India. Learn about common problems — cavities, gum disease, bad breath, tooth sensitivity. Prevention tips: proper brushing technique, flossing, oil pulling, and regular dental checkups.', excerpt: 'Prevent common dental problems with these oral health tips — brushing, flossing, and Indian home remedies.', author: 'Dr. Sneha Patel', image: 'https://images.unsplash.com/photo-1571013459516-f131706a1620?auto=format&fit=crop&q=80&w=800', category: 'Wellness', tags: JSON.stringify(['dental care', 'oral health', 'teeth', 'gum disease', 'cavities']), readTime: 6, featured: false, published: true },
+
+    // Benefits of Warm Water
+    { title: 'Benefits of Drinking Warm Water: Ayurvedic and Scientific View', slug: 'benefits-warm-water-ayurveda', content: 'Warm water has been used in Ayurveda for centuries. Learn the science-backed benefits — digestion improvement, detoxification, weight loss, sinus relief, and metabolism boost. How to make it a daily habit.', excerpt: 'Why drinking warm water every morning can transform your health — Ayurvedic wisdom meets modern science.', author: 'Dr. Ananya Verma', image: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&q=80&w=800', category: 'Nutrition', tags: JSON.stringify(['warm water', 'ayurveda', 'digestion', 'detox', 'weight loss']), readTime: 5, featured: false, published: true },
   ];
 
   const allBlogData = [...BLOG_DATA, ...EXTRA_BLOG_DATA];

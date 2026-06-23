@@ -92,7 +92,7 @@ export default function DashboardPage() {
       .catch(() => {});
 
     if (isLoggedIn) {
-      fetch('/api/bookings?limit=5', { signal: controller.signal })
+      fetch('/api/bookings', { signal: controller.signal })
         .then(res => res.json())
         .then(data => {
           if (data.bookings) {

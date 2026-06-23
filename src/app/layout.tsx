@@ -91,6 +91,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=partner=zyntracare" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="color-scheme" content="dark light" />
+        <link rel="alternate" type="application/rss+xml" title="ZyntraCare Health Blog" href="/feed" />
+        <link rel="alternate" type="application/atom+xml" title="ZyntraCare Health Blog (Atom)" href="/feed" />
 
         {/* Google AdSense */}
         <script

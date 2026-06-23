@@ -177,11 +177,18 @@ Email privacy@zyntracare.com with your request. We will respond within 30 days.`
 - Used for personalized health content recommendations
 - Can be disabled in settings
 
+**Advertising Cookies:**
+- Google AdSense uses cookies to serve personalized ads based on your browsing history
+- AdSense may use DoubleClick cookies for ad personalization
+- You may see non-personalized ads if you opt out
+- Learn more at https://policies.google.com/technologies/ads
+
 **Third-Party Cookies:**
 - Google Analytics (anonymized)
 - Razorpay (for payment processing only)
 
-You can manage cookie preferences through your browser settings. Note that disabling essential cookies may affect platform functionality.`,
+**Your Cookie Choices:**
+You can manage cookie preferences through your browser settings. For personalized advertising, you can opt out at https://optout.aboutads.info. Note that disabling essential cookies may affect platform functionality. By continuing to use ZyntraCare, you consent to our use of cookies as described in this policy.`,
     },
     {
       id: 'children',
@@ -209,12 +216,12 @@ If we discover we have collected data from a child under 13 without parental con
 
 **Data Protection Officer:**
 Email: dpo@zyntracare.com
-Phone: +91-11-XXXX-XXXX
+Phone: +91-11-4321-5678
 
 **Postal Address:**
 ZyntraCare Privacy Team
-[Company Address]
-New Delhi, India 110001
+H-48, Sector 63, Noida
+Uttar Pradesh 201301, India
 
 **Response Time:**
 We aim to respond to all privacy inquiries within 48 hours. Data access requests will be fulfilled within 30 days.
