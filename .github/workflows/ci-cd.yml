@@ -81,6 +81,10 @@ jobs:
 
       - name: Build application
         run: npm run build
+        env:
+          DATABASE_URL: file:./dev.db
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'fallback_secret_key_32_chars_minimum_for_build_only' }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL || 'http://localhost:3000' }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
