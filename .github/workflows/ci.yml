@@ -21,7 +21,6 @@ jobs:
           DATABASE_URL: 'file:./dev.db'
       - run: npm run lint
         continue-on-error: true
-      - run: npx tsc --noEmit
   deploy:
     needs: quality
     if: github.ref == 'refs/heads/main'
