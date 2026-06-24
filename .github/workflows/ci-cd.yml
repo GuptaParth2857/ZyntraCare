@@ -25,6 +25,10 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: file:./dev.db
       - run: npm run typecheck
 
   test:
