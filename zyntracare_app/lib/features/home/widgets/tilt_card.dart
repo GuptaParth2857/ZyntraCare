@@ -64,13 +64,13 @@ class _TiltCardState extends State<TiltCard> with SingleTickerProviderStateMixin
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [widget.color.withOpacity(0.18), widget.color.withOpacity(0.06)],
+                  colors: [widget.color.withValues(alpha: 0.18), widget.color.withValues(alpha: 0.06)],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: widget.color.withOpacity(0.35)),
+                border: Border.all(color: widget.color.withValues(alpha: 0.35)),
                 boxShadow: [
-                  BoxShadow(color: widget.color.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4)),
+                  BoxShadow(color: widget.color.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
                 ],
               ),
               child: widget.child,

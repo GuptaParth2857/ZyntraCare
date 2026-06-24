@@ -148,7 +148,7 @@ class _ListSheet extends StatelessWidget {
             ),
             child: Row(children: [
               Container(padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                 child: Icon(icon, color: color, size: 18)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -283,7 +283,7 @@ class _SymptomState extends State<_Symptom> {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: sel ? ZyntraColors.cyan.withOpacity(0.2) : ZyntraColors.surface,
+                color: sel ? ZyntraColors.cyan.withValues(alpha: 0.2) : ZyntraColors.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: sel ? ZyntraColors.cyan : ZyntraColors.border),
               ),
@@ -306,7 +306,7 @@ class _SymptomState extends State<_Symptom> {
                 padding: const EdgeInsets.all(24),
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Container(width: 52, height: 52,
-                    decoration: BoxDecoration(color: ZyntraColors.cyan.withOpacity(0.15), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: ZyntraColors.cyan.withValues(alpha: 0.15), shape: BoxShape.circle),
                     child: const Icon(Icons.check_circle_rounded, color: ZyntraColors.cyan, size: 32)),
                   const SizedBox(height: 16),
                   Text('Analysis Complete', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),

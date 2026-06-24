@@ -15,7 +15,6 @@ class _HospitalsScreenState extends State<HospitalsScreen> {
   final List<Hospital> _hospitals = MockDataService.getHospitals();
   String _searchQuery = '';
   String? _selectedCity;
-  String? _selectedSpecialty;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +288,6 @@ class _HospitalsScreenState extends State<HospitalsScreen> {
                       onPressed: () {
                         setState(() {
                           _selectedCity = null;
-                          _selectedSpecialty = null;
                         });
                         Navigator.pop(context);
                       },

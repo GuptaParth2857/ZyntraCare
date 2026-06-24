@@ -33,7 +33,7 @@ class _EmergencyBannerState extends State<EmergencyBanner> with SingleTickerProv
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: ZyntraColors.red.withOpacity(_pulse.value * 0.5),
+                color: ZyntraColors.red.withValues(alpha: _pulse.value * 0.5),
                 blurRadius: 20 + _pulse.value * 10,
                 spreadRadius: _pulse.value * 2,
               ),
@@ -58,7 +58,7 @@ class _EmergencyBannerState extends State<EmergencyBanner> with SingleTickerProv
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.3), blurRadius: 8)],
+                  boxShadow: [BoxShadow(color: Colors.white.withValues(alpha: 0.3), blurRadius: 8)],
                 ),
                 child: const Text('102', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w800, fontSize: 16)),
               ),

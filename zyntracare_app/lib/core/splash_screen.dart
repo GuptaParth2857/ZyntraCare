@@ -25,7 +25,7 @@ class _ParticlePainter extends CustomPainter {
       final dist = p.speed * progress * 180;
       final opacity = (1 - progress).clamp(0.0, 1.0);
       final paint = Paint()
-        ..color = p.color.withOpacity(opacity * 0.85)
+        ..color = p.color.withValues(alpha: opacity * 0.85)
         ..style = PaintingStyle.fill;
       final x = cx + cos(p.angle) * dist;
       final y = cy + sin(p.angle) * dist;
@@ -48,7 +48,7 @@ class _RingPainter extends CustomPainter {
     final radius = 60 + progress * 100;
     final opacity = (1 - progress).clamp(0.0, 1.0);
     final paint = Paint()
-      ..color = color.withOpacity(opacity * 0.4)
+      ..color = color.withValues(alpha: opacity * 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), radius, paint);
@@ -66,7 +66,7 @@ class _HeartbeatPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = ZyntraColors.cyan.withOpacity(0.9)
+      ..color = ZyntraColors.cyan.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
@@ -220,8 +220,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           ),
                           borderRadius: BorderRadius.circular(30),
                           boxShadow: [
-                            BoxShadow(color: ZyntraColors.cyan.withOpacity(0.5), blurRadius: 40, spreadRadius: 4),
-                            BoxShadow(color: ZyntraColors.purple.withOpacity(0.3), blurRadius: 60, spreadRadius: 8),
+                            BoxShadow(color: ZyntraColors.cyan.withValues(alpha: 0.5), blurRadius: 40, spreadRadius: 4),
+                            BoxShadow(color: ZyntraColors.purple.withValues(alpha: 0.3), blurRadius: 60, spreadRadius: 8),
                           ],
                         ),
                         child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 52),
@@ -266,7 +266,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(colors: [ZyntraColors.cyan, ZyntraColors.purple]),
                               borderRadius: BorderRadius.circular(4),
-                              boxShadow: [BoxShadow(color: ZyntraColors.cyan.withOpacity(0.8), blurRadius: 8)],
+                              boxShadow: [BoxShadow(color: ZyntraColors.cyan.withValues(alpha: 0.8), blurRadius: 8)],
                             ),
                           ),
                         ),

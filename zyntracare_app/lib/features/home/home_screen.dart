@@ -286,7 +286,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFF00D4FF).withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: const Color(0xFF00D4FF).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: const Color(0xFF00D4FF)),
       ),
       title: Text(label, style: const TextStyle(color: Colors.white)),
@@ -355,7 +355,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             child: Container(
               padding: const EdgeInsets.all(8),
               margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22),
             ),
           ),
@@ -364,7 +364,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             child: Container(
               padding: const EdgeInsets.all(8),
               margin: const EdgeInsets.only(right: 16),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.search, color: Colors.white, size: 22),
             ),
           ),
@@ -403,16 +403,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ),
       ),
       child: Stack(children: [
-        Positioned(top: -50, right: -50, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [const Color(0xFF00D4FF).withOpacity(0.3), Colors.transparent])))),
-        Positioned(bottom: -30, left: -30, child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [const Color(0xFF7B2FF7).withOpacity(0.3), Colors.transparent])))),
+        Positioned(top: -50, right: -50, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [const Color(0xFF00D4FF).withValues(alpha: 0.3), Colors.transparent])))),
+        Positioned(bottom: -30, left: -30, child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [const Color(0xFF7B2FF7).withValues(alpha: 0.3), Colors.transparent])))),
         Padding(padding: const EdgeInsets.fromLTRB(20, 100, 20, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Icon(Icons.location_on, color: Color(0xFF00D4FF), size: 18),
             const SizedBox(width: 6),
-            Expanded(child: Text(location, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14), overflow: TextOverflow.ellipsis)),
+            Expanded(child: Text(location, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14), overflow: TextOverflow.ellipsis)),
           ]),
           const SizedBox(height: 20),
-          Text('Find Your', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16)),
+          Text('Find Your', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
           const Text('Healthcare Solution', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
         ])),
       ]),
@@ -445,12 +445,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withOpacity(0.2), color.withOpacity(0.05)]),
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)]),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)),
+              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withValues(alpha: 0.2), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)),
               const SizedBox(height: 8),
               Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
             ]),
@@ -468,12 +468,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         decoration: BoxDecoration(
           gradient: const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: const Color(0xFFEF4444).withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10))],
+          boxShadow: [BoxShadow(color: const Color(0xFFEF4444).withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 10))],
         ),
         child: Stack(children: [
-          Positioned(right: -20, top: -20, child: Container(width: 100, height: 100, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.1)))),
+          Positioned(right: -20, top: -20, child: Container(width: 100, height: 100, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)))),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(children: [
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.emergency, color: Colors.white, size: 28)),
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle), child: const Icon(Icons.emergency, color: Colors.white, size: 28)),
             const SizedBox(width: 16),
             const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text('Medical Emergency?', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), Text('Tap for immediate help', style: TextStyle(color: Colors.white70, fontSize: 12))])),
             Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)), child: const Text('102', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 18))),
@@ -516,21 +516,21 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [const Color(0xFF1E293B), const Color(0xFF0F172A)]),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(height: 80, decoration: BoxDecoration(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          gradient: LinearGradient(colors: [const Color(0xFF00D4FF).withOpacity(0.3), const Color(0xFF7B2FF7).withOpacity(0.3)]),
-        ), child: Center(child: Icon(Icons.local_hospital, color: Colors.white.withOpacity(0.8), size: 40))),
+          gradient: LinearGradient(colors: [const Color(0xFF00D4FF).withValues(alpha: 0.3), const Color(0xFF7B2FF7).withValues(alpha: 0.3)]),
+        ), child: Center(child: Icon(Icons.local_hospital, color: Colors.white.withValues(alpha: 0.8), size: 40))),
         Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis)),
             Row(children: [const Icon(Icons.star, color: Colors.amber, size: 16), const SizedBox(width: 4), Text(rating.toString(), style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))]),
           ]),
           const SizedBox(height: 8),
-          Row(children: [const Icon(Icons.location_on, color: Color(0xFF00D4FF), size: 14), const SizedBox(width: 4), Text(city, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12))]),
+          Row(children: [const Icon(Icons.location_on, color: Color(0xFF00D4FF), size: 14), const SizedBox(width: 4), Text(city, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12))]),
           const SizedBox(height: 8),
           Row(children: [
             _chip('$beds beds', Colors.green),
@@ -548,7 +548,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Widget _chip(String text, Color color) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500)));
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)), child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500)));
   }
 
   Widget _doctorsList() {
@@ -568,7 +568,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(colors: [const Color(0xFF1E293B), const Color(0xFF0F172A)]),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Row(children: [
           Container(width: 60, height: 60, decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF00D4FF), Color(0xFF7B2FF7)]), borderRadius: BorderRadius.circular(16)), child: Center(child: Text(name.isNotEmpty ? name[0] : 'D', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))),
@@ -576,11 +576,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
-            Text(specialty, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+            Text(specialty, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
             const SizedBox(height: 4),
             Row(children: [const Icon(Icons.star, color: Colors.amber, size: 14), const SizedBox(width: 4), Text(rating.toString(), style: const TextStyle(color: Colors.amber, fontSize: 12))]),
           ])),
-          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF00D4FF).withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.calendar_today, color: Color(0xFF00D4FF))),
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF00D4FF).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.calendar_today, color: Color(0xFF00D4FF))),
         ]),
       ),
     );
@@ -607,8 +607,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withOpacity(0.2), color.withOpacity(0.05)]),
-          border: Border.all(color: color.withOpacity(0.3)),
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)]),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(children: [Icon(icon, color: color, size: 28), const SizedBox(height: 8), Text(label, style: const TextStyle(color: Colors.white, fontSize: 11), textAlign: TextAlign.center)]),
       ),
@@ -634,7 +634,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color.withOpacity(0.3), color.withOpacity(0.1)]),
+        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color.withValues(alpha: 0.3), color.withValues(alpha: 0.1)]),
       ),
       child: Column(children: [Icon(icon, color: color, size: 24), const SizedBox(height: 8), Text(label, style: const TextStyle(color: Colors.white, fontSize: 10), textAlign: TextAlign.center)]),
     ));
@@ -645,8 +645,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        color: const Color(0xFF1E293B).withOpacity(0.9),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: const Color(0xFF1E293B).withValues(alpha: 0.9),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(30),
@@ -670,7 +670,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: sel ? const Color(0xFF00D4FF).withOpacity(0.2) : Colors.transparent,
+          color: sel ? const Color(0xFF00D4FF).withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [

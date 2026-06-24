@@ -77,12 +77,12 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           child: Container(
             height: 68,
             decoration: BoxDecoration(
-              color: ZyntraColors.card.withOpacity(0.92),
+              color: ZyntraColors.card.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: ZyntraColors.border.withOpacity(0.6)),
+              border: Border.all(color: ZyntraColors.border.withValues(alpha: 0.6)),
               boxShadow: [
-                BoxShadow(color: ZyntraColors.cyan.withOpacity(0.06), blurRadius: 30, offset: const Offset(0, -4)),
-                BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, 10)),
+                BoxShadow(color: ZyntraColors.cyan.withValues(alpha: 0.06), blurRadius: 30, offset: const Offset(0, -4)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(0, 10)),
               ],
             ),
             child: Row(
@@ -106,10 +106,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(horizontal: sel ? 18 : 14, vertical: 10),
         decoration: BoxDecoration(
-          color: sel ? item.color.withOpacity(0.15) : Colors.transparent,
+          color: sel ? item.color.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
-          border: sel ? Border.all(color: item.color.withOpacity(0.35)) : null,
-          boxShadow: sel ? [BoxShadow(color: item.color.withOpacity(0.3), blurRadius: 16)] : null,
+          border: sel ? Border.all(color: item.color.withValues(alpha: 0.35)) : null,
+          boxShadow: sel ? [BoxShadow(color: item.color.withValues(alpha: 0.3), blurRadius: 16)] : null,
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(item.icon, color: sel ? item.color : ZyntraColors.white40, size: 23),

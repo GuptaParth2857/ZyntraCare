@@ -70,17 +70,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://unpkg.com" />
 
-        {/* Premium fonts */}
+        {/* Premium fonts — Inter (body), Outfit (display) — loaded with preload for early fetch */}
+        <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap"
           rel="stylesheet"
         />
 
-        {/* Leaflet CSS */}
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          crossOrigin="anonymous"
+        {/* Leaflet CSS — loaded after paint to avoid render blocking */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('DOMContentLoaded', function() {
+                var l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                l.crossOrigin = 'anonymous';
+                document.head.appendChild(l);
+              });
+            `,
+          }}
         />
 
         {/* Favicon */}
@@ -94,11 +103,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="alternate" type="application/rss+xml" title="ZyntraCare Health Blog" href="/feed" />
         <link rel="alternate" type="application/atom+xml" title="ZyntraCare Health Blog (Atom)" href="/feed" />
 
-        {/* Google AdSense */}
+        {/* Google AdSense — deferred to avoid blocking first paint */}
         <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5241033119281791"
-          crossOrigin="anonymous"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('load', function() {
+                var s = document.createElement('script');
+                s.async = true;
+                s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5241033119281791';
+                s.crossOrigin = 'anonymous';
+                document.head.appendChild(s);
+              });
+            `,
+          }}
         />
 
         {/* Adsterra Popunder (#4) — 1 per page visit */}

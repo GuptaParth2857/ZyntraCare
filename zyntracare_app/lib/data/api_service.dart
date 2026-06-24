@@ -42,37 +42,48 @@ class ApiService {
 
   Future<List<dynamic>> getHospitals({String? city, String? search}) async {
     final data = await get('/api/hospitals', params: {'city': city ?? '', 'q': search ?? ''});
-    return data?['data'] ?? [];
+    return (data?['hospitals'] as List?) ?? [];
   }
 
   Future<List<dynamic>> getDoctors({String? specialty, String? search}) async {
     final data = await get('/api/doctors', params: {'specialty': specialty ?? '', 'q': search ?? ''});
-    return data?['data'] ?? [];
+    return (data?['doctors'] as List?) ?? [];
   }
 
   Future<List<dynamic>> getBloodDonors({String? city, String? bloodType}) async {
     final data = await get('/api/blood-donors', params: {'city': city ?? '', 'bloodType': bloodType ?? ''});
-    return data?['data'] ?? [];
+    return (data?['donors'] as List?) ?? [];
   }
 
   Future<List<dynamic>> getPharmacies({String? city, String? search}) async {
     final data = await get('/api/pharmacies', params: {'city': city ?? '', 'q': search ?? ''});
-    return data?['data'] ?? [];
+    return (data?['pharmacies'] as List?) ?? [];
   }
 
   Future<List<dynamic>> getLabs({String? city, String? search}) async {
     final data = await get('/api/labs', params: {'city': city ?? '', 'q': search ?? ''});
-    return data?['data'] ?? [];
+    return (data?['labs'] as List?) ?? [];
   }
 
   Future<List<dynamic>> getBeds() async {
     final data = await get('/api/beds');
-    return data?['data'] ?? [];
+    return (data?['hospitals'] as List?) ?? [];
   }
 
   Future<List<dynamic>> getTelehealth() async {
     final data = await get('/api/telehealth');
-    return data?['data'] ?? [];
+    return (data?['consultations'] as List?) ?? [];
+  }
+
+  Future<List<dynamic>> getCamps() async {
+    final data = await get('/api/camps');
+    return (data?['camps'] as List?) ?? [];
+  }
+
+  Future<List<dynamic>> getPatientRecords(String userId, Map<String, dynamic> params) async {
+    final data = await get('/api/patient-records', params: {'userId': userId});
+    final record = data?['record'];
+    return record != null ? [record] : [];
   }
 
   Future<List<dynamic>> searchAll(String query) async {

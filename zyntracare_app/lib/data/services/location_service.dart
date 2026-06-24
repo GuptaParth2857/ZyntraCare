@@ -36,7 +36,9 @@ class LocationService {
         Placemark place = placemarks.first;
         return '${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}';
       }
-    } catch (e) {}
+    } catch (e) {
+      // ignore
+    }
     return 'Location unavailable';
   }
 
@@ -46,7 +48,9 @@ class LocationService {
       if (position != null) {
         return await getAddressFromCoordinates(position.latitude, position.longitude);
       }
-    } catch (e) {}
+    } catch (e) {
+      // ignore
+    }
     return 'Delhi, India';
   }
 }

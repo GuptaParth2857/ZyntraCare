@@ -1591,6 +1591,8 @@ export default function Home() {
         </div>
       </section>
 
+      <AdSlot placement={AD_PLACEMENTS.HOME_AFTER_FEATURES} size="LEADERBOARD" className="py-4" />
+
     </div>
   );
 }

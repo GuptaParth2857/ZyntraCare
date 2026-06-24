@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:math' as math;
 import '../main_screen.dart';
@@ -54,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(colors: [Color(0xFF00D4FF), Color(0xFF7B2FF7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              boxShadow: [BoxShadow(color: const Color(0xFF00D4FF).withOpacity(0.3 + 0.3 * _pulseCtrl.value), blurRadius: 30 + 20 * _pulseCtrl.value, spreadRadius: 2)],
+              boxShadow: [BoxShadow(color: const Color(0xFF00D4FF).withValues(alpha: 0.3 + 0.3 * _pulseCtrl.value), blurRadius: 30 + 20 * _pulseCtrl.value, spreadRadius: 2)],
             ),
             child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 52),
           )).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
@@ -102,7 +101,7 @@ class _RingPainter extends CustomPainter {
       final angle = t * 2 * math.pi + i * math.pi * 2 / 3;
       final r = 120.0 + i * 60;
       final paint = Paint()
-        ..color = const Color(0xFF00D4FF).withOpacity(0.04 + i * 0.02)
+        ..color = const Color(0xFF00D4FF).withValues(alpha: 0.04 + i * 0.02)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1;
       canvas.drawCircle(Offset(cx + math.cos(angle) * 20, cy + math.sin(angle) * 20), r, paint);
@@ -141,14 +140,6 @@ Route _fadeRoute(Widget page) => PageRouteBuilder(
   transitionDuration: 400.ms,
 );
 
-Route _slideUpRoute(Widget page) => PageRouteBuilder(
-  pageBuilder: (_, a, _) => SlideTransition(
-    position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-    child: page,
-  ),
-  transitionDuration: 350.ms,
-);
-
 // ─── Glass Card Widget ─────────────────────────────────────────────────────────
 class GlassCard extends StatefulWidget {
   final Widget child;
@@ -175,8 +166,8 @@ class _GlassCardState extends State<GlassCard> {
           decoration: BoxDecoration(
             color: AppTheme.card,
             borderRadius: BorderRadius.circular(widget.radius),
-            border: Border.all(color: (widget.accent ?? Colors.white).withOpacity(0.12), width: 1),
-            boxShadow: [BoxShadow(color: (widget.accent ?? AppTheme.cyan).withOpacity(0.06), blurRadius: 16, spreadRadius: 0)],
+            border: Border.all(color: (widget.accent ?? Colors.white).withValues(alpha: 0.12), width: 1),
+            boxShadow: [BoxShadow(color: (widget.accent ?? AppTheme.cyan).withValues(alpha: 0.06), blurRadius: 16, spreadRadius: 0)],
           ),
           child: widget.child,
         ),
@@ -204,7 +195,7 @@ class _GradientButtonState extends State<GradientButton> {
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: widget.colors),
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: widget.colors.first.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: widget.colors.first.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         if (widget.icon != null) ...[Icon(widget.icon, color: Colors.white, size: 18), const SizedBox(width: 8)],
