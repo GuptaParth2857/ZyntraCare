@@ -45,6 +45,11 @@ jobs:
         env:
           DATABASE_URL: file:./dev.db
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: file:./dev.db
+
       - name: Seed database
         run: npx tsx prisma/seed.ts
         env:
@@ -68,6 +73,11 @@ jobs:
 
       - name: Setup database
         run: npx prisma db push
+        env:
+          DATABASE_URL: file:./dev.db
+
+      - name: Generate Prisma client
+        run: npx prisma generate
         env:
           DATABASE_URL: file:./dev.db
 
