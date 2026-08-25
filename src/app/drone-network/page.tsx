@@ -43,10 +43,16 @@ export default function DroneNetworkPage() {
   const [liveDrones, setLiveDrones] = useState(drones);
   const [deliveries, setDeliveries] = useState(activeDeliveries);
   const [pulse, setPulse] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const pulseInterval = setInterval(() => setPulse(prev => (prev + 1) % 100), 100);
-    return () => clearInterval(pulseInterval);
+    fetch('/api/drone-network')
+      .then(res => res.json())
+      .then(data => {
+        if (data.drones) setLiveDrones(data.drones);
+        if (data.deliveries) setDeliveries(data.deliveries);
+        setLoading(false);
+      }).catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -78,7 +84,7 @@ export default function DroneNetworkPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden font-inter text-white">
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter text-white">
       <div className="max-w-7xl mx-auto px-4 pt-8 pb-24">
         
         <motion.div

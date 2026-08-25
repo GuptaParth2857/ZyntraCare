@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiUsers, FiMessageCircle, FiHeart, FiShield, FiPlus, FiSearch, FiThumbsUp, FiShare2, FiFlag, FiMoreHorizontal, FiCheckCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -28,31 +28,29 @@ interface Post {
   isAnonymous: boolean;
 }
 
-const communities: Community[] = [
-  { id: '1', name: 'Diabetes Fighters', description: 'Support for managing diabetes naturally', members: 12450, icon: '💉', color: 'from-red-500 to-orange-500', category: 'Chronic Conditions' },
-  { id: '2', name: 'New Moms Circle', description: 'First-time mothers sharing experiences', members: 8920, icon: '👶', color: 'from-pink-500 to-rose-500', category: 'Parenting' },
-  { id: '3', name: 'Mental Health Hub', description: 'Safe space for anxiety & depression support', members: 15680, icon: '🧠', color: 'from-purple-500 to-indigo-500', category: 'Mental Health' },
-  { id: '4', name: 'Fitness Enthusiasts', description: 'Workout tips and motivation', members: 23400, icon: '💪', color: 'from-green-500 to-emerald-500', category: 'Fitness' },
-  { id: '5', name: 'Heart Survivors', description: 'Cardiac health support group', members: 5680, icon: '❤️', color: 'from-red-600 to-pink-500', category: 'Chronic Conditions' },
-  { id: '6', name: 'PCOS/PCOD Support', description: 'Women sharing PCOD journey', members: 7890, icon: '🌸', color: 'from-pink-400 to-purple-500', category: "Women's Health" },
-  { id: '7', name: 'Seniors Wellness', description: 'Health tips for elderly care', members: 4560, icon: '👴', color: 'from-blue-500 to-cyan-500', category: 'Elder Care' },
-  { id: '8', name: 'Quit Smoking', description: 'Support to quit tobacco', members: 6780, icon: '🚭', color: 'from-gray-500 to-slate-500', category: 'Addiction Recovery' },
-];
-
-const posts: Post[] = [
-  { id: '1', author: 'Anonymous', avatar: 'A', community: 'Diabetes Fighters', time: '2 hours ago', content: 'My HbA1c dropped from 8.5 to 6.2 in 3 months! The key was not just medication but consistent walking and cutting carbs. Happy to answer any questions.', likes: 234, comments: 45, isLiked: false, isAnonymous: true },
-  { id: '2', author: 'Priya S.', avatar: 'PS', community: 'New Moms Circle', time: '4 hours ago', content: 'Baby is 3 months now and sleeping through the night! The first 6 weeks were tough but it gets better. Any moms in the same boat?', likes: 156, comments: 89, isLiked: true, isAnonymous: false },
-  { id: '3', author: 'Anonymous', avatar: 'A', community: 'Mental Health Hub', time: '6 hours ago', content: 'Day 30 of being anxiety-free. Meditation and therapy helped me a lot. Remember - it is okay to seek professional help.', likes: 567, comments: 123, isLiked: true, isAnonymous: true },
-  { id: '4', author: 'Rahul K.', avatar: 'RK', community: 'Heart Survivors', time: '1 day ago', content: '3 months post-bypass surgery and feeling great! Moderation is key - can not do everything but can do most things.', likes: 234, comments: 56, isLiked: false, isAnonymous: false },
-];
-
 export default function CommunitiesPage() {
+  const [communitiesData, setCommunitiesData] = useState<Community[]>([]);
+  const [postsData, setPostsData] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'communities' | 'posts'>('communities');
   const [postContent, setPostContent] = useState('');
 
-  const filteredCommunities = communities.filter(c => 
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/communities').then(r => r.json()),
+      fetch('/api/communities/posts').then(r => r.json())
+    ])
+      .then(([communitiesRes, postsRes]) => {
+        setCommunitiesData(communitiesRes.communities || communitiesRes || []);
+        setPostsData(postsRes.posts || postsRes || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filteredCommunities = communitiesData.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -207,7 +205,7 @@ export default function CommunitiesPage() {
               </div>
 
               <div className="space-y-4">
-                {posts.map((post) => (
+                {postsData.map((post) => (
                   <motion.div
                     key={post.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -277,7 +275,7 @@ export default function CommunitiesPage() {
               <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6">
                 <h3 className="font-bold text-lg mb-4">Popular Communities</h3>
                 <div className="space-y-3">
-                  {communities.slice(0, 4).map((c) => (
+                  {communitiesData.slice(0, 4).map((c) => (
                     <div key={c.id} className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.color} flex items-center justify-center text-lg`}>
                         {c.icon}

@@ -28,24 +28,14 @@ interface CartItem extends Medicine {
   quantity: number;
 }
 
-const MOCK_MEDICINES: Medicine[] = [
-  { id: '1', name: 'Crosin 500mg', company: 'Cipml', price: 15, originalPrice: 20, discount: 25, rating: 4.5, reviews: 2340, inStock: true, category: 'Pain Relief', requiresPrescription: false, image: '💊' },
-  { id: '2', name: 'Azithromycin 250mg', company: 'Cipla', price: 85, originalPrice: 120, discount: 29, rating: 4.3, reviews: 890, inStock: true, category: 'Antibiotic', requiresPrescription: true, image: '💊' },
-  { id: '3', name: 'Metformin 500mg', company: 'USV', price: 45, originalPrice: 60, discount: 25, rating: 4.7, reviews: 1560, inStock: true, category: 'Diabetes', requiresPrescription: true, image: '💊' },
-  { id: '4', name: 'Augmentin 625mg', company: 'GSK', price: 210, originalPrice: 280, discount: 25, rating: 4.6, reviews: 720, inStock: true, category: 'Antibiotic', requiresPrescription: true, image: '💊' },
-  { id: '5', name: 'Corex DX Syrup', company: 'Corexx', price: 95, originalPrice: 110, discount: 14, rating: 4.2, reviews: 450, inStock: true, category: 'Cough', requiresPrescription: false, image: '🧴' },
-  { id: '6', name: 'Combiflam', company: 'GSK', price: 35, originalPrice: 45, discount: 22, rating: 4.4, reviews: 1890, inStock: true, category: 'Pain Relief', requiresPrescription: false, image: '💊' },
-  { id: '7', name: 'Cetirizine 10mg', company: 'UCB', price: 25, originalPrice: 35, discount: 29, rating: 4.5, reviews: 3200, inStock: true, category: 'Allergy', requiresPrescription: false, image: '💊' },
-  { id: '8', name: 'Cremafin', company: 'GSK', price: 55, originalPrice: 70, discount: 21, rating: 4.3, reviews: 980, inStock: true, category: 'Digestion', requiresPrescription: false, image: '💊' },
-  { id: '9', name: 'Omee 20mg', company: 'Mankind', price: 65, originalPrice: 85, discount: 24, rating: 4.6, reviews: 1450, inStock: true, category: 'Acidity', requiresPrescription: false, image: '💊' },
-  { id: '10', name: 'Montair FX', company: 'Mankind', price: 120, originalPrice: 150, discount: 20, rating: 4.4, reviews: 670, inStock: true, category: 'Allergy', requiresPrescription: true, image: '💊' },
-  { id: '11', name: 'Glucometer Kit', company: 'Accu-Chek', price: 450, originalPrice: 599, discount: 25, rating: 4.7, reviews: 2340, inStock: true, category: 'Diabetic', requiresPrescription: false, image: '📱' },
-  { id: '12', name: 'D-Rise 60K', company: 'Zydus', price: 95, originalPrice: 120, discount: 21, rating: 4.8, reviews: 4500, inStock: true, category: 'Vitamins', requiresPrescription: false, image: '💊' },
-];
+
 
 const CATEGORIES = ['All', 'Pain Relief', 'Antibiotic', 'Diabetes', 'Cough', 'Allergy', 'Digestion', 'Acidity', 'Vitamins', 'Diabetic'];
 
 export default function PharmacyPage() {
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
@@ -60,7 +50,23 @@ export default function PharmacyPage() {
   const [locationStatus, setLocationStatus] = useState<'loading' | 'detected' | 'error'>('loading');
   const [showMap, setShowMap] = useState(false);
 
-  const filtered = MOCK_MEDICINES.filter(m => {
+  useEffect(() => {
+    const fetchMedicines = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/pharmacies');
+        const data = await res.json();
+        setMedicines(data.medicines || data || []);
+      } catch (err) {
+        setError('Failed to load medicines');
+        console.error('Error fetching medicines:', err);
+      }
+      setLoading(false);
+    };
+    fetchMedicines();
+  }, []);
+
+  const filtered = medicines.filter(m => {
     const matchesSearch = !search || m.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = category === 'All' || m.category === category;
     return matchesSearch && matchesCategory;
@@ -256,6 +262,17 @@ export default function PharmacyPage() {
 
       {/* Medicines Grid */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {loading ? (
+          <div className="text-center py-16">
+            <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Loading medicines...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <p className="text-red-400 font-bold">Failed to load medicines</p>
+            <button onClick={() => window.location.reload()} className="mt-4 px-6 py-3 bg-teal-500/20 text-teal-400 rounded-xl font-bold">Retry</button>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((medicine, index) => (
             <motion.div
@@ -295,6 +312,7 @@ export default function PharmacyPage() {
             </motion.div>
           ))}
         </div>
+        )}
       </div>
 
       {/* Cart Drawer */}

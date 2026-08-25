@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ComfyUI" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ZyntraCare" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/librechat" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/vane" vcs="Git" />
+  </component>
+</project>

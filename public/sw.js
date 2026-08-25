@@ -1,13 +1,22 @@
-const CACHE_NAME = 'zyntracare-v2';
-const STATIC_CACHE = 'zyntracare-static-v2';
-const DYNAMIC_CACHE = 'zyntracare-dynamic-v2';
-const MAP_TILE_CACHE = 'zyntracare-map-tiles-v2';
+const CACHE_NAME = 'zyntracare-v3';
+const STATIC_CACHE = 'zyntracare-static-v3';
+const DYNAMIC_CACHE = 'zyntracare-dynamic-v3';
+const MAP_TILE_CACHE = 'zyntracare-map-tiles-v3';
+const API_CACHE = 'zyntracare-api-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/offline',
   '/manifest.json',
   '/images/publiczyntracare-logo.png'
+];
+
+const CRITICAL_PAGES = [
+  '/',
+  '/hospitals',
+  '/doctors',
+  '/emergency',
+  '/pharmacies'
 ];
 
 const EXTERNAL_ASSETS = [
@@ -20,13 +29,19 @@ const MAP_TILE_PATTERNS = [
   'unpkg.com/leaflet'
 ];
 
+const API_CACHE_DURATION = 5 * 60 * 1000;
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
-        return cache.addAll(STATIC_ASSETS.filter(url => !url.startsWith('http')));
-      })
-      .then(() => self.skipWaiting())
+    Promise.all([
+      caches.open(STATIC_CACHE)
+        .then((cache) => {
+          return cache.addAll(STATIC_ASSETS.filter(url => !url.startsWith('http')));
+        }),
+      fetch('/')
+        .then((response) => caches.open(STATIC_CACHE).then(cache => cache.put('/', response)))
+        .catch(() => {})
+    ]).then(() => self.skipWaiting())
   );
 });
 
@@ -36,7 +51,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) => {
         return Promise.all(
           keys
-            .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE && key !== MAP_TILE_CACHE)
+            .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE && key !== MAP_TILE_CACHE && key !== API_CACHE)
             .map((key) => caches.delete(key))
         );
       })
@@ -48,7 +63,10 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET') return;
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request).catch(() => new Response('', { status: 503 })));
+    return;
+  }
 
   const isMapTile = MAP_TILE_PATTERNS.some(pattern => url.hostname.includes(pattern));
   if (isMapTile) {
@@ -73,7 +91,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Use StaleWhileRevalidate for faster response
+  const isApi = url.pathname.startsWith('/api/');
+  if (isApi) {
+    event.respondWith(
+      caches.open(API_CACHE)
+        .then((cache) => {
+          return cache.match(request)
+            .then((cachedResponse) => {
+              if (cachedResponse && Date.now() - parseInt(cachedResponse.headers.get('sw-timestamp') || '0') < API_CACHE_DURATION) {
+                return cachedResponse;
+              }
+              return fetch(request)
+                .then((response) => {
+                  if (response.ok) {
+                    const responseClone = response.clone();
+                    responseClone.headers.set('sw-timestamp', Date.now().toString());
+                    cache.put(request, responseClone);
+                  }
+                  return response;
+                })
+                .catch(() => cachedResponse || new Response(JSON.stringify({ error: 'Offline' }), { 
+                  status: 503,
+                  headers: { 'Content-Type': 'application/json' }
+                }));
+            });
+        })
+    );
+    return;
+  }
+
   if (request.mode === 'navigate') {
     event.respondWith(
       caches.open(DYNAMIC_CACHE)
@@ -155,11 +201,23 @@ self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
   }
+
+  if (event.data === 'cachePages') {
+    event.waitUntil(
+      Promise.all(CRITICAL_PAGES.map(page => 
+        fetch(page)
+          .then(response => {
+            if (response.ok) {
+              return caches.open(DYNAMIC_CACHE).then(cache => cache.put(page, response));
+            }
+          })
+          .catch(() => {})
+        ))
+      );
+  }
   
-  // Pre-cache map tiles for offline use
   if (event.data === 'cacheMapTiles') {
     const tileUrls = [];
-    // Pre-cache tiles for Delhi area at zoom levels 10-15
     const baseLat = 28.6139;
     const baseLng = 77.2090;
     for (let z = 10; z <= 15; z++) {
@@ -185,4 +243,46 @@ self.addEventListener('message', (event) => {
         );
       });
   }
+
+  if (event.data?.type === 'OFFLINE_ACTION') {
+    const { payload, endpoint } = event.data;
+    event.waitUntil(
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {
+        const queue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+        queue.push({ endpoint, payload, timestamp: Date.now() });
+        localStorage.setItem('offlineQueue', JSON.stringify(queue));
+      })
+    );
+  }
 });
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-forms') {
+    event.waitUntil(syncOfflineForms());
+  }
+});
+
+async function syncOfflineForms() {
+  try {
+    const queue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+    const remaining = [];
+    
+    for (const item of queue) {
+      try {
+        await fetch(item.endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.payload)
+        });
+      } catch {
+        remaining.push(item);
+      }
+    }
+    
+    localStorage.setItem('offlineQueue', JSON.stringify(remaining));
+  } catch (e) {}
+}

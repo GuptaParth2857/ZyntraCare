@@ -42,24 +42,6 @@ interface Match {
   verified: boolean;
 }
 
-const donors: OrganDonor[] = [
-  { id: 'D001', name: 'Rahul S.', bloodType: 'O+', organ: 'Kidney', age: 35, city: 'Delhi', hospital: 'AIIMS', walletAddress: '0x7a2...f3e1', registeredAt: '2026-03-15', verified: true },
-  { id: 'D002', name: 'Priya M.', bloodType: 'A+', organ: 'Liver', age: 28, city: 'Mumbai', hospital: 'Kokilaben', walletAddress: '0x8b3...g4f2', registeredAt: '2026-03-18', verified: true },
-  { id: 'D003', name: 'Amit K.', bloodType: 'B+', organ: 'Heart', age: 42, city: 'Bangalore', hospital: 'Manipal', walletAddress: '0x9c4...h5g3', registeredAt: '2026-03-20', verified: true },
-  { id: 'D004', name: 'Sneha R.', bloodType: 'AB+', organ: 'Corneas', age: 25, city: 'Chennai', hospital: 'Apollo', walletAddress: '0xad5...i6h4', registeredAt: '2026-03-19', verified: true },
-];
-
-const recipients: Recipient[] = [
-  { id: 'R001', name: 'Anil Sharma', age: 45, bloodType: 'O+', organNeeded: 'Kidney', priority: 'critical', city: 'Delhi', hospital: 'Gangaram', walletAddress: '0x1a2...k7l9', waitingSince: '2026-01-10', status: 'waiting' },
-  { id: 'R002', name: 'Meera Devi', age: 38, bloodType: 'A+', organNeeded: 'Liver', priority: 'high', city: 'Mumbai', hospital: 'Fortis', walletAddress: '0x2b3...m8n1', waitingSince: '2026-02-15', status: 'waiting' },
-  { id: 'R003', name: 'Vikram Singh', age: 52, bloodType: 'B+', organNeeded: 'Heart', priority: 'critical', city: 'Bangalore', hospital: 'Narayana', walletAddress: '0x3c4...n9o2', waitingSince: '2026-01-20', status: 'waiting' },
-  { id: 'R004', name: 'Lakshmi', age: 34, bloodType: 'AB+', organNeeded: 'Corneas', priority: 'normal', city: 'Chennai', hospital: 'VGCC', walletAddress: '0x4d5...o1p3', waitingSince: '2026-03-01', status: 'waiting' },
-];
-
-const recentMatches: Match[] = [
-  { id: 'M001', donorId: 'D001', recipientId: 'R001', organ: 'Kidney', timestamp: '2026-04-21T14:30:00Z', txHash: '0x8f7...ab2c', verified: true },
-];
-
 export default function OrganMatchingPage() {
   const [activeTab, setActiveTab] = useState<'donors' | 'recipients' | 'matches'>('donors');
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,6 +49,21 @@ export default function OrganMatchingPage() {
   const [organFilter, setOrganFilter] = useState('all');
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<Match | null>(null);
+  const [donors, setDonors] = useState<OrganDonor[]>([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [recentMatches, setRecentMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/organ-matching').then(r => r.json()),
+    ]).then(([data]) => {
+      setDonors(data.donors || []);
+      setRecipients(data.recipients || []);
+      setRecentMatches(data.matches || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
   const [livePulse, setLivePulse] = useState(0);
   const [matchUpdates, setMatchUpdates] = useState<string[]>([]);
   const [stats, setStats] = useState({ donors: 4, recipients: 4, matches: 1 });
@@ -122,7 +119,7 @@ export default function OrganMatchingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden font-inter text-white">
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter text-white">
       <div className="max-w-7xl mx-auto px-4 pt-8 pb-24">
         
         <motion.div

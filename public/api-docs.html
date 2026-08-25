@@ -1,0 +1,639 @@
+# ZyntraCare API Documentation
+
+## Overview
+
+ZyntraCare provides RESTful APIs for healthcare services. All APIs return JSON responses.
+
+---
+
+## Base URL
+
+```
+Production: https://your-domain.com/api
+Local: http://localhost:3000/api
+```
+
+---
+
+## Authentication
+
+### NextAuth (Required for protected routes)
+
+Include the session token in headers:
+
+```bash
+Authorization: Bearer <nextauth-token>
+```
+
+---
+
+## Public APIs (No Auth Required)
+
+### 1. Health Check
+
+**GET** `/api/health`
+
+```bash
+curl -X GET https://your-domain.com/api/health
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "timestamp": "2026-02-05T12:00:00Z"
+}
+```
+
+---
+
+### 2. Hospitals List
+
+**GET** `/api/hospitals`
+
+```bash
+curl -X GET "https://your-domain.com/api/hospitals?city=Delhi&state=Delhi"
+```
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|----------|------|-----------|
+| city | string | Filter by city |
+| state | string | Filter by state |
+| specialty | string | Filter by specialty |
+| available | boolean | Only available beds |
+
+---
+
+### 3. Hospital Details
+
+**GET** `/api/hospitals/[id]`
+
+```bash
+curl -X GET https://your-domain.com/api/hospitals/hosp_123
+```
+
+---
+
+### 4. Nearby Hospitals
+
+**GET** `/api/hospitals/nearby`
+
+```bash
+curl -X GET "https://your-domain.com/api/hospitals/nearby?lat=28.6139&lng=77.2090&radius=10"
+```
+
+---
+
+### 5. Doctors List
+
+**GET** `/api/doctors`
+
+```bash
+curl -X GET "https://your-domain.com/api/doctors?specialty=Cardiology&city=Delhi"
+```
+
+---
+
+### 6. Emergency Numbers
+
+**GET** `/api/emergency`
+
+```bash
+curl -X GET https://your-domain.com/api/emergency
+```
+
+**Response:**
+```json
+{
+  "alerts": [...],
+  "emergencyNumbers": [
+    { "type": "ambulance", "number": "102", "name": "National Ambulance" },
+    { "type": "ambulance", "number": "108", "name": "Emergency Ambulance" },
+    { "type": "police", "number": "100", "name": "Police Emergency" },
+    { "type": "fire", "number": "101", "name": "Fire Brigade" },
+    { "type": "disaster", "number": "112", "name": "National Emergency" }
+  ],
+  "emergencyHospitals": [...],
+  "ambulanceServices": [...]
+}
+```
+
+---
+
+### 7. Bed Availability (Realtime)
+
+**GET** `/api/beds`
+
+```bash
+curl -X GET https://your-domain.com/api/beds
+```
+
+**POST** (Hospital Admin Only)
+```bash
+curl -X POST https://your-domain.com/api/beds \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hospitalId": "hosp_123",
+    "hospitalName": "AIIMS Delhi",
+    "totalBeds": 100,
+    "availableBeds": 25,
+    "totalICU": 20,
+    "availableICU": 5,
+    "adminKey": "your-admin-key"
+  }'
+```
+
+---
+
+### 8. Pharmacy List
+
+**GET** `/api/pharmacies`
+
+```bash
+curl -X GET "https://your-domain.com/api/pharmacies?city=Delhi"
+```
+
+---
+
+### 9. Medicines Search
+
+**GET** `/api/medicine-verify`
+
+```bash
+curl -X GET "https://your-domain.com/api/medicine-verify?medicine=Amoxicillin"
+```
+
+---
+
+### 10. Blood Donors
+
+**GET** `/api/blood-donors`
+
+```bash
+curl -X GET "https://your-domain.com/api/blood-donors?bloodType=O+&city=Delhi"
+```
+
+---
+
+## Authentication APIs
+
+### 11. Send OTP
+
+**POST** `/api/send-otp`
+
+```bash
+curl -X POST https://your-domain.com/api/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phone": "9876543210",
+    "action": "send"
+  }'
+```
+
+**Verify OTP:**
+```bash
+curl -X POST https://your-domain.com/api/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phone": "9876543210",
+    "action": "verify",
+    "otp": "123456"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "OTP sent to 9876****XXXX",
+  "devOtp": "123456",  // Only in development
+  "expiresIn": 300
+}
+```
+
+---
+
+### 12. Register
+
+**POST** `/api/auth/register`
+
+```bash
+curl -X POST https://your-domain.com/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "password123",
+    "name": "John Doe",
+    "phone": "9876543210"
+  }'
+```
+
+---
+
+### 13. Forgot Password
+
+**POST** `/api/auth/forgot-password`
+
+```bash
+curl -X POST https://your-domain.com/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+---
+
+### 14. Verify Email
+
+**POST** `/api/auth/verify-email`
+
+```bash
+curl -X POST https://your-domain.com/api/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "token": "verification-token"
+  }'
+```
+
+---
+
+## Protected APIs (Auth Required)
+
+### 15. Patient Records (Auth Required)
+
+**GET** `/api/patient-records?userId=USER_ID`
+
+```bash
+curl -X GET "https://your-domain.com/api/patient-records?userId=user_123" \
+  -H "Authorization: Bearer <token>"
+```
+
+**POST** `/api/patient-records`
+```bash
+curl -X POST https://your-domain.com/api/patient-records \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "userId": "user_123",
+    "bloodType": "O+",
+    "allergies": "Penicillin",
+    "dateOfBirth": "1990-01-15",
+    "gender": "male"
+  }'
+```
+
+**PATCH** `/api/patient-records`
+```bash
+curl -X PATCH https://your-domain.com/api/patient-records \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "userId": "user_123",
+    "allergies": "None"
+  }'
+```
+
+---
+
+### 16. Subscribe (Auth Required)
+
+**POST** `/api/subscribe`
+
+```bash
+curl -X POST https://your-domain.com/api/subscribe \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "action": "subscribe",
+    "plan": "Premium Monthly"
+  }'
+```
+
+**Actions:** `subscribe`, `upgrade`, `downgrade`, `cancel`, `reactivate`
+
+**Plans:** `Free`, `Premium Monthly`, `Premium Yearly`
+
+---
+
+## AI APIs
+
+### 17. General AI Chat
+
+**POST** `/api/ai`
+
+```bash
+curl -X POST https://your-domain.com/api/ai \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What are the symptoms of diabetes?",
+    "language": "en"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "response": "Diabetes symptoms include increased thirst...",
+  "sources": [...],
+  "suggestions": ["Consult a doctor", "Call 108 for emergencies"],
+  "isEmergency": false
+}
+```
+
+---
+
+### 18. Smart Chat
+
+**POST** `/api/chat`
+
+```bash
+curl -X POST https://your-domain.com/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "I have chest pain",
+    "language": "en"
+  }'
+```
+
+**Response:**
+```json
+{
+  "reply": "🚨 For emergencies: Call 102 or 108 for ambulance.",
+  "source": "ollama"
+}
+```
+
+---
+
+### 19. Medical Triage
+
+**POST** `/api/triage`
+
+```bash
+curl -X POST https://your-domain.com/api/triage \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symptoms": "chest pain and shortness of breath"
+  }'
+```
+
+**Response:**
+```json
+{
+  "priority": "high"
+}
+```
+
+**Priority Levels:** `high`, `medium`, `low`
+
+---
+
+### 20. Image Vision Analysis
+
+**POST** `/api/vision`
+
+```bash
+curl -X POST https://your-domain.com/api/vision \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "data:image/jpeg;base64,...",
+    "scanType": "xray"
+  }'
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "condition": "Normal",
+      "confidence": 95,
+      "severity": "normal",
+      "description": "No abnormalities detected"
+    }
+  ]
+}
+```
+
+---
+
+### 21. Clinical Scribe
+
+**POST** `/api/scribe`
+
+```bash
+curl -X POST https://your-domain.com/api/scribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transcript": "Patient complains of headache for 3 days...",
+    "speaker": "doctor"
+  }'
+```
+
+**Response:**
+```json
+{
+  "chiefComplaint": "Headache for 3 days",
+  "historyOfPresentIllness": "Patient complains...",
+  "physicalExamination": "Not documented",
+  "diagnosis": ["Tension Headache"],
+  "prescriptions": [...],
+  "advice": [...],
+  "followUp": "1 week"
+}
+```
+
+---
+
+### 22. Hospital Footfall Prediction
+
+**GET** `/api/predict-flow`
+
+```bash
+curl -X GET https://your-domain.com/api/predict-flow
+```
+
+**Response:**
+```json
+[5, 3, 2, 2, 3, 5, 10, 18, 30, 45, 48, 44, 38, 32, 30, 28, 27, 35, 42, 40, 32, 22, 14, 7]
+```
+
+Returns 24 integers - hourly patient count (index 0 = midnight)
+
+---
+
+### 23. Health Risk Assessment
+
+**POST** `/api/health-risk`
+
+```bash
+curl -X POST https://your-domain.com/api/health-risk \
+  -H "Content-Type: application/json" \
+  -d '{
+    "age": 45,
+    "bloodPressure": "130/85",
+    "cholesterol": "200",
+    "diabetes": true,
+    "smoking": false
+  }'
+```
+
+---
+
+### 24. Symptoms Checker
+
+**POST** `/api/symptoms`
+
+```bash
+curl -X POST https://your-domain.com/api/symptoms \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symptoms": ["fever", "cough", "fatigue"]
+  }'
+```
+
+---
+
+### 25. Disease Recommedations
+
+**POST** `/api/recommend`
+
+```bash
+curl -X POST https://your-domain.com/api/recommend \
+  -H "Content-Type: application/json" \
+  -d '{
+    "condition": "diabetes",
+    "location": "Delhi"
+  }'
+```
+
+---
+
+## Admin APIs (Admin Only)
+
+### 26. Get All Users
+
+**GET** `/api/admin/users`
+
+```bash
+curl -X GET https://your-domain.com/api/admin/users \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+---
+
+### 27. Promote to Admin
+
+**POST** `/api/admin/promote`
+
+```bash
+curl -X POST https://your-domain.com/api/admin/promote \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "secretKey": "admin-secret-key"
+  }'
+```
+
+---
+
+### 28. Active Users
+
+**GET** `/api/admin/active-users`
+
+```bash
+curl -X GET https://your-domain.com/api/admin/active-users \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+---
+
+### 29. Hospital Admin Management
+
+**GET** `/api/hospital-admin`
+
+```bash
+curl -X GET "https://your-domain.com/api/hospital-admin?hospitalId=hosp_123" \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+**POST** `/api/hospital-admin`
+```bash
+curl -X POST https://your-domain.com/api/hospital-admin \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{
+    "userId": "user_123",
+    "hospitalId": "hosp_123",
+    "permissions": "read,write"
+  }'
+```
+
+---
+
+## Error Responses
+
+All errors follow this format:
+
+```json
+{
+  "error": "Error message"
+}
+```
+
+**Status Codes:**
+| Code | Meaning |
+|------|--------|
+| 200 | Success |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 429 | Rate Limited |
+| 500 | Server Error |
+
+---
+
+## Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| `/api/send-otp` | 5/minute |
+| General APIs | 30/minute |
+
+---
+
+## Examples
+
+### Book an Appointment
+
+```bash
+# 1. Find hospital
+curl -X GET "https://your-domain.com/api/hospitals?city=Delhi"
+
+# 2. Find doctor
+curl -X GET "https://your-domain.com/api/doctors?hospitalId=hosp_123&specialty=Cardiology"
+
+# 3. Book via frontend (not available via API)
+```
+
+### Emergency Flow
+
+```bash
+# 1. Get emergency numbers
+curl -X GET https://your-domain.com/api/emergency
+
+# 2. Get nearby hospital with emergency
+curl -X GET "https://your-domain.com/api/hospitals/nearby?lat=28.6139&lng=77.2090&emergency=true"
+```
+
+---
+
+## Support
+
+For API issues: api@zyntracare.com

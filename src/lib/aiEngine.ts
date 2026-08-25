@@ -366,7 +366,7 @@ export async function processAIRequest(request: AIRequest, context?: Conversatio
       sources: uniqueResults.slice(0, 3),
       suggestions,
       isEmergency: isEmergency || severity === 'emergency',
-      mode
+      mode: mode || 'chat'
     };
     
   } catch (error) {

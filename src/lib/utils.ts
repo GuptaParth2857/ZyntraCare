@@ -6,6 +6,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function toArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === 'string' && value.trim()) return value.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
+}
+
 export function formatDate(date: string): string {
   return new Date(date).toLocaleDateString('en-IN', {
     weekday: 'short',

@@ -1,19 +1,107 @@
 'use client';
 
-import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
+import React, { useRef, useMemo, Suspense, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, Sparkles, Float } from '@react-three/drei';
+import { OrbitControls, Environment, Sparkles, Float, Text } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-const PAIRS = 30;
-const RADIUS = 1.8;
-const HEIGHT = 0.6;
-const TWIST = 0.38;
+const PAIRS = 32;
+const RADIUS = 1.6;
+const HEIGHT = 0.55;
+const TWIST = 0.35;
+const BASES = ['A', 'T', 'C', 'G'];
 
-function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomIntensity?: number; particleCount?: number }) {
+function NodePulse({ pos, color, speed, delay }: { pos: THREE.Vector3; color: string; speed: number; delay: number }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (!meshRef.current) return;
+    const pulse = 0.6 + 0.4 * Math.sin(state.clock.elapsedTime * speed + delay);
+    meshRef.current.scale.setScalar(pulse);
+  });
+  return (
+    <mesh ref={meshRef} position={pos}>
+      <sphereGeometry args={[0.25, 20, 20]} />
+      <meshPhysicalMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={1.2}
+        metalness={0.05}
+        roughness={0.1}
+        clearcoat={0.6}
+        transparent
+        opacity={0.95}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
+function OrbitalRing({ radius, color, speed, tilt }: { radius: number; color: string; speed: number; tilt?: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const ringGeo = useMemo(() => {
+    const shape = new THREE.Shape();
+    const w = 0.004;
+    shape.absarc(0, 0, radius, 0, Math.PI * 2);
+    const geo = new THREE.ShapeGeometry(shape);
+    return geo;
+  }, [radius]);
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    ref.current.rotation.x = (tilt ?? 0.3) + Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
+    ref.current.rotation.z = state.clock.elapsedTime * speed;
+  });
+
+  return (
+    <mesh ref={ref} rotation={[tilt ?? 0.3, 0, 0]}>
+      <ringGeometry args={[radius - 0.01, radius + 0.01, 80]} />
+      <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} toneMapped={false} />
+    </mesh>
+  );
+}
+
+function FloatingBase({ pos, base, color }: { pos: THREE.Vector3; base: string; color: string }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const startPos = useMemo(() => pos.clone(), [pos]);
+  const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    const t = state.clock.elapsedTime;
+    ref.current.position.x = startPos.x + Math.sin(t * 0.4 + offset) * 0.3;
+    ref.current.position.y = startPos.y + Math.sin(t * 0.3 + offset * 1.3) * 0.25;
+    ref.current.position.z = startPos.z + Math.cos(t * 0.35 + offset * 0.7) * 0.3;
+  });
+
+  return (
+    <sprite position={[pos.x, pos.y, pos.z]} ref={ref as any}>
+      <spriteMaterial transparent opacity={0.25} depthWrite={false}>
+        <canvasTexture attach="map" args={[makeTextCanvas(base, color)]} />
+      </spriteMaterial>
+    </sprite>
+  );
+}
+
+function makeTextCanvas(text: string, color: string): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d')!;
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(text, 32, 32);
+  return c;
+}
+
+function CinematicDNA({ bloomIntensity = 2.0, particleCount = 80 }: { bloomIntensity?: number; particleCount?: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const flowRef = useRef<THREE.Group>(null);
+  const scanRef = useRef<THREE.Mesh>(null);
+  const nodePulseRef = useRef<number[]>([]);
 
   const { leftCurve, rightCurve, nodes } = useMemo(() => {
     const lPts: THREE.Vector3[] = [];
@@ -42,41 +130,69 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (groupRef.current) {
-      groupRef.current.rotation.y = t * 0.12;
-      groupRef.current.position.y = Math.sin(t * 0.35) * 0.25;
+      groupRef.current.rotation.y = t * 0.08;
     }
     if (flowRef.current) {
       flowRef.current.children.forEach((child, i) => {
-        const speed = 0.4;
+        const speed = 0.25;
         const offset = i * (1 / flowRef.current!.children.length);
         const phase = ((t * speed + offset) % 1 + 1) % 1;
         const curve = i % 2 === 0 ? leftCurve : rightCurve;
         const pos = curve.getPointAt(phase);
         child.position.copy(pos);
+        const s = 1 + 0.3 * Math.sin(phase * Math.PI);
+        child.scale.setScalar(s);
       });
+    }
+    if (scanRef.current) {
+      const scanY = (Math.sin(t * 0.5) * 0.5 + 0.5) * 2 - 1;
+      scanRef.current.position.y = scanY * HEIGHT * PAIRS * 0.5;
+      const opacity = 0.08 + 0.12 * (Math.sin(t * 0.5) * 0.5 + 0.5);
+      (scanRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+      scanRef.current.scale.x = 1 + 0.1 * Math.sin(t * 1.5);
     }
   });
 
-  // Teal color palette for BEAST upgrade
-  const tealColor = '#14b8a6';
-  const goldColor = '#d4a574';
-  const lightTeal = '#5eead4';
+  const cyan = '#22d3ee';
+  const blue = '#60a5fa';
+  const amber = '#fbbf24';
+  const white = '#f0f9ff';
+  const purple = '#c084fc';
 
   return (
-    <group ref={groupRef} rotation={[0.2, 0.3, 0.12]}>
-      {/* Left backbone - teal tinted */}
-      <mesh>
-        <tubeGeometry args={[leftCurve, 140, 0.06, 10, false]} />
-        <meshStandardMaterial color={tealColor} emissive={tealColor} emissiveIntensity={0.4} metalness={0.95} roughness={0.08} envMapIntensity={4} />
-      </mesh>
+    <group ref={groupRef} rotation={[0.15, 0, 0.1]}>
+      {/* Orbital rings */}
+      <OrbitalRing radius={RADIUS * 1.8} color={cyan} speed={0.15} tilt={0.4} />
+      <OrbitalRing radius={RADIUS * 2.2} color={blue} speed={-0.1} tilt={0.6} />
+      <OrbitalRing radius={RADIUS * 2.6} color={purple} speed={0.08} tilt={0.2} />
 
-      {/* Right backbone - teal tinted */}
-      <mesh>
-        <tubeGeometry args={[rightCurve, 140, 0.06, 10, false]} />
-        <meshStandardMaterial color={tealColor} emissive={tealColor} emissiveIntensity={0.4} metalness={0.95} roughness={0.08} envMapIntensity={4} />
-      </mesh>
+      {/* Backbones */}
+      {[leftCurve, rightCurve].map((curve, sideIdx) => {
+        const isLeft = sideIdx === 0;
+        return (
+          <group key={`backbone-${sideIdx}`}>
+            <mesh>
+              <tubeGeometry args={[curve, 140, 0.06, 8, false]} />
+              <meshPhysicalMaterial
+                color={cyan}
+                emissive={isLeft ? cyan : blue}
+                emissiveIntensity={0.6}
+                metalness={0.2}
+                roughness={0.3}
+                transparent
+                opacity={0.9}
+                clearcoat={0.4}
+              />
+            </mesh>
+            <mesh>
+              <tubeGeometry args={[curve, 140, 0.18, 8, false]} />
+              <meshBasicMaterial color={isLeft ? cyan : blue} transparent opacity={0.1} toneMapped={false} />
+            </mesh>
+          </group>
+        );
+      })}
 
-      {/* Rungs & Nodes */}
+      {/* Rungs + Nodes */}
       {nodes.m.map((mid, i) => {
         const lp = nodes.l[i];
         const rp = nodes.r[i];
@@ -84,69 +200,89 @@ function CinematicDNA({ bloomIntensity = 1.0, particleCount = 60 }: { bloomInten
         const dir = rp.clone().sub(lp).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
 
-        // Teal + Gold accent pattern (BEAST colors)
-        const accentType = i % 8;
-        const rungColor   = accentType === 3 ? goldColor : accentType === 7 ? lightTeal : '#5eead4';
-        const rungEmissive = accentType === 3 ? '#d4a574' : accentType === 7 ? '#14b8a6' : '#5eead4';
-        const rungIntensity = (accentType === 3 || accentType === 7) ? 2.0 * bloomIntensity : 0.3;
+        const isAmber = i % 7 === 3;
+        const col = isAmber ? amber : cyan;
+        const emCol = isAmber ? amber : cyan;
 
         return (
           <group key={`rung-${i}`}>
-            {/* Connecting rod */}
             <mesh position={mid} quaternion={q}>
-              <cylinderGeometry args={[0.04, 0.04, dist * 0.86, 8]} />
-              <meshStandardMaterial
-                color={rungColor} emissive={rungEmissive} emissiveIntensity={rungIntensity}
-                metalness={1} roughness={0.04} envMapIntensity={5}
+              <cylinderGeometry args={[0.04, 0.04, dist * 0.85, 6]} />
+              <meshPhysicalMaterial
+                color={col}
+                emissive={emCol}
+                emissiveIntensity={0.6}
+                metalness={0.4}
+                roughness={0.15}
+                transparent
+                opacity={0.9}
               />
             </mesh>
-
-            {/* Left glowing ball - teal */}
-            <Float speed={1.5} rotationIntensity={0} floatIntensity={0.04}>
-              <mesh position={lp}>
-                <sphereGeometry args={[0.27, 24, 24]} />
-                <meshStandardMaterial color={lightTeal} emissive={lightTeal} emissiveIntensity={0.8} metalness={0.2} roughness={0.1} envMapIntensity={3} />
+            {[lp, rp].map((pos, side) => {
+              const isLeft = side === 0;
+              const baseColor = isLeft ? cyan : blue;
+              return (
+                <group key={`node-${side}`}>
+              <mesh position={pos}>
+                <sphereGeometry args={[0.4, 20, 20]} />
+                <meshBasicMaterial color={baseColor} transparent opacity={0.15} toneMapped={false} />
               </mesh>
-            </Float>
-
-            {/* Right glowing ball - gold */}
-            <Float speed={1.8} rotationIntensity={0} floatIntensity={0.04}>
-              <mesh position={rp}>
-                <sphereGeometry args={[0.27, 24, 24]} />
-                <meshStandardMaterial color={goldColor} emissive={goldColor} emissiveIntensity={0.8} metalness={0.2} roughness={0.1} envMapIntensity={3} />
-              </mesh>
-            </Float>
+                  <NodePulse pos={pos} color={baseColor} speed={1.2 + i * 0.02} delay={i * 0.15} />
+                  <mesh position={pos}>
+                    <sphereGeometry args={[0.07, 12, 12]} />
+                    <meshBasicMaterial color={white} transparent opacity={0.5} />
+                  </mesh>
+                  {i % 4 === 0 && (
+                    <FloatingBase pos={pos.clone().add(new THREE.Vector3(0, 0.5, 0))} base={BASES[i % 4]} color={baseColor} />
+                  )}
+                </group>
+              );
+            })}
           </group>
         );
       })}
 
-      {/* Flowing energy orbs */}
+      {/* Scan line */}
+      <mesh ref={scanRef} position={[0, 0, 0]}>
+        <ringGeometry args={[0.05, RADIUS * 1.9, 64]} />
+        <meshBasicMaterial color={cyan} transparent opacity={0.3} side={THREE.DoubleSide} toneMapped={false} />
+      </mesh>
+
+      {/* Energy flow */}
       <group ref={flowRef}>
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: 14 }).map((_, i) => (
           <mesh key={`flow-${i}`}>
-            <sphereGeometry args={[0.12, 12, 12]} />
-            <meshStandardMaterial
-              color={i % 2 === 0 ? tealColor : goldColor}
-              emissive={i % 2 === 0 ? '#14b8a6' : '#d4a574'}
-              emissiveIntensity={2.5 * bloomIntensity}
+            <sphereGeometry args={[0.09, 8, 8]} />
+            <meshBasicMaterial
+              color={i % 3 === 0 ? amber : i % 3 === 1 ? cyan : blue}
+              transparent
+              opacity={0.9}
               toneMapped={false}
             />
           </mesh>
         ))}
       </group>
 
-      {/* Floating dust sparkles - teal tinted */}
-      <Sparkles count={particleCount} scale={14} size={1.2} speed={0.15} color={lightTeal} opacity={0.25} />
+      {/* Central axis glow */}
+      <mesh position={[0, 0, 0]}>
+        <cylinderGeometry args={[0.03, 0.03, HEIGHT * PAIRS, 8]} />
+        <meshBasicMaterial color={cyan} transparent opacity={0.15} toneMapped={false} />
+      </mesh>
+
+      <Sparkles count={particleCount} scale={14} size={1.5} speed={0.08} color={cyan} opacity={0.3} />
     </group>
   );
 }
 
 function Loader() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0a1612]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-12 h-12 border-2 border-teal-500/20 border-t-teal-500/60 rounded-full animate-spin" />
-        <span className="text-teal-400/60 text-xs font-mono tracking-widest">RENDERING DNA...</span>
+    <div className="absolute inset-0 flex items-center justify-center" style={{ background: '#060d12' }}>
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 border border-cyan-500/20 border-t-cyan-500/70 rounded-full animate-spin" />
+          <div className="absolute inset-1 border border-blue-500/10 border-b-blue-500/40 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }} />
+        </div>
+        <span className="text-cyan-400/30 text-[10px] font-mono tracking-[0.25em]">SEQUENCING</span>
       </div>
     </div>
   );
@@ -155,30 +291,26 @@ function Loader() {
 export default function DNAUltra3D({ height = 600 }: { height?: number }) {
   const [isInteracting, setIsInteracting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [bloomIntensity, setBloomIntensity] = useState(1.0);
-  const [particleCount, setParticleCount] = useState(60);
+  const [bloomIntensity, setBloomIntensity] = useState(2.0);
+  const [particleCount, setParticleCount] = useState(80);
 
   useEffect(() => {
     const checkDevice = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      
-      // Reduce bloom on mobile for performance
-      setBloomIntensity(mobile ? 0.5 : 1.0);
-      setParticleCount(mobile ? 30 : 60);
+      setBloomIntensity(mobile ? 1.0 : 2.0);
+      setParticleCount(mobile ? 40 : 80);
     };
-
     checkDevice();
     window.addEventListener('resize', checkDevice, { passive: true });
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
-  // Reduce bloom further if reduced motion is preferred
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (mq.matches) {
-      setBloomIntensity(0.3);
-      setParticleCount(20);
+      setBloomIntensity(0.5);
+      setParticleCount(30);
     }
   }, []);
 
@@ -187,86 +319,100 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
       className="relative w-full overflow-hidden select-none group"
       style={{ height }}
     >
-      {/* CSS top bokeh blur */}
-      <div className="absolute inset-x-0 top-0 z-10 pointer-events-none" style={{
-        height: '32%',
-        backdropFilter: 'blur(3px)',
-        WebkitBackdropFilter: 'blur(3px)',
-        maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+      {/* Gradient mesh background */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0" style={{
+          background: `
+            radial-gradient(ellipse 70% 40% at 50% 20%, rgba(6,182,212,0.15) 0%, transparent 60%),
+            radial-gradient(ellipse 50% 60% at 20% 80%, rgba(59,130,246,0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 60% at 80% 80%, rgba(192,132,252,0.06) 0%, transparent 50%)
+          `,
+        }} />
+        <div className="absolute inset-0 opacity-[0.05]" style={{
+          backgroundImage: `
+            linear-gradient(rgba(6,182,212,0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(6,182,212,0.5) 1px, transparent 1px)
+          `,
+          backgroundSize: '40px 40px',
+        }} />
+      </div>
+
+      {/* Vignette */}
+      <div className="absolute inset-0 z-10 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at center, transparent 35%, rgba(6,13,18,0.4) 100%)',
       }} />
 
-      {/* CSS bottom bokeh blur */}
-      <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none" style={{
-        height: '28%',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        maskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 100%)',
+      {/* Top/bottom fades */}
+      <div className="absolute inset-x-0 top-0 z-10 pointer-events-none h-1/4" style={{
+        background: 'linear-gradient(to bottom, #060d12 0%, transparent 100%)',
+      }} />
+      <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none h-1/4" style={{
+        background: 'linear-gradient(to top, #060d12 0%, transparent 100%)',
       }} />
 
-      {/* Teal ambient glow behind DNA */}
-      <div className="absolute inset-0 pointer-events-none z-0" style={{
-        background: 'radial-gradient(ellipse 55% 65% at 48% 52%, rgba(20, 184, 166, 0.10) 0%, transparent 70%)',
-      }} />
-
-      {/* Interaction hint */}
-      <div className={`absolute top-4 right-4 z-20 pointer-events-none transition-opacity duration-500 ${isInteracting ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
-        <div className="flex flex-col gap-1 items-end">
-          <span className="text-[10px] font-mono text-teal-400/60 tracking-widest">SCROLL TO ZOOM</span>
-          <span className="text-[10px] font-mono text-teal-400/60 tracking-widest">DRAG TO ROTATE</span>
+      {/* Corner accents */}
+      <div className="absolute top-4 left-4 z-20 pointer-events-none">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_rgba(6,182,212,0.5)]" />
+          <span className="text-[10px] font-mono text-cyan-400/50 tracking-[0.15em]">LIVE SEQUENCING</span>
         </div>
+      </div>
+      <div className="absolute top-4 right-4 z-20 pointer-events-none flex flex-col items-end gap-0.5">
+        <span className="text-[9px] font-mono text-white/15 tracking-[0.1em]">ZYNTRACARE</span>
+        <span className="text-[8px] font-mono text-white/10 tracking-[0.15em]">GENOMICS v2.4</span>
       </div>
 
       {/* Corner brackets */}
-      {(['top-3 left-3 border-t border-l', 'top-3 right-3 border-t border-r', 'bottom-3 left-3 border-b border-l', 'bottom-3 right-3 border-b border-r'] as const).map((cls, i) => (
-        <div key={i} className={`absolute w-6 h-6 border-teal-500/30 z-20 pointer-events-none ${cls}`} />
-      ))}
+      <div className="absolute top-6 left-6 w-5 h-5 border-t border-l border-cyan-500/20 z-20 pointer-events-none" />
+      <div className="absolute top-6 right-6 w-5 h-5 border-t border-r border-cyan-500/20 z-20 pointer-events-none" />
+      <div className="absolute bottom-6 left-6 w-5 h-5 border-b border-l border-cyan-500/20 z-20 pointer-events-none" />
+      <div className="absolute bottom-6 right-6 w-5 h-5 border-b border-r border-cyan-500/20 z-20 pointer-events-none" />
+
+      {/* Interaction hint */}
+      <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-opacity duration-700 ${isInteracting ? 'opacity-0' : 'opacity-25 group-hover:opacity-60'}`}>
+        <div className="flex items-center gap-3">
+          <span className="text-[9px] font-mono text-white/40 tracking-[0.1em]">↻ DRAG</span>
+          <span className="w-4 h-px bg-white/10" />
+          <span className="text-[9px] font-mono text-white/40 tracking-[0.1em]">⇌ ZOOM</span>
+        </div>
+      </div>
 
       <Suspense fallback={<Loader />}>
         <Canvas
-          camera={{ position: [0, 1, 9], fov: 42 }}
-          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false }}
+          camera={{ position: [0, 0.5, 8], fov: 38 }}
+          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
           dpr={isMobile ? [1, 1] : [1, 1.5]}
           onPointerDown={() => setIsInteracting(true)}
           onPointerUp={() => setIsInteracting(false)}
         >
-          {/* Background */}
-          <color attach="background" args={['#0a1612']} />
+          <color attach="background" args={['#060d12']} />
 
-          {/* Cinematic lighting - teal tinted */}
-          <ambientLight intensity={0.25} />
-          <directionalLight position={[8, 14, 8]} intensity={3.5} color="#ffffff" />
-          <directionalLight position={[-5, -5, -5]} intensity={1.8} color="#5eead4" />
-          <pointLight position={[0, 0, 6]} intensity={2.5} color="#ffffff" distance={14} />
-          <pointLight position={[-4, -8, 3]} intensity={1.5} color="#5eead4" distance={18} />
-          <pointLight position={[4, 8, -3]} intensity={1.0} color="#d4a574" distance={16} />
+          <ambientLight intensity={0.5} color="#a5f3fc" />
+          <directionalLight position={[4, 8, 6]} intensity={4} color="#f0fdfa" />
+          <directionalLight position={[-4, -2, -6]} intensity={2.5} color="#67e8f9" />
+          <pointLight position={[0, 0, 5]} intensity={3} color="#22d3ee" distance={15} />
+          <pointLight position={[0, 6, 0]} intensity={2} color="#60a5fa" distance={14} />
+          <pointLight position={[0, -6, 0]} intensity={1.5} color="#22d3ee" distance={14} />
+          <pointLight position={[3, 3, 3]} intensity={1.5} color="#fbbf24" distance={10} />
 
           <CinematicDNA bloomIntensity={bloomIntensity} particleCount={particleCount} />
 
-          <Environment preset="studio" />
+          <Environment preset="night" />
 
           <OrbitControls
             enablePan={false}
             enableZoom={true}
             autoRotate
-            autoRotateSpeed={0.5}
-            dampingFactor={0.06}
+            autoRotateSpeed={0.4}
+            dampingFactor={0.08}
             enableDamping
             minDistance={4}
-            maxDistance={20}
-            zoomSpeed={0.8}
+            maxDistance={16}
+            zoomSpeed={0.6}
           />
 
-          {/* Optimized Bloom */}
           <EffectComposer>
-            <Bloom
-              luminanceThreshold={0.4}
-              mipmapBlur
-              intensity={bloomIntensity}
-              levels={6}
-              luminanceSmoothing={0.3}
-            />
+            <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.04} intensity={2.0 * bloomIntensity} mipmapBlur />
           </EffectComposer>
         </Canvas>
       </Suspense>

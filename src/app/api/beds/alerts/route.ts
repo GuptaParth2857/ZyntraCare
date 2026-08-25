@@ -1,29 +1,18 @@
-// Bed Availability Alerts API
 import { NextRequest, NextResponse } from 'next/server';
-
-interface BedAlert {
-  id: string;
-  userId: string;
-  hospitalId: string;
-  hospitalName: string;
-  alertType: 'icu' | 'general' | 'any';
-  targetAvailability: number;
-  notified: boolean;
-  createdAt: string;
-}
-
-const ALERTS: BedAlert[] = [];
+import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
 
-  if (userId) {
-    const userAlerts = ALERTS.filter(a => a.userId === userId && !a.notified);
-    return NextResponse.json({ success: true, alerts: userAlerts });
+    const where = userId ? { userId } : {};
+    const alerts = await prisma.bedAlert.findMany({ where, orderBy: { createdAt: 'desc' } });
+
+    return NextResponse.json({ success: true, alerts });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Failed to fetch alerts' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, alerts: ALERTS });
 }
 
 export async function POST(req: NextRequest) {
@@ -35,25 +24,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    const existingIndex = ALERTS.findIndex(
-      a => a.userId === userId && a.hospitalId === hospitalId && a.alertType === alertType && !a.notified
-    );
+    const existing = await prisma.bedAlert.findFirst({
+      where: { userId, hospitalId, alertType: alertType || 'any', notified: false },
+    });
 
-    const alert: BedAlert = {
-      id: `alert_${Date.now()}`,
+    const alertData = {
       userId,
       hospitalId,
       hospitalName: hospitalName || 'Hospital',
       alertType: alertType || 'any',
-      targetAvailability: targetAvailability || 1,
-      notified: false,
-      createdAt: new Date().toISOString()
+      targetAvailability: targetAvailability ? parseInt(targetAvailability, 10) : 1,
     };
 
-    if (existingIndex >= 0) {
-      ALERTS[existingIndex] = alert;
+    let alert;
+    if (existing) {
+      alert = await prisma.bedAlert.update({
+        where: { id: existing.id },
+        data: alertData,
+      });
     } else {
-      ALERTS.push(alert);
+      alert = await prisma.bedAlert.create({ data: alertData });
     }
 
     return NextResponse.json({ success: true, alert });
@@ -63,24 +53,21 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const alertId = searchParams.get('alertId');
-  const userId = searchParams.get('userId');
+  try {
+    const { searchParams } = new URL(req.url);
+    const alertId = searchParams.get('alertId');
+    const userId = searchParams.get('userId');
 
-  if (alertId) {
-    const index = ALERTS.findIndex(a => a.id === alertId);
-    if (index >= 0) {
-      ALERTS.splice(index, 1);
+    if (alertId) {
+      await prisma.bedAlert.delete({ where: { id: alertId } });
+    } else if (userId) {
+      await prisma.bedAlert.deleteMany({ where: { userId } });
     }
-  } else if (userId) {
-    const userAlerts = ALERTS.filter(a => a.userId === userId);
-    userAlerts.forEach(a => {
-      const idx = ALERTS.findIndex(al => al.id === a.id);
-      if (idx >= 0) ALERTS.splice(idx, 1);
-    });
-  }
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Failed to delete alerts' }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest) {
@@ -88,25 +75,30 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { hospitalId, alertType, available, icuAvailable } = body;
 
-    const alertsToNotify = ALERTS.filter(
-      a => a.hospitalId === hospitalId && 
-      a.alertType === alertType && 
-      !a.notified &&
-      ((a.alertType === 'icu' && icuAvailable >= a.targetAvailability) ||
-       (a.alertType !== 'icu' && available >= a.targetAvailability))
+    const where: any = { hospitalId, notified: false };
+    if (alertType) where.alertType = alertType;
+
+    const alerts = await prisma.bedAlert.findMany({ where });
+
+    const toNotify = alerts.filter((a) =>
+      a.alertType === 'icu'
+        ? (icuAvailable || 0) >= a.targetAvailability
+        : (available || 0) >= a.targetAvailability
     );
 
-    alertsToNotify.forEach(a => {
-      const idx = ALERTS.findIndex(al => al.id === a.id);
-      if (idx >= 0) {
-        ALERTS[idx].notified = true;
-      }
-    });
+    const ids = toNotify.map((a) => a.id);
 
-    return NextResponse.json({ 
-      success: true, 
-      notified: alertsToNotify.map(a => a.id),
-      count: alertsToNotify.length
+    if (ids.length > 0) {
+      await prisma.bedAlert.updateMany({
+        where: { id: { in: ids } },
+        data: { notified: true },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      notified: ids,
+      count: ids.length,
     });
   } catch (error) {
     return NextResponse.json({ success: false }, { status: 400 });

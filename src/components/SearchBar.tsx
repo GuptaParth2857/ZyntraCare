@@ -1,19 +1,25 @@
-// src/components/SearchBar.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { FiSearch, FiMapPin, FiSliders } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { specialties, states } from '@/data/mockData';
+
+const SPECIALTIES = [
+  'Cardiology', 'Oncology', 'Neurology', 'Orthopedics', 'Pediatrics',
+  'Nephrology', 'Gastroenterology', 'Dermatology', 'Ophthalmology',
+  'Pulmonology', 'Gynecology', 'Urology', 'ENT', 'Psychiatry', 'General Medicine'
+];
+
+const STATES = [
+  'Delhi', 'Haryana', 'Maharashtra', 'Karnataka',
+  'Tamil Nadu', 'West Bengal', 'Uttar Pradesh', 'Gujarat', 'Rajasthan',
+  'Punjab', 'Madhya Pradesh', 'Telangana', 'Kerala'
+];
 
 interface SearchBarProps {
   variant?: 'hero' | 'compact';
 }
-
-const locationList = Array.from(new Set(
-  states.filter(s => s !== 'All India').map(s => s.trim())
-));
 
 export default function SearchBar({ variant = 'hero' }: SearchBarProps) {
   const router = useRouter();
@@ -92,7 +98,7 @@ export default function SearchBar({ variant = 'hero' }: SearchBarProps) {
             className="w-full pl-9 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-slate-300 text-sm focus:outline-none focus:border-sky-500/40 focus:bg-white/8 transition-all appearance-none cursor-pointer"
           >
             <option value="" className="bg-slate-900 text-slate-300">All Specialties</option>
-            {specialties.map(s => (
+            {SPECIALTIES.map(s => (
               <option key={s} value={s} className="bg-slate-900 text-slate-300">{s}</option>
             ))}
           </select>
@@ -108,7 +114,7 @@ export default function SearchBar({ variant = 'hero' }: SearchBarProps) {
             className="w-full pl-9 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-slate-300 text-sm focus:outline-none focus:border-sky-500/40 focus:bg-white/8 transition-all appearance-none cursor-pointer"
           >
             <option value="" className="bg-slate-900 text-slate-300">All Locations</option>
-            {locationList.map(s => (
+            {STATES.map(s => (
               <option key={s} value={s} className="bg-slate-900 text-slate-300">{s}</option>
             ))}
           </select>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiHeart, FiCalendar, FiActivity, FiClock, FiAlertCircle, FiCheckCircle, FiTrendingUp, FiDroplet, FiShield, FiMessageCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -15,51 +15,11 @@ interface PeriodLog {
   symptoms: string[];
 }
 
-const cyclePhases = [
-  { phase: 'period', name: 'Period', color: 'from-red-500 to-rose-500', days: 'Day 1-5', description: 'Menstruation phase' },
-  { phase: 'follicular', name: 'Follicular', color: 'from-green-500 to-emerald-500', days: 'Day 6-14', description: 'Estrogen rising' },
-  { phase: 'ovulation', name: 'Ovulation', color: 'from-yellow-500 to-amber-500', days: 'Day 15', description: 'Fertile window' },
-  { phase: 'luteal', name: 'Luteal', color: 'from-purple-500 to-pink-500', days: 'Day 16-28', description: 'Progesterone peak' },
-];
-
-const tips = {
-  period: [
-    'Stay hydrated - drink 8+ glasses of water',
-    'Light exercise can help reduce cramps',
-    'Eat iron-rich foods like spinach and lentils',
-    'Get adequate rest',
-  ],
-  follicular: [
-    'Great time to start new fitness routines',
-    'Energy levels are typically higher',
-    'Focus on protein-rich diet',
-  ],
-  ovulation: [
-    'Stay hydrated during fertile window',
-    'Track ovulation for family planning',
-    'Mood swings are common',
-  ],
-  luteal: [
-    'PMS symptoms may appear',
-    'Self-care is especially important',
-    'Watch for food cravings',
-  ],
-};
-
-const pregnancyWeeks = [
-  { week: 1, title: 'Week 1', size: 'Not pregnant yet' },
-  { week: 4, title: 'Month 1', size: 'Poppy seed' },
-  { week: 8, title: 'Month 2', size: 'Raspberry' },
-  { week: 12, title: 'Month 3', size: 'Plum' },
-  { week: 16, title: 'Month 4', size: 'Avocado' },
-  { week: 20, title: 'Month 5', size: 'Banana' },
-  { week: 24, title: 'Month 6', size: 'Papaya' },
-  { week: 28, title: 'Month 7', size: 'Eggplant' },
-  { week: 32, title: 'Month 8', size: 'Squash' },
-  { week: 36, title: 'Month 9', size: 'Watermelon' },
-];
-
 export default function WomensHealthPage() {
+  const [cyclePhases, setCyclePhases] = useState<any[]>([]);
+  const [tips, setTips] = useState<any>({});
+  const [pregnancyWeeks, setPregnancyWeeks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'cycle' | 'pregnancy'>('cycle');
   const [cycleDay, setCycleDay] = useState(12);
   const [cycleLength, setCycleLength] = useState(28);
@@ -67,7 +27,19 @@ export default function WomensHealthPage() {
   const [pregnancyWeek, setPregnancyWeek] = useState<PregnancyWeek>(12);
   const [showTipModal, setShowTipModal] = useState(false);
 
-  const currentPhase = cyclePhases.find((_, idx) => {
+  useEffect(() => {
+    fetch('/api/womens-health')
+      .then(r => r.json())
+      .then(data => {
+        setCyclePhases(data.cyclePhases || []);
+        setTips(data.tips || {});
+        setPregnancyWeeks(data.pregnancyWeeks || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const currentPhase = cyclePhases.find((_: any, idx: number) => {
     const periods = [5, 14, 15, 28];
     return cycleDay <= periods[0] ? 0 : 
            cycleDay <= periods[1] ? 1 : 

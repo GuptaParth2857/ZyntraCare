@@ -2,7 +2,8 @@
 'use client';
 
 import { Doctor } from '@/types';
-import { FiMapPin, FiStar, FiClock, FiPhone, FiVideo, FiMessageCircle, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { toArray } from '@/lib/utils';
+import { FiMapPin, FiStar, FiClock, FiPhone, FiMessageCircle, FiCheckCircle, FiXCircle, FiNavigation } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -45,9 +46,10 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
   }, []);
 
   const isLight = variant === 'light';
+  const doctorSpecialty = doctor.specialty || 'default';
   const specColor = isLight 
-      ? (specialtyColorsLight[doctor.specialty] ?? specialtyColorsLight.default)
-      : (specialtyColorsDark[doctor.specialty] ?? specialtyColorsDark.default);
+      ? (specialtyColorsLight[doctorSpecialty] ?? specialtyColorsLight.default)
+      : (specialtyColorsDark[doctorSpecialty] ?? specialtyColorsDark.default);
 
   const handleBook = () => {
     setBooking(true);
@@ -89,7 +91,7 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
                 className={`relative w-20 h-20 rounded-[1rem] overflow-hidden border-2 ${isLight ? 'border-slate-100 shadow-sm' : 'border-white/10'}`}
               >
                 <Image
-                  src={doctor.image}
+                  src={doctor.image || '/placeholder-doctor.svg'}
                   alt={`Dr. ${doctor.name}`}
                   fill
                   sizes="80px"
@@ -140,11 +142,34 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
 
         {/* Hospital Info */}
         <div className={`mt-4 p-2.5 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-100' : 'bg-white/5 border-white/5'}`}>
-          <p className={`text-[13px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-white'}`}>{doctor.hospitalName}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-[13px] font-bold truncate flex-1 ${isLight ? 'text-slate-800' : 'text-white'}`}>
+              {doctor.hospitals?.[0]?.name || doctor.hospitalName || 'Independent Practice'}
+            </p>
+            {doctor.distance != null && (
+              <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                isLight ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
+              }`}>
+                <FiNavigation size={10} />
+                {doctor.distance} km
+              </span>
+            )}
+          </div>
           <p className={`text-[11px] flex items-center gap-1.5 mt-1 font-medium ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
             <FiMapPin size={11} className={isLight ? 'text-blue-500' : ''} aria-hidden="true" />
-            {doctor.hospitalName}
+            {doctor.hospitals?.[0]?.address ? `${doctor.hospitals[0].address}, ` : ''}
+            {doctor.hospitals?.[0]?.city}{doctor.hospitals?.[0]?.state ? `, ${doctor.hospitals?.[0]?.state}` : ''}
+            {!doctor.hospitals?.length && (doctor.city || '')}
           </p>
+          {doctor.hospitals?.[0]?.phone && (
+            <a
+              href={`tel:${doctor.hospitals[0].phone}`}
+              className={`text-[11px] flex items-center gap-1.5 mt-1 font-medium hover:text-blue-400 transition ${isLight ? 'text-blue-600' : 'text-blue-400'}`}
+            >
+              <FiPhone size={11} aria-hidden="true" />
+              {doctor.hospitals[0].phone}
+            </a>
+          )}
         </div>
 
         {/* Availability & Price */}
@@ -160,14 +185,14 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
             </p>
           </div>
           <div className="text-right">
-            <p className={`text-xl font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>₹{doctor.consultationFee.toLocaleString()}</p>
+            <p className={`text-xl font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>₹{doctor.consultationFee?.toLocaleString() || 0}</p>
             <p className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>per consult</p>
           </div>
         </div>
 
         {/* Languages */}
         <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Languages spoken">
-          {doctor.languages.map(lang => (
+          {toArray(doctor.languages).map((lang: string) => (
             <span
               key={lang}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -217,6 +242,34 @@ export default function DoctorCard({ doctor, onBook, variant = 'dark' }: DoctorC
             >
               {booking ? '✓ Confirmed!' : doctor.available ? 'Book Appointment' : 'Unavailable'}
             </button>
+          )}
+
+          {(doctor.userPhone || doctor.hospitals?.[0]?.phone) && (
+            <>
+              {mounted ? (
+                <motion.a
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  href={`tel:${doctor.userPhone || doctor.hospitals?.[0]?.phone}`}
+                  aria-label={`Call ${doctor.name}`}
+                  className={`px-3 py-3 rounded-xl border transition flex items-center justify-center font-bold ${
+                    isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400'
+                  }`}
+                >
+                  <FiPhone size={18} aria-hidden="true" />
+                </motion.a>
+              ) : (
+                <a
+                  href={`tel:${doctor.userPhone || doctor.hospitals?.[0]?.phone}`}
+                  aria-label={`Call ${doctor.name}`}
+                  className={`px-3 py-3 rounded-xl border transition flex items-center justify-center font-bold ${
+                    isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400'
+                  }`}
+                >
+                  <FiPhone size={18} aria-hidden="true" />
+                </a>
+              )}
+            </>
           )}
 
           {mounted ? (

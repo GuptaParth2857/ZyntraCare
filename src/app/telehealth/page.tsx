@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toArray } from '@/lib/utils';
 import { FiVideo, FiMic, FiMonitor, FiPhone, FiClock, FiUser, FiCalendar, FiMapPin, FiWifi, FiSmartphone, FiNavigation } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -88,21 +89,21 @@ export default function TelehealthPage() {
         setConsultations(sorted);
       }
     } catch {
-      const mockData = [
-        { id: '1', doctorName: 'Dr. Priya Sharma', specialty: 'General Physician', hospital: 'Rural Health Center, UP', available: true, nextSlot: 'Today 4PM', isRural: true, languages: ['Hindi', 'English'], lat: 26.8467, lng: 80.9462 },
-        { id: '2', doctorName: 'Dr. Amit Kumar', specialty: 'Cardiologist', hospital: 'District Hospital, Bihar', available: true, nextSlot: 'Tomorrow 10AM', isRural: true, languages: ['Hindi'], lat: 25.5941, lng: 85.1376 },
-        { id: '3', doctorName: 'Dr. Sneha Gupta', specialty: 'Dermatologist', hospital: 'City Hospital, Delhi', available: false, nextSlot: 'Next Week', isRural: false, languages: ['English', 'Hindi'], lat: 28.6139, lng: 77.2090 },
-        { id: '4', doctorName: 'Dr. Rajesh Patel', specialty: 'Pediatrician', hospital: 'Taluka Hospital, Gujarat', available: true, nextSlot: 'Today 6PM', isRural: true, languages: ['Gujarati', 'Hindi'], lat: 21.1702, lng: 72.8311 },
-        { id: '5', doctorName: 'Dr. Lisa Chen', specialty: 'Psychiatrist', hospital: 'Metro Hospital, Mumbai', available: true, nextSlot: 'Today 5PM', isRural: false, languages: ['English', 'Hindi'], lat: 19.0760, lng: 72.8777 },
-      ];
-      const sorted = userLocation 
-        ? [...mockData].sort((a, b) => {
-            const distA = calculateDistance(userLocation.lat, userLocation.lng, a.lat || 28.6139, a.lng || 77.2090);
-            const distB = calculateDistance(userLocation.lat, userLocation.lng, b.lat || 28.6139, b.lng || 77.2090);
-            return distA - distB;
-          })
-        : mockData;
-      setConsultations(sorted);
+      const doctorsRes = await fetch('/api/doctors');
+      const doctorsData = await doctorsRes.json();
+      const fallback = (doctorsData.doctors || []).map((d: Record<string, unknown>) => ({
+        id: d.id || String(Math.random()),
+        doctorName: d.name || 'Doctor',
+        specialty: d.specialty || 'General',
+        hospital: d.hospitalName || 'Hospital',
+        available: true,
+        nextSlot: 'Today',
+        isRural: false,
+        languages: ['English', 'Hindi'],
+        lat: (d as Record<string, number>).lat || 28.6139,
+        lng: (d as Record<string, number>).lng || 77.2090,
+      }));
+      setConsultations(fallback.slice(0, 10));
     }
     setLoading(false);
   };
@@ -110,7 +111,7 @@ export default function TelehealthPage() {
   const specialties = ['all', 'General Physician', 'Cardiologist', 'Dermatologist', 'Pediatrician', 'Psychiatrist', 'Orthopedic', 'Gynecologist'];
 
   return (
-    <div className="min-h-screen text-white relative" style={{ background: 'linear-gradient(135deg, #020614 0%, #030a1e 50%, #020612 100%)' }}>
+    <div className="min-h-screen bg-transparent text-white relative">
       {/* Animated background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/8 rounded-full blur-[120px] animate-pulse" />
@@ -261,7 +262,7 @@ export default function TelehealthPage() {
                 </p>
 
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {consult.languages.map((lang) => (
+                  {toArray(consult.languages).map((lang: string) => (
                     <span key={lang} className="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded">
                       {lang}
                     </span>

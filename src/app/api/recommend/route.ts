@@ -1,30 +1,49 @@
 import { NextResponse } from 'next/server';
-import { hospitals } from '@/data/mockData';
+import prisma from '@/lib/prisma';
+import { getDistanceKm } from '@/utils/distance';
 
 export async function POST(req: Request) {
-  const { lat, lng } = await req.json();
-  
-  const scored = hospitals
-    .filter(h => h.location?.lat && h.location?.lng && h.beds?.total)
-    .map(h => {
-      const distance = calculateDistance(lat, lng, h.location!.lat, h.location!.lng);
-      const bedScore = (h.beds?.available || 0) / (h.beds?.total || 1);
-      const emergencyScore = h.emergency ? 1 : 0;
-      const score = (1 / (distance + 1)) * 0.5 + bedScore * 0.3 + emergencyScore * 0.2;
-      return { ...h, distance, score };
-    });
-  
-  scored.sort((a, b) => b.score - a.score);
-  return NextResponse.json(scored.slice(0, 5));
-}
+  try {
+    const { lat, lng, specialty } = await req.json();
 
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
+    const hospitals = await prisma.hospital.findMany({
+      where: specialty ? { specialties: { contains: specialty } } : {},
+    });
+
+    if (hospitals.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const scored = hospitals
+      .filter(h => h.lat && h.lng)
+      .map(h => {
+        const beds = JSON.parse(h.beds || '{}');
+        const distance = getDistanceKm(lat || 28.6139, lng || 77.2090, h.lat!, h.lng!);
+        const totalBeds = beds.total || 100;
+        const availableBeds = beds.available || 0;
+        const bedScore = totalBeds > 0 ? availableBeds / totalBeds : 0;
+        const emergencyScore = h.emergency ? 1 : 0;
+        const score = (1 / (distance + 1)) * 0.5 + bedScore * 0.3 + emergencyScore * 0.2;
+        return {
+          id: h.id,
+          name: h.name,
+          address: h.address,
+          city: h.city,
+          state: h.state,
+          phone: h.phone,
+          rating: h.rating,
+          distance: Math.round(distance * 10) / 10,
+          emergency: h.emergency,
+          beds: beds,
+          location: { lat: h.lat, lng: h.lng },
+          score,
+        };
+      });
+
+    scored.sort((a, b) => b.score - a.score);
+    return NextResponse.json(scored.slice(0, 5));
+  } catch (error) {
+    console.error('Recommend API error:', error);
+    return NextResponse.json([]);
+  }
 }

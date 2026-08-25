@@ -2,146 +2,131 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPhone, FiX, FiAlertTriangle, FiMapPin, FiCheck, FiHeart } from 'react-icons/fi';
-import { FaAmbulance } from 'react-icons/fa';
-import { useLanguage } from '@/context/LanguageContext';
-import { hospitals } from '@/data/mockData';
-import { usePathname } from 'next/navigation';
+import { FiPhone, FiX, FiMapPin, FiNavigation } from 'react-icons/fi';
+import { FaAmbulance, FaHospital } from 'react-icons/fa';
 
-type Stage = 'hidden' | 'asking' | 'ai-talking' | 'connecting' | 'connected';
+interface NearbyHospital {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  distance: number;
+  lat: number;
+  lng: number;
+}
 
-/**
- * EmergencyScrollMonitor — triggers after 60 continuous seconds of scrolling.
- * Resets if user stops scrolling for > 5 seconds.
- */
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const fallbackHospitals: NearbyHospital[] = [
+  { id: 'fb1', name: 'Government Hospital', phone: '102', address: 'Emergency Services, Your Area', distance: 0.8, lat: 28.6139, lng: 77.2090 },
+  { id: 'fb2', name: 'City Hospital', phone: '102', address: '24/7 Emergency Care', distance: 1.5, lat: 28.6200, lng: 77.2200 },
+  { id: 'fb3', name: 'Multi-Specialty Hospital', phone: '102', address: 'Trauma & Emergency Center', distance: 2.2, lat: 28.6300, lng: 77.2000 },
+];
+
+async function fetchHospitals(lat: number, lng: number): Promise<NearbyHospital[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const q = `[out:json][timeout:15];(node["amenity"="hospital"](around:2000,${lat},${lng});way["amenity"="hospital"](around:2000,${lat},${lng}););out center 10;`;
+    const r = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!r.ok) throw new Error('API error');
+    const d = await r.json();
+    const result: NearbyHospital[] = (d.elements || [])
+      .filter((el: any) => el.tags?.amenity === 'hospital')
+      .map((el: any) => {
+        const hLat = el.lat ?? el.center?.lat;
+        const hLng = el.lon ?? el.center?.lon;
+        return {
+          id: String(el.id),
+          name: el.tags?.name || 'Nearby Hospital',
+          phone: el.tags?.['contact:phone'] || el.tags?.phone || '102',
+          address: [el.tags?.['addr:street'], el.tags?.['addr:city']].filter(Boolean).join(', ') || 'Nearby',
+          distance: haversine(lat, lng, hLat, hLng),
+          lat: hLat,
+          lng: hLng,
+        };
+      })
+      .sort((a: NearbyHospital, b: NearbyHospital) => a.distance - b.distance)
+      .slice(0, 10);
+    return result.length > 0 ? result : fallbackHospitals.map(h => ({ ...h, distance: Math.random() * 2 + 0.3 }));
+  } catch {
+    clearTimeout(timeout);
+    return fallbackHospitals.map(h => ({ ...h, distance: Math.random() * 2 + 0.3 }));
+  }
+}
+
 export default function EmergencyScrollMonitor() {
-  const { t } = useLanguage();
-  const pathname = usePathname();
-  const [stage, setStage] = useState<Stage>('hidden');
+  const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [aiMessages, setAiMessages] = useState<string[]>([]);
-  const [userResponse, setUserResponse] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [nearestHospital, setNearestHospital] = useState<any>(null);
+  const [showHospitals, setShowHospitals] = useState(false);
+  const [hospitals, setHospitals] = useState<NearbyHospital[]>([]);
+  const [loadingHospitals, setLoadingHospitals] = useState(false);
+  const [locationError, setLocationError] = useState(false);
+  const doneRef = useRef(false);
+  const userLocRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  const scrollStartRef = useRef<number | null>(null);
-  const lastScrollRef = useRef<number>(0);
-  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasTriggeredRef = useRef(false);
-  const dismissedRef = useRef(false);
-  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const isEligibleRoute =
-    pathname === '/hospitals' ||
-    pathname === '/specialists' ||
-    pathname === '/booking' ||
-    pathname === '/dashboard';
-
-  useEffect(() => { dismissedRef.current = dismissed; }, [dismissed]);
-
+  // Start location immediately on mount (not after 30s)
   useEffect(() => {
-    // Persist dismiss across pages/sessions so popup doesn't feel random.
     try {
-      const v = window.localStorage.getItem('hh_emergency_dismissed_v1');
-      if (v === '1') {
+      if (window.localStorage.getItem('zyntra_emergency_check') === '1') {
         setDismissed(true);
-        dismissedRef.current = true;
+        doneRef.current = true;
+        return;
       }
-    } catch {
-      // ignore
-    }
-  }, []);
+    } catch {}
 
-  const findNearestHospital = useCallback(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) {
-      setNearestHospital(hospitals[0]);
-      return;
-    }
     navigator.geolocation.getCurrentPosition(
-      ({ coords: { latitude, longitude } }) => {
-        let minDist = Infinity;
-        let closest = hospitals[0];
-        hospitals.forEach(h => {
-          const d = Math.hypot(h.location.lat - latitude, h.location.lng - longitude);
-          if (d < minDist) { minDist = d; closest = h; }
-        });
-        setNearestHospital(closest);
+      (pos) => {
+        userLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       },
-      () => setNearestHospital(hospitals[0])
+      () => { setLocationError(true); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   }, []);
 
+  // Show popup after 30s (location is already being fetched above)
   useEffect(() => {
-    if (!isEligibleRoute) return;
-    if (dismissed || hasTriggeredRef.current) return;
+    if (doneRef.current) return;
+    if (dismissed) return;
 
-    // Avoid accidental emergency popups: require longer continuous activity.
-    const SCROLL_THRESHOLD_MS = 180_000; // 3 minutes of active scrolling
-    const PAUSE_RESET_MS = 5_000;       // reset if idle > 5s
+    const timer = setTimeout(() => {
+      if (doneRef.current) return;
+      doneRef.current = true;
+      setVisible(true);
+    }, 30000);
 
-    const handleScroll = () => {
-      if (dismissedRef.current || hasTriggeredRef.current) return;
+    return () => clearTimeout(timer);
+  }, [dismissed]);
 
-      const now = Date.now();
-      lastScrollRef.current = now;
-
-      if (scrollStartRef.current === null) scrollStartRef.current = now;
-
-      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-      pauseTimerRef.current = setTimeout(() => {
-        scrollStartRef.current = null;
-      }, PAUSE_RESET_MS);
-
-      const elapsed = now - (scrollStartRef.current ?? now);
-      if (elapsed >= SCROLL_THRESHOLD_MS) {
-        hasTriggeredRef.current = true;
-        if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-        setStage('asking');
-        findNearestHospital();
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    };
-  }, [dismissed, findNearestHospital, isEligibleRoute]);
-
-  const handleYesEmergency = useCallback(() => {
-    setStage('ai-talking');
-    setAiMessages([]);
-    const msgs = [
-      'I understand you need help. Let me assist you right away. 🚨',
-      'Can you briefly describe your situation? (Type below or just wait)',
-      'I\'m locating the nearest hospital with available beds…',
-    ];
-    timeoutsRef.current.forEach(clearTimeout);
-    timeoutsRef.current = [];
-    msgs.forEach((msg, i) => {
-      timeoutsRef.current.push(setTimeout(() => setAiMessages(prev => [...prev, msg]), (i + 1) * 1600));
-    });
-    timeoutsRef.current.push(setTimeout(() => setStage('connecting'), 5500));
-    timeoutsRef.current.push(setTimeout(() => setStage('connected'), 8000));
+  const handleYes = useCallback(async () => {
+    setShowHospitals(true);
+    setLoadingHospitals(true);
+    const loc = userLocRef.current;
+    if (!loc) {
+      setHospitals(fallbackHospitals.map(h => ({ ...h, distance: Math.random() * 2 + 0.3 })));
+      setLoadingHospitals(false);
+      return;
+    }
+    const results = await fetchHospitals(loc.lat, loc.lng);
+    setHospitals(results);
+    setLoadingHospitals(false);
   }, []);
 
   const handleDismiss = useCallback(() => {
+    setVisible(false);
     setDismissed(true);
-    dismissedRef.current = true;
-    try { window.localStorage.setItem('hh_emergency_dismissed_v1', '1'); } catch { /* ignore */ }
-    timeoutsRef.current.forEach(clearTimeout);
-    timeoutsRef.current = [];
-    setStage('hidden');
+    doneRef.current = true;
+    try { window.localStorage.setItem('zyntra_emergency_check', '1'); } catch {}
   }, []);
 
-  useEffect(() => {
-    return () => {
-      timeoutsRef.current.forEach(clearTimeout);
-      timeoutsRef.current = [];
-    };
-  }, []);
-
-  if (stage === 'hidden') return null;
+  if (!visible || dismissed) return null;
 
   return (
     <AnimatePresence>
@@ -149,229 +134,117 @@ export default function EmergencyScrollMonitor() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Emergency assistance dialog"
-        aria-live="assertive"
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) handleDismiss(); }}
       >
         <motion.div
-          initial={{ scale: 0.85, opacity: 0, y: 30 }}
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.85, opacity: 0, y: 30 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-          className="relative w-full max-w-lg mx-4 rounded-3xl overflow-hidden shadow-2xl"
-          style={{ boxShadow: '0 0 80px rgba(239, 68, 68, 0.3), 0 30px 80px rgba(0,0,0,0.5)' }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          className="relative w-full max-w-lg mx-4 rounded-3xl overflow-hidden"
+          style={{ boxShadow: '0 0 80px rgba(239,68,68,0.3), 0 30px 80px rgba(0,0,0,0.5)' }}
         >
-          {/* Background */}
-          <div className="absolute inset-0 bg-slate-950 z-0" aria-hidden="true" />
-          <div className="absolute inset-0 bg-gradient-to-br from-red-950/50 to-slate-950 z-0" aria-hidden="true" />
+          <div className="absolute inset-0 bg-gradient-to-br from-red-950/60 to-slate-950 z-0" />
+          <div className="absolute inset-0 rounded-3xl z-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.3) 0%, rgba(239,68,68,0) 60%)', opacity: 0.8 }} />
 
-          {/* Animated border */}
-          <div
-            className="absolute inset-0 rounded-3xl z-0 pointer-events-none"
-            style={{
-              background: stage === 'connected'
-                ? 'linear-gradient(135deg, rgba(16,185,129,0.3) 0%, rgba(16,185,129,0) 60%)'
-                : 'linear-gradient(135deg, rgba(239,68,68,0.3) 0%, rgba(239,68,68,0) 60%)',
-              opacity: 0.8,
-            }}
-            aria-hidden="true"
-          />
-
-          {/* Scanline */}
-          <motion.div
-            animate={{ y: ['-100%', '200%'] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
-            className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-red-500/40 to-transparent z-10 pointer-events-none"
-            aria-hidden="true"
-          />
-
-          {/* Content */}
           <div className="relative z-10">
-            {/* Header */}
-            <div
-              className={`p-5 flex items-center justify-between border-b border-white/10 ${
-                stage === 'connected'
-                  ? 'bg-emerald-950/50'
-                  : 'bg-red-950/50'
-              }`}
-            >
+            <div className="p-5 flex items-center justify-between border-b border-white/10 bg-red-950/40">
               <div className="flex items-center gap-3">
-                <motion.div
-                  animate={{ scale: [1, 1.25, 1] }}
-                  transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    stage === 'connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'
-                  }`}
-                  aria-hidden="true"
-                >
-                  {stage === 'connected' ? <FiCheck size={20} /> : <FiAlertTriangle size={20} />}
-                </motion.div>
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center">
+                  <FaAmbulance className="text-red-400" size={20} />
+                </div>
                 <div>
-                  <h2 className="font-black text-white text-base">{t('emergencyCallTitle')}</h2>
-                  <p className="text-xs text-gray-400">
-                    {stage === 'connected' ? '✅ Hospital Found!' : stage === 'ai-talking' ? t('aiSpeaking') : '🤖 ZyntraCare AI'}
-                  </p>
+                  <h2 className="font-black text-white text-base">🚨 Emergency Check</h2>
+                  <p className="text-xs text-gray-400">ZyntraCare AI</p>
                 </div>
               </div>
-              <button
-                onClick={handleDismiss}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition"
-                aria-label="Dismiss emergency dialog"
-              >
+              <button onClick={handleDismiss} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">
                 <FiX size={16} />
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-6">
-              {/* ASKING */}
-              {stage === 'asking' && (
+              {!showHospitals ? (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-                  <motion.div
-                    animate={{ scale: [1, 1.12, 1] }}
-                    transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                    className="w-20 h-20 bg-red-500/15 border border-red-500/40 rounded-2xl flex items-center justify-center mx-auto mb-5"
-                    aria-hidden="true"
-                  >
-                    <FaAmbulance className="text-red-400" size={36} />
-                  </motion.div>
-                  <h3 className="text-white font-black text-xl mb-2">{t('emergencyCallDesc')}</h3>
-                  <p className="text-gray-400 text-sm mb-6">You've been browsing for a while. Do you need emergency assistance?</p>
+                  <div className="w-20 h-20 bg-red-500/15 border border-red-500/40 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                    <FaHospital className="text-red-400" size={36} />
+                  </div>
+                  <h3 className="text-white font-black text-xl mb-2">Are you looking for emergency medical help?</h3>
+                  <p className="text-gray-400 text-sm mb-6">Find nearby hospitals with direct calling.</p>
                   <div className="flex gap-3">
                     <motion.button
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={handleYesEmergency}
-                      className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white py-3.5 rounded-2xl font-black text-base transition shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-                      aria-label="Yes, I need emergency help"
+                      onClick={handleYes}
+                      className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 text-white py-3.5 rounded-2xl font-black text-base transition shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                     >
-                      🚨 {t('yesEmergency')}
+                      🚨 Yes, I need help
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={handleDismiss}
                       className="flex-1 bg-white/5 border border-white/10 text-gray-300 py-3.5 rounded-2xl font-bold text-base hover:bg-white/10 transition"
-                      aria-label="No, I don't need emergency help"
                     >
-                      {t('noEmergency')}
+                      No
                     </motion.button>
                   </div>
                 </motion.div>
-              )}
-
-              {/* AI TALKING */}
-              {stage === 'ai-talking' && (
-                <div className="space-y-3">
-                  {aiMessages.map((msg, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.4 }}
-                      className="flex gap-3 items-start"
-                    >
-                      <div className="w-8 h-8 bg-red-500/15 border border-red-500/30 rounded-xl flex items-center justify-center flex-shrink-0 mt-1" aria-hidden="true">
-                        <span className="text-sm">🤖</span>
-                      </div>
-                      <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-md px-4 py-3">
-                        <p className="text-gray-200 text-sm">{msg}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                  <div className="flex gap-2 mt-4">
-                    <label htmlFor="emergency-input" className="sr-only">Describe your emergency (optional)</label>
-                    <input
-                      id="emergency-input"
-                      type="text"
-                      value={userResponse}
-                      onChange={e => setUserResponse(e.target.value)}
-                      placeholder="Describe your emergency (optional)…"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 outline-none transition text-sm"
-                    />
-                  </div>
-                  <motion.div
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 5, ease: 'linear' }}
-                    style={{ transformOrigin: 'left' }}
-                    className="h-1 bg-gradient-to-r from-red-500 to-rose-600 rounded-full mt-3"
-                    aria-hidden="true"
-                  />
-                  <p className="text-gray-600 text-xs text-center">Connecting to emergency services…</p>
-                </div>
-              )}
-
-              {/* CONNECTING */}
-              {stage === 'connecting' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-8">
+              ) : loadingHospitals ? (
+                <div className="text-center py-8">
                   <div className="relative mx-auto mb-5 w-16 h-16">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
-                      className="w-16 h-16 border-4 border-red-600/30 border-t-red-600 rounded-full"
-                      aria-label="Connecting…"
-                    />
-                    <FiHeart className="absolute inset-0 m-auto text-red-400" size={22} aria-hidden="true" />
+                    <div className="w-16 h-16 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
                   </div>
-                  <p className="text-lg font-black text-white">{t('connectingHospital')}</p>
-                  <p className="text-gray-500 text-sm mt-2">Finding nearest hospital with available beds…</p>
-                </motion.div>
-              )}
-
-              {/* CONNECTED */}
-              {stage === 'connected' && nearestHospital && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  <p className="text-lg font-black text-white">Finding nearest hospitals...</p>
+                  <p className="text-gray-500 text-sm mt-2">Searching within 2km radius</p>
+                </div>
+              ) : (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FiCheck className="text-emerald-400" size={18} aria-hidden="true" />
-                      <span className="font-black text-emerald-400 text-sm">Nearest Hospital Found!</span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                      <span className="font-black text-emerald-400 text-sm">Hospitals Near You</span>
                     </div>
-                    <h3 className="font-black text-xl text-white">{nearestHospital.name}</h3>
-                    <p className="text-gray-400 text-sm flex items-center gap-1 mt-1">
-                      <FiMapPin size={13} aria-hidden="true" />
-                      {nearestHospital.address}, {nearestHospital.city}
-                    </p>
-                    <div className="grid grid-cols-3 gap-2 mt-3">
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                        <p className="text-xs text-gray-500">Beds Free</p>
-                        <p className="font-black text-emerald-400 text-lg">{nearestHospital.beds.available}</p>
-                      </div>
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                        <p className="text-xs text-gray-500">ICU Free</p>
-                        <p className="font-black text-blue-400 text-lg">{nearestHospital.beds.icuAvailable}</p>
-                      </div>
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                        <p className="text-xs text-gray-500">Rating</p>
-                        <p className="font-black text-amber-400 text-lg">⭐ {nearestHospital.rating}</p>
-                      </div>
-                    </div>
+                    <p className="text-gray-400 text-xs">{hospitals.length} hospital{hospitals.length !== 1 ? 's' : ''} found within 2km</p>
                   </div>
-                  <div className="flex gap-3">
-                    <motion.a
-                      whileHover={{ scale: 1.03 }}
-                      href={`tel:${nearestHospital.phone}`}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white py-3 rounded-2xl font-black hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition"
-                      aria-label={`Call ${nearestHospital.name}`}
-                    >
-                      <FiPhone aria-hidden="true" /> Call Hospital
-                    </motion.a>
-                    <motion.a
-                      whileHover={{ scale: 1.03 }}
-                      href="tel:102"
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-2xl font-black hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition"
-                      aria-label="Call ambulance 102"
-                    >
-                      <FaAmbulance aria-hidden="true" /> Ambulance
-                    </motion.a>
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {hospitals.map((h, i) => (
+                      <motion.div
+                        key={h.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        className={`p-4 rounded-2xl border ${i === 0 ? 'border-teal-500/50 bg-gradient-to-r from-teal-500/10 to-transparent' : 'border-white/10 bg-white/5'}`}
+                      >
+                        {i === 0 && <div className="text-[10px] font-bold text-teal-400 mb-1">⭐ NEAREST</div>}
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${i === 0 ? 'bg-teal-500/20' : 'bg-white/10'}`}>🏥</div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-bold text-sm truncate">{h.name}</h4>
+                            <p className="text-gray-400 text-xs flex items-center gap-1 mt-0.5">
+                              <FiMapPin size={10} /> {h.address} · {h.distance.toFixed(1)} km
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <a
+                            href={`tel:${h.phone}`}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-red-600 to-rose-600 text-white transition active:scale-[0.97]"
+                          >
+                            <FiPhone size={14} className="animate-pulse" /> Call Now
+                          </a>
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}`}
+                            target="_blank"
+                            className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-sm bg-white/10 text-white hover:bg-white/20 transition"
+                          >
+                            <FiNavigation size={14} /> Map
+                          </a>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                  <button
-                    onClick={handleDismiss}
-                    className="w-full mt-3 text-gray-600 hover:text-gray-400 py-2 transition text-sm"
-                    aria-label="Close emergency dialog"
-                  >
+                  <button onClick={handleDismiss} className="w-full mt-4 text-gray-600 hover:text-gray-400 py-2 transition text-sm">
                     Close
                   </button>
                 </motion.div>

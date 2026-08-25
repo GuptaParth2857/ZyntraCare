@@ -19,6 +19,8 @@ function PlaceCard({ place, onSelect, isSelected = false, compact = false, showM
         return { bg: 'bg-teal-500/15', border: 'border-teal-500/30', text: 'text-teal-400', icon: '🏥' };
       case 'clinic':
         return { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-400', icon: '🏥' };
+      case 'lab':
+        return { bg: 'bg-purple-500/15', border: 'border-purple-500/30', text: 'text-purple-400', icon: '🔬' };
       case 'pharmacy':
         return { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-400', icon: '💊' };
       default:

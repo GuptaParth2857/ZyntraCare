@@ -1,14 +1,5 @@
-// Real-time bed status API - Hospital updates their bed availability
 import { NextRequest, NextResponse } from 'next/server';
-
-const MOCK_BED_DATA: Record<string, {
-  totalBeds: number;
-  availableBeds: number;
-  occupiedBeds: number;
-  totalICU: number;
-  availableICU: number;
-  occupiedICU: number;
-}> = {};
+import prisma from '@/lib/prisma';
 
 function calculateOccupancy(total: number, available: number): number {
   if (total === 0) return 0;
@@ -20,89 +11,190 @@ export async function GET(req: NextRequest) {
   const hospitalId = searchParams.get('hospitalId');
   const all = searchParams.get('all') === 'true';
 
-  if (all) {
-    return NextResponse.json({
-      success: true,
-      data: Object.entries(MOCK_BED_DATA).map(([id, data]) => ({
-        hospitalId: id,
-        ...data,
-        occupancyPercent: calculateOccupancy(data.totalBeds, data.availableBeds),
-        icuOccupancy: calculateOccupancy(data.totalICU, data.availableICU),
-        lastUpdated: new Date().toISOString()
-      })),
-      timestamp: new Date().toISOString()
-    });
-  }
+  try {
+    if (all) {
+      const beds = await prisma.realTimeBed.findMany({
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+      });
 
-  if (!hospitalId) {
-    return NextResponse.json({ success: false, error: 'hospitalId required' }, { status: 400 });
-  }
+      return NextResponse.json({
+        success: true,
+        data: beds.map(b => ({
+          hospitalId: b.hospitalId,
+          hospitalName: b.hospitalName,
+          totalBeds: b.totalBeds,
+          availableBeds: b.availableBeds,
+          occupiedBeds: b.occupiedBeds,
+          totalICU: b.totalICU,
+          availableICU: b.availableICU,
+          occupiedICU: b.occupiedICU,
+          occupancyPercent: calculateOccupancy(b.totalBeds, b.availableBeds),
+          icuOccupancy: b.icuOccupancy,
+          lastUpdated: b.updatedAt.toISOString(),
+        })),
+        timestamp: new Date().toISOString(),
+      });
+    }
 
-  const data = MOCK_BED_DATA[hospitalId];
-  if (!data) {
+    if (!hospitalId) {
+      const hospital = await prisma.hospital.findFirst();
+      if (!hospital) {
+        return NextResponse.json({ success: false, error: 'No hospitals found' }, { status: 404 });
+      }
+      
+      let beds = await prisma.realTimeBed.findFirst({ where: { hospitalId: hospital.id } });
+      
+      if (!beds) {
+        let parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 };
+        try { parsedBeds = JSON.parse(hospital.beds); } catch { parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 }; }
+        
+        beds = await prisma.realTimeBed.create({
+          data: {
+            hospitalId: hospital.id,
+            hospitalName: hospital.name,
+            totalBeds: parsedBeds.total,
+            availableBeds: parsedBeds.available,
+            occupiedBeds: parsedBeds.total - parsedBeds.available,
+            totalICU: parsedBeds.icu,
+            availableICU: parsedBeds.icuAvailable,
+            occupiedICU: parsedBeds.icu - parsedBeds.icuAvailable,
+            icuOccupancy: Math.round(((parsedBeds.icu - parsedBeds.icuAvailable) / parsedBeds.icu) * 100) || 0,
+            generalOccupancy: Math.round(((parsedBeds.total - parsedBeds.available) / parsedBeds.total) * 100) || 0,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          hospitalId: beds.hospitalId,
+          hospitalName: beds.hospitalName,
+          totalBeds: beds.totalBeds,
+          availableBeds: beds.availableBeds,
+          occupiedBeds: beds.occupiedBeds,
+          totalICU: beds.totalICU,
+          availableICU: beds.availableICU,
+          occupiedICU: beds.occupiedICU,
+          occupancyPercent: calculateOccupancy(beds.totalBeds, beds.availableBeds),
+          icuOccupancy: beds.icuOccupancy,
+          lastUpdated: beds.updatedAt.toISOString(),
+        },
+      });
+    }
+
+    const existing = await prisma.realTimeBed.findFirst({ where: { hospitalId } });
+    
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          hospitalId: existing.hospitalId,
+          hospitalName: existing.hospitalName,
+          totalBeds: existing.totalBeds,
+          availableBeds: existing.availableBeds,
+          occupiedBeds: existing.occupiedBeds,
+          totalICU: existing.totalICU,
+          availableICU: existing.availableICU,
+          occupiedICU: existing.occupiedICU,
+          occupancyPercent: calculateOccupancy(existing.totalBeds, existing.availableBeds),
+          icuOccupancy: existing.icuOccupancy,
+          lastUpdated: existing.updatedAt.toISOString(),
+        },
+      });
+    }
+
+    const hospital = await prisma.hospital.findFirst({ where: { id: hospitalId } });
+    if (!hospital) {
+      return NextResponse.json({ success: false, error: 'Hospital not found' }, { status: 404 });
+    }
+
+    let parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 };
+    try { parsedBeds = JSON.parse(hospital.beds); } catch { parsedBeds = { total: 100, available: 30, icu: 10, icuAvailable: 3 }; }
+
     return NextResponse.json({
       success: true,
       data: {
-        hospitalId,
-        totalBeds: Math.floor(Math.random() * 100) + 20,
-        availableBeds: Math.floor(Math.random() * 30) + 5,
-        occupiedBeds: 0,
-        totalICU: Math.floor(Math.random() * 20) + 5,
-        availableICU: Math.floor(Math.random() * 5) + 1,
-        occupiedICU: 0,
-        lastUpdated: new Date().toISOString()
-      }
+        hospitalId: hospital.id,
+        hospitalName: hospital.name,
+        totalBeds: parsedBeds.total,
+        availableBeds: parsedBeds.available,
+        occupiedBeds: parsedBeds.total - parsedBeds.available,
+        totalICU: parsedBeds.icu,
+        availableICU: parsedBeds.icuAvailable,
+        occupiedICU: parsedBeds.icu - parsedBeds.icuAvailable,
+        occupancyPercent: Math.round(((parsedBeds.total - parsedBeds.available) / parsedBeds.total) * 100),
+        lastUpdated: new Date().toISOString(),
+      },
     });
+  } catch (error) {
+    console.error('Bed API error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch bed data' }, { status: 500 });
   }
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      ...data,
-      occupancyPercent: calculateOccupancy(data.totalBeds, data.availableBeds),
-      icuOccupancy: calculateOccupancy(data.totalICU, data.availableICU),
-      lastUpdated: new Date().toISOString()
-    }
-  });
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { hospitalId, hospitalName, totalBeds, availableBeds, totalICU, availableICU, updateSource, adminKey } = body;
+    const { hospitalId, hospitalName, totalBeds, availableBeds, totalICU, availableICU, updateSource } = body;
 
-    if (!hospitalId || !hospitalName) {
-      return NextResponse.json({ success: false, error: 'hospitalId and hospitalName required' }, { status: 400 });
-    }
-
-    if (adminKey && adminKey !== process.env.HOSPITAL_ADMIN_KEY) {
-      return NextResponse.json({ success: false, error: 'Invalid admin key' }, { status: 403 });
+    if (!hospitalId) {
+      return NextResponse.json({ success: false, error: 'hospitalId required' }, { status: 400 });
     }
 
     const occupiedBeds = (totalBeds || 0) - (availableBeds || 0);
     const occupiedICU = (totalICU || 0) - (availableICU || 0);
+    const occupancyPercent = calculateOccupancy(totalBeds || 0, availableBeds || 0);
+    const icuOccupancy = totalICU ? Math.round(((totalICU - (availableICU || 0)) / totalICU) * 100) : 0;
 
-    MOCK_BED_DATA[hospitalId] = {
-      totalBeds: totalBeds || 0,
-      availableBeds: availableBeds || 0,
-      occupiedBeds: Math.max(0, occupiedBeds),
-      totalICU: totalICU || 0,
-      availableICU: availableICU || 0,
-      occupiedICU: Math.max(0, occupiedICU)
-    };
+    const existing = await prisma.realTimeBed.findFirst({ where: { hospitalId } });
+    let data;
+    if (existing) {
+      data = await prisma.realTimeBed.update({
+        where: { id: existing.id },
+        data: {
+          hospitalName: hospitalName || 'Hospital',
+          totalBeds: totalBeds || 0,
+          availableBeds: availableBeds || 0,
+          occupiedBeds: Math.max(0, occupiedBeds),
+          totalICU: totalICU || 0,
+          availableICU: availableICU || 0,
+          occupiedICU: Math.max(0, occupiedICU),
+          icuOccupancy,
+          generalOccupancy: occupancyPercent,
+          updateSource: updateSource || 'api',
+        },
+      });
+    } else {
+      data = await prisma.realTimeBed.create({
+        data: {
+          hospitalId,
+          hospitalName: hospitalName || 'Hospital',
+          totalBeds: totalBeds || 0,
+          availableBeds: availableBeds || 0,
+          occupiedBeds: Math.max(0, occupiedBeds),
+          totalICU: totalICU || 0,
+          availableICU: availableICU || 0,
+          occupiedICU: Math.max(0, occupiedICU),
+          icuOccupancy,
+          generalOccupancy: occupancyPercent,
+          updateSource: updateSource || 'api',
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Bed status updated',
       data: {
-        hospitalId,
-        hospitalName,
-        totalBeds: MOCK_BED_DATA[hospitalId].totalBeds,
-        availableBeds: MOCK_BED_DATA[hospitalId].availableBeds,
-        occupiedBeds: MOCK_BED_DATA[hospitalId].occupiedBeds,
-        occupancyPercent: calculateOccupancy(MOCK_BED_DATA[hospitalId].totalBeds, MOCK_BED_DATA[hospitalId].availableBeds),
-        lastUpdated: new Date().toISOString()
-      }
+        hospitalId: data.hospitalId,
+        hospitalName: data.hospitalName,
+        totalBeds: data.totalBeds,
+        availableBeds: data.availableBeds,
+        occupiedBeds: data.occupiedBeds,
+        occupancyPercent: calculateOccupancy(data.totalBeds, data.availableBeds),
+        lastUpdated: data.updatedAt.toISOString(),
+      },
     });
   } catch (error) {
     console.error('Bed update error:', error);

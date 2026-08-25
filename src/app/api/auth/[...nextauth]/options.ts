@@ -1,12 +1,34 @@
-import type { NextAuthOptions } from 'next-auth';
+import type { NextAuthConfig, Session, User } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 
-export const authOptions: NextAuthOptions = {
+export const authOptions: NextAuthConfig = {
+  trustHost: true,
+  logger: {
+    error(code: unknown, ...metadata: unknown[]) {
+      console.error('[Auth] Error:', code, ...metadata);
+    },
+    warn(code: unknown, ...metadata: unknown[]) {
+      console.warn('[Auth] Warn:', code, ...metadata);
+    },
+    debug(code: unknown, ...metadata: unknown[]) {
+      console.debug('[Auth] Debug:', code, ...metadata);
+    },
+  },
   providers: [
-    // Only add GoogleProvider if credentials exist
+    // GitHub Provider
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? [
+      GitHubProvider({
+        clientId: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      })
+    ] : []),
+
+    // Google Provider
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
@@ -30,7 +52,7 @@ export const authOptions: NextAuthOptions = {
       })
     ] : []),
 
-    // For demo: accept any valid email/password combo
+    // Email/Password Provider - PRODUCTION MODE
     CredentialsProvider({
       id: 'credentials',
       name: 'Email & Password',
@@ -38,32 +60,27 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials: any) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(credentials.email)) {
           return null;
         }
 
-        // Validate password (min 6 chars)
         if (credentials.password.length < 6) {
           return null;
         }
 
         try {
-          // Find user in database
           const user = await prisma.user.findUnique({
             where: { email: credentials.email.toLowerCase() },
             include: { subscription: true }
           });
 
-          // If user exists and has password, verify it
           if (user && user.passwordHash) {
             const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
             if (!isValid) {
-              // Password incorrect - return specific error
               console.log('[Auth] Invalid password for:', credentials.email);
               return null;
             }
@@ -75,47 +92,16 @@ export const authOptions: NextAuthOptions = {
             };
           }
 
-          // User doesn't exist - for security, DON'T auto-create on login
-          // User must sign up first
           console.log('[Auth] Login denied - user not found:', credentials.email);
           return null;
-          
-          // Previous auto-create code removed for security
-          /*
-          const hashedPassword = await bcrypt.hash(credentials.password, 12);
-          const newUser = await prisma.user.upsert({
-            where: { email: credentials.email.toLowerCase() },
-            update: {},
-            create: {
-              email: credentials.email.toLowerCase(),
-              name: credentials.email.split('@')[0],
-              passwordHash: hashedPassword,
-              role: 'patient',
-            },
-            include: { subscription: true }
-          });
-
-          return {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
-          };
-          */
         } catch (error) {
           console.error('[Auth] Database error:', error);
-          // Fallback: allow login for demo
-          return {
-            id: `demo_${Date.now()}`,
-            name: credentials.email.split('@')[0],
-            email: credentials.email.toLowerCase(),
-            role: 'patient',
-          };
+          return null;
         }
       },
     }),
 
-    // Phone OTP provider
+    // Phone OTP Provider - PRODUCTION MODE
     CredentialsProvider({
       id: 'phone-otp',
       name: 'Phone OTP',
@@ -123,40 +109,43 @@ export const authOptions: NextAuthOptions = {
         phone: { label: 'Phone', type: 'text' },
         otp: { label: 'OTP', type: 'text' },
       },
-      async authorize(credentials) {
-        // For demo: accept any valid 10-digit phone + 6-digit OTP
+      async authorize(credentials: any) {
+        if (!credentials) return null;
+
         if (credentials?.phone?.length === 10 && credentials?.otp?.length === 6) {
           try {
-            // Check or create user by phone
+            const normalizedPhone = credentials.phone.replace(/\s/g, '').replace(/^\+91/, '91');
+
+            const stored = await prisma.otpToken.findFirst({
+              where: { phone: normalizedPhone, used: false },
+              orderBy: { createdAt: 'desc' }
+            });
+
+            if (!stored) return null;
+
+            if (Date.now() > stored.expiresAt.getTime()) {
+              await prisma.otpToken.update({ where: { id: stored.id }, data: { used: true } });
+              return null;
+            }
+
+            if (stored.otp !== credentials.otp) return null;
+
+            await prisma.otpToken.update({ where: { id: stored.id }, data: { used: true } });
+
             let user = await prisma.user.findUnique({
-              where: { phone: credentials.phone },
+              where: { phone: normalizedPhone },
               include: { subscription: true }
             });
 
             if (!user) {
               user = await prisma.user.create({
                 data: {
-                  phone: credentials.phone,
-                  name: `User ${credentials.phone.slice(-4)}`,
-                  email: `${credentials.phone}@zyntracare.com`,
+                  phone: normalizedPhone,
+                  name: `User ${normalizedPhone.slice(-4)}`,
+                  email: `${normalizedPhone}@zyntracare.com`,
                   role: 'patient',
                 },
                 include: { subscription: true }
-              });
-
-              // Send email notification to Admin
-              import('@/lib/email').then(({ sendEmail }) => {
-                sendEmail({
-                  to: process.env.EMAIL_USER || 'admin@zyntracare.com', // Admin's email
-                  subject: '🎉 New User Registration (Phone) - ZyntraCare',
-                  html: `
-                    <div style="font-family: sans-serif; padding: 20px;">
-                      <h2 style="color: #0ea5e9;">New Phone User Signed Up!</h2>
-                      <p><strong>Phone:</strong> ${user?.phone || credentials.phone}</p>
-                      <p>Login to admin dashboard to view more details.</p>
-                    </div>
-                  `
-                }).catch(e => console.error('Admin email error:', e));
               });
             }
 
@@ -168,12 +157,7 @@ export const authOptions: NextAuthOptions = {
             };
           } catch (error) {
             console.error('[Auth] Phone OTP error:', error);
-            return {
-              id: `phone_${credentials.phone}`,
-              name: `User ${credentials.phone.slice(-4)}`,
-              email: `${credentials.phone}@sms.zyntracare.com`,
-              role: 'patient',
-            };
+            return null;
           }
         }
         return null;
@@ -182,25 +166,24 @@ export const authOptions: NextAuthOptions = {
   ],
 
   pages: {
-    signIn: '/',
+    signIn: '/auth/signin',
     error: '/?error=1',
   },
 
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
 
-  secret: process.env.NEXTAUTH_SECRET || 'development-secret-key-change-in-production',
+  secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }: { token: JWT; user?: User; trigger?: string; session?: any }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as { role?: string }).role || 'patient';
+        token.id = (user as any).id;
+        token.role = (user as any).role || 'patient';
         
-        // Only fetch subscription on SIGN IN (first time), not on every request
         if (!token.subscription) {
           try {
             const subscription = await prisma.subscription.findUnique({
-              where: { userId: user.id }
+              where: { userId: (user as any).id }
             });
             token.subscription = subscription ? {
               plan: subscription.plan,
@@ -212,18 +195,17 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
-      // Handle session update
-      if (trigger === 'update' && session) {
+      if (typeof trigger === 'string' && trigger === 'update' && session) {
         token.subscription = session.subscription;
       }
       
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.subscription = token.subscription as { plan: string; status: string };
+        (session.user as any).id = token.id as string;
+        (session.user as any).role = token.role as string;
+        (session.user as any).subscription = token.subscription as { plan: string; status: string };
       }
       return session;
     },

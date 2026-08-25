@@ -1,8 +1,8 @@
 import './globals.css';
 import ClientProviders from '@/components/ClientProviders';
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import AnimatedBackground from '@/components/AnimatedBackground';
 import { Metadata, Viewport } from 'next';
-
-// Removed dynamic imports from Server Component
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -55,59 +55,133 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const isHackathon = process.env.NEXT_PUBLIC_HACKATHON_MODE === 'true';
+  const adNetwork = process.env.NEXT_PUBLIC_AD_NETWORK || 'adsense';
+
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning={true}>
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning={true}>
       <head>
+        {/* Google Search Console verification */}
+        <meta name="google-site-verification" content="bQZyFM4ZeZTHQnmVGfddMj0Xb8DH-AvZ3xduExjVhbA" />
+
         {/* Critical resource hints */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://unpkg.com" />
 
-        {/* Premium fonts — display=swap for performance */}
+        {/* Premium fonts — Inter (body), Outfit (display) — loaded with preload for early fetch */}
+        <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap"
           rel="stylesheet"
         />
 
-        {/* Leaflet CSS — loaded after fonts */}
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          crossOrigin="anonymous"
+        {/* Leaflet CSS — loaded after paint to avoid render blocking */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('DOMContentLoaded', function() {
+                var l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                l.crossOrigin = 'anonymous';
+                document.head.appendChild(l);
+              });
+            `,
+          }}
         />
 
-        {/* Favicon - ZyntraCare Logo */}
-        <link
-          rel="icon"
-          href="/images/publiczyntracare-logo.png"
-          type="image/png"
-        />
+        {/* Favicon */}
+        <link rel="icon" href="/images/publiczyntracare-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/images/publiczyntracare-logo.png" />
 
-{/* Apple touch icon */}
-        <link
-          rel="apple-touch-icon"
-          href="/images/publiczyntracare-logo.png"
-        />
-
-        {/* iOS Smart App Banner - Shows "Download on App Store" prompt */}
+        {/* iOS Smart App Banner */}
         <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=partner=zyntracare" />
-        
-        {/* Android/Play Store - TWA support */}
         <link rel="manifest" href="/manifest.json" />
-
-        {/* Color scheme */}
         <meta name="color-scheme" content="dark light" />
+        <link rel="alternate" type="application/rss+xml" title="ZyntraCare Health Blog" href="/feed" />
+        <link rel="alternate" type="application/atom+xml" title="ZyntraCare Health Blog (Atom)" href="/feed" />
+
+        {/* Google AdSense — deferred to avoid blocking first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('load', function() {
+                var s = document.createElement('script');
+                s.async = true;
+                s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5241033119281791';
+                s.crossOrigin = 'anonymous';
+                document.head.appendChild(s);
+              });
+            `,
+          }}
+        />
+
+        {/* Adsterra Popunder (#4) — 1 per page visit */}
+        {!isHackathon && adNetwork === 'adsterra' && (
+          <script src="https://pl29830215.effectivecpmnetwork.com/6b/3c/a8/6b3ca83ac9d45dd570e4569136f825eb.js" />
+        )}
+
+        {/* Schema.org Healthcare Organization + LocalBusiness structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": ["MedicalOrganization", "LocalBusiness"],
+              name: "ZyntraCare",
+              url: process.env.NEXT_PUBLIC_APP_URL || "https://zyntracare.com",
+              logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://zyntracare.com"}/images/publiczyntracare-logo.png`,
+              description:
+                "India's leading healthcare platform connecting patients with hospitals, specialists, labs, pharmacies, and emergency services.",
+              areaServed: { "@type": "Country", name: "India" },
+              availableLanguage: ["English", "Hindi"],
+              medicalSpecialty: [
+                "Cardiology",
+                "Neurology",
+                "Orthopedics",
+                "Pediatrics",
+                "Gynecology",
+                "Dermatology",
+                "Ophthalmology",
+                "Psychiatry",
+              ],
+              makesOffer: [
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Doctor Appointment Booking" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Hospital Bed Availability" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Lab Test Booking" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Online Doctor Consultation" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Emergency Services" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Pharmacy Services" } },
+                { "@type": "Offer", itemOffered: { "@type": "Service", name: "Ambulance Services" } },
+              ],
+              sameAs: [
+                "https://zyntracare.com",
+                "https://twitter.com/zyntracare",
+                "https://facebook.com/zyntracare",
+                "https://instagram.com/zyntracare",
+              ],
+            }),
+          }}
+        />
       </head>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-inter antialiased bg-slate-950">
-        {/* Accessibility: skip to main content */}
         <a href="#main-content" className="skip-to-content focus:top-4">
           Skip to main content
         </a>
 
+        <AnimatedBackground />
+
         <ClientProviders>
+          <ServiceWorkerRegistration />
           {children}
         </ClientProviders>
+
+        {/* Adsterra Social Bar (#1) — before closing body */}
+        {!isHackathon && (
+          <script src="https://pl29830212.effectivecpmnetwork.com/99/54/2a/99542a03d87e169a60f1448534ab29e9.js" />
+        )}
       </body>
     </html>
   );

@@ -1,12 +1,26 @@
 import nodemailer from 'nodemailer';
 
+// Validate required environment variables
+const EMAIL_HOST = process.env.EMAIL_HOST;
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
+const EMAIL_PORT = process.env.EMAIL_PORT;
+const EMAIL_FROM = process.env.EMAIL_FROM;
+
+// Check if email is properly configured
+const isEmailConfigured = EMAIL_HOST && EMAIL_USER && EMAIL_PASSWORD;
+
+if (!isEmailConfigured) {
+  console.error('[Email] CRITICAL: Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASSWORD in .env.local');
+}
+
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '587'),
+  host: EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(EMAIL_PORT || '587'),
   secure: false,
   auth: {
-    user: process.env.EMAIL_USER || '',
-    pass: process.env.EMAIL_PASSWORD || '',
+    user: EMAIL_USER || '',
+    pass: EMAIL_PASSWORD || '',
   },
 });
 
@@ -18,9 +32,14 @@ interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+  if (!isEmailConfigured) {
+    console.error(`[Email] FAILED - Not configured. Would send to ${to}: ${subject}`);
+    return { success: false, error: 'Email not configured' };
+  }
+  
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"ZyntraCare" <noreply@zyntracare.com>',
+      from: EMAIL_FROM || `"ZyntraCare" <${EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -76,7 +95,7 @@ export async function sendOTPEmail(email: string, otp: string) {
 }
 
 export async function sendPasswordResetEmail(email: string, resetToken: string) {
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}`;
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://zyntracare.com'}/reset-password?token=${resetToken}`;
   return sendEmail({
     to: email,
     subject: 'Reset Your ZyntraCare Password',
@@ -111,4 +130,172 @@ export async function sendBookingConfirmation(email: string, details: { doctor: 
       </div>
     `,
   });
+}
+
+export async function sendEmergencyAlert(email: string, details: { patient: string; location: string; message: string; timestamp: string }) {
+  return sendEmail({
+    to: email,
+    subject: '🚨 Emergency Alert - ZyntraCare',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #ef4444;">Emergency Alert</h1>
+        <p>An emergency alert has been triggered:</p>
+        <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+          <p><strong>Patient:</strong> ${details.patient}</p>
+          <p><strong>Location:</strong> ${details.location}</p>
+          <p><strong>Message:</strong> ${details.message}</p>
+          <p><strong>Time:</strong> ${details.timestamp}</p>
+        </div>
+        <p>Emergency services have been notified.</p>
+      </div>
+    `,
+  });
+}
+
+// =============================================================================
+// COMBINED EMAIL + WHATSAPP NOTIFICATIONS
+// =============================================================================
+
+import {
+  sendAppointmentConfirmation as sendWhatsAppAppointmentConfirmation,
+  sendAppointmentReminder as sendWhatsAppAppointmentReminder,
+  sendPrescriptionReady as sendWhatsAppPrescriptionReady,
+  sendEmergencyAlert as sendWhatsAppEmergencyAlert,
+  sendOTPViaWhatsApp,
+  type WhatsAppResult,
+} from '@/lib/whatsapp';
+
+interface CombinedResult {
+  email: { success: boolean; messageId?: string; error?: string };
+  whatsapp: WhatsAppResult;
+}
+
+/**
+ * Send an appointment confirmation via both Email and WhatsApp.
+ *
+ * @param email        – Recipient email address
+ * @param phone        – Recipient WhatsApp number (E.164)
+ * @param appointment  – Appointment details
+ */
+export async function sendWhatsAppNotification(
+  email: string,
+  phone: string,
+  appointment: { doctorName: string; date: string; time: string; hospital: string; department?: string; appointmentId?: string }
+): Promise<CombinedResult> {
+  const [emailResult, whatsappResult] = await Promise.all([
+    sendBookingConfirmation(email, {
+      doctor: appointment.doctorName,
+      hospital: appointment.hospital,
+      date: appointment.date,
+      time: appointment.time,
+    }),
+    sendWhatsAppAppointmentConfirmation(phone, appointment),
+  ]);
+
+  return {
+    email: emailResult,
+    whatsapp: whatsappResult,
+  };
+}
+
+/**
+ * Send an appointment reminder via both Email and WhatsApp.
+ */
+export async function sendCombinedAppointmentReminder(
+  email: string,
+  phone: string,
+  appointment: { doctorName: string; date: string; time: string; hospital: string; department?: string; appointmentId?: string }
+): Promise<CombinedResult> {
+  const [emailResult, whatsappResult] = await Promise.all([
+    sendEmail({
+      to: email,
+      subject: 'Appointment Reminder – ZyntraCare',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #f59e0b;">Appointment Reminder</h1>
+          <p>Your appointment is tomorrow:</p>
+          <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+            <p><strong>Doctor:</strong> ${appointment.doctorName}</p>
+            <p><strong>Hospital:</strong> ${appointment.hospital}</p>
+            <p><strong>Date:</strong> ${appointment.date}</p>
+            <p><strong>Time:</strong> ${appointment.time}</p>
+          </div>
+          <p>Please arrive 15 minutes before your appointment.</p>
+        </div>
+      `,
+    }),
+    sendWhatsAppAppointmentReminder(phone, appointment),
+  ]);
+
+  return { email: emailResult, whatsapp: whatsappResult };
+}
+
+/**
+ * Send a prescription-ready notification via both Email and WhatsApp.
+ */
+export async function sendCombinedPrescriptionReady(
+  email: string,
+  phone: string,
+  prescription: { prescriptionId: string; doctorName: string; hospital: string; medicines: string[]; readyAt?: string; pickupLocation?: string }
+): Promise<CombinedResult> {
+  const [emailResult, whatsappResult] = await Promise.all([
+    sendEmail({
+      to: email,
+      subject: 'Prescription Ready – ZyntraCare',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #10b981;">Prescription Ready</h1>
+          <p>Your prescription is ready for pickup:</p>
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <p><strong>Prescription ID:</strong> ${prescription.prescriptionId}</p>
+            <p><strong>Doctor:</strong> ${prescription.doctorName}</p>
+            <p><strong>Hospital:</strong> ${prescription.hospital}</p>
+            <p><strong>Medicines:</strong> ${prescription.medicines.join(', ')}</p>
+            ${prescription.pickupLocation ? `<p><strong>Pickup:</strong> ${prescription.pickupLocation}</p>` : ''}
+          </div>
+          <p>Please collect within 48 hours.</p>
+        </div>
+      `,
+    }),
+    sendWhatsAppPrescriptionReady(phone, prescription),
+  ]);
+
+  return { email: emailResult, whatsapp: whatsappResult };
+}
+
+/**
+ * Send an emergency alert via both Email and WhatsApp.
+ */
+export async function sendCombinedEmergencyAlert(
+  email: string,
+  phone: string,
+  emergency: { patientName: string; location: string; message: string; timestamp: string; alertType?: string; contactNumber?: string }
+): Promise<CombinedResult> {
+  const [emailResult, whatsappResult] = await Promise.all([
+    sendEmergencyAlert(email, {
+      patient: emergency.patientName,
+      location: emergency.location,
+      message: emergency.message,
+      timestamp: emergency.timestamp,
+    }),
+    sendWhatsAppEmergencyAlert(phone, emergency),
+  ]);
+
+  return { email: emailResult, whatsapp: whatsappResult };
+}
+
+/**
+ * Send an OTP via both Email and WhatsApp for maximum deliverability.
+ */
+export async function sendCombinedOTP(
+  email: string,
+  phone: string,
+  otp: string
+): Promise<CombinedResult> {
+  const [emailResult, whatsappResult] = await Promise.all([
+    sendOTPEmail(email, otp),
+    sendOTPViaWhatsApp(phone, otp),
+  ]);
+
+  return { email: emailResult, whatsapp: whatsappResult };
 }

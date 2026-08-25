@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FiMapPin, FiSearch, FiClock, FiAlertCircle, FiRefreshCw, FiCheck, FiTrendingUp, FiActivity, FiFilter } from 'react-icons/fi';
+import { FiMapPin, FiSearch, FiClock, FiAlertCircle, FiRefreshCw, FiCheck, FiTrendingUp, FiActivity, FiLoader } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface HospitalBedStatus {
@@ -23,14 +23,6 @@ interface HospitalBedStatus {
   lastUpdated: string;
 }
 
-const MOCK_HOSPITALS: HospitalBedStatus[] = [
-  { id: 'H001', hospitalId: 'H001', name: 'Apollo Hospital', city: 'Delhi', phone: '+91-11-2345-6789', emergency: true, rating: 4.5, distance: 2.5, beds: { total: 150, available: 12, occupied: 138, occupancyPercent: 92, icu: { total: 25, available: 3, occupancyPercent: 88 } }, lastUpdated: new Date().toISOString() },
-  { id: 'H002', hospitalId: 'H002', name: 'Fortis Memorial', city: 'Delhi', phone: '+91-11-4567-8900', emergency: true, rating: 4.3, distance: 5.2, beds: { total: 200, available: 45, occupied: 155, occupancyPercent: 77, icu: { total: 30, available: 8, occupancyPercent: 73 } }, lastUpdated: new Date().toISOString() },
-  { id: 'H003', hospitalId: 'H003', name: 'Max Super Specialty', city: 'Delhi', phone: '+91-11-7890-1234', emergency: true, rating: 4.6, distance: 7.1, beds: { total: 180, available: 30, occupied: 150, occupancyPercent: 83, icu: { total: 20, available: 4, occupancyPercent: 80 } }, lastUpdated: new Date().toISOString() },
-  { id: 'H004', hospitalId: 'H004', name: 'BLK Super Hospital', city: 'Delhi', phone: '+91-11-2222-3333', emergency: true, rating: 4.2, distance: 8.5, beds: { total: 120, available: 8, occupied: 112, occupancyPercent: 93, icu: { total: 15, available: 1, occupancyPercent: 93 } }, lastUpdated: new Date().toISOString() },
-  { id: 'H005', hospitalId: 'H005', name: 'Sir Ganga Ram', city: 'Delhi', phone: '+91-11-4444-5555', emergency: true, rating: 4.4, distance: 10.2, beds: { total: 100, available: 22, occupied: 78, occupancyPercent: 78, icu: { total: 12, available: 5, occupancyPercent: 58 } }, lastUpdated: new Date().toISOString() },
-];
-
 export default function LiveBedsPage() {
   const [hospitals, setHospitals] = useState<HospitalBedStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,28 +36,43 @@ export default function LiveBedsPage() {
   const fetchHospitals = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/beds/realtime?all=true');
+      const res = await fetch('/api/beds?limit=50');
+      if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       
-      if (data.success && data.data?.length > 0) {
-        const formatted = data.data.map((h: any) => ({
-          ...h,
+      if (data.success && data.hospitals?.length > 0) {
+        const formatted = data.hospitals.map((h: any) => ({
+          id: h.id,
+          hospitalId: h.id,
+          name: h.name,
+          city: h.city || '',
+          phone: h.phone || '',
+          emergency: h.emergency || false,
+          rating: h.rating || 4.0,
+          distance: 0,
           beds: {
-            total: h.totalBeds,
-            available: h.availableBeds,
-            occupied: h.occupiedBeds,
-            occupancyPercent: h.occupancyPercent,
-            icu: { total: h.totalICU, available: h.availableICU, occupancyPercent: h.icuOccupancy }
-          }
+            total: h.beds?.total || 0,
+            available: h.beds?.available || 0,
+            occupied: h.beds?.occupied || 0,
+            occupancyPercent: h.beds?.occupancyPercent || 0,
+            icu: {
+              total: h.beds?.icu?.total || 0,
+              available: h.beds?.icu?.available || 0,
+              occupancyPercent: h.beds?.icu?.occupancyPercent || 0,
+            }
+          },
+          lastUpdated: h.lastUpdated || new Date().toISOString(),
         }));
         setHospitals(formatted);
+        setRealTimeConnected(true);
       } else {
-        setHospitals(MOCK_HOSPITALS);
+        setHospitals([]);
       }
       setLastRefreshed(new Date());
     } catch (err) {
-      console.error('Error:', err);
-      setHospitals(MOCK_HOSPITALS);
+      console.error('Error fetching beds:', err);
+      setHospitals([]);
+      setRealTimeConnected(false);
     } finally {
       setLoading(false);
     }
@@ -73,7 +80,6 @@ export default function LiveBedsPage() {
 
   useEffect(() => {
     fetchHospitals();
-
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
@@ -81,7 +87,6 @@ export default function LiveBedsPage() {
         { enableHighAccuracy: true }
       );
     }
-
     const interval = setInterval(fetchHospitals, 60000);
     return () => clearInterval(interval);
   }, [fetchHospitals]);
@@ -124,9 +129,8 @@ export default function LiveBedsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <motion.div
             initial={{ scale: 0 }}
@@ -156,7 +160,6 @@ export default function LiveBedsPage() {
           </div>
         </div>
 
-        {/* Stats Banner */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5">
             <FiActivity className="text-teal-400 mb-1" size={18} />
@@ -185,7 +188,6 @@ export default function LiveBedsPage() {
           </div>
         </div>
 
-        {/* Search & Filters */}
         <div className="flex flex-col md:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -197,7 +199,6 @@ export default function LiveBedsPage() {
               className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white placeholder-gray-500"
             />
           </div>
-          
           <div className="flex gap-2">
             <select
               value={filterType}
@@ -208,7 +209,6 @@ export default function LiveBedsPage() {
               <option value="available">Available</option>
               <option value="icu">ICU Only</option>
             </select>
-            
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
@@ -218,7 +218,6 @@ export default function LiveBedsPage() {
               <option value="rating">Highest Rated</option>
               <option value="distance">Nearest</option>
             </select>
-
             <button
               onClick={fetchHospitals}
               disabled={loading}
@@ -229,10 +228,9 @@ export default function LiveBedsPage() {
           </div>
         </div>
 
-        {/* Hospital List */}
         {loading && hospitals.length === 0 ? (
           <div className="text-center py-20">
-            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <FiLoader className="animate-spin text-red-400 mx-auto mb-4" size={32} />
             <p className="text-gray-400">Loading live bed data...</p>
           </div>
         ) : (
@@ -253,14 +251,13 @@ export default function LiveBedsPage() {
                   }`}
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    {/* Hospital Info */}
                     <div className="flex-1">
                       <div className="flex items-start gap-3">
                         <div className="text-2xl">🏥</div>
                         <div>
                           <h3 className="font-bold text-lg">{hospital.name}</h3>
                           <div className="flex items-center gap-3 text-sm text-gray-400 mt-1">
-                            <span className="flex items-center gap-1"><FiMapPin size={12} /> {hospital.distance} km</span>
+                            {hospital.city && <span className="flex items-center gap-1"><FiMapPin size={12} /> {hospital.city}</span>}
                             <span>⭐ {hospital.rating}</span>
                             {hospital.emergency && <span className="text-red-400">24/7 Emergency</span>}
                           </div>
@@ -268,7 +265,6 @@ export default function LiveBedsPage() {
                       </div>
                     </div>
 
-                    {/* Bed Stats */}
                     <div className="flex flex-wrap gap-3">
                       <div className={`px-4 py-2 rounded-xl text-center ${getAvailabilityColor(hospital.beds.occupancyPercent)}`}>
                         <p className="text-lg font-bold">{hospital.beds.available}</p>
@@ -280,7 +276,6 @@ export default function LiveBedsPage() {
                           {getStatusLabel(hospital.beds.occupancyPercent)}
                         </p>
                       </div>
-
                       <div className={`px-4 py-2 rounded-xl text-center ${
                         hospital.beds.icu.occupancyPercent >= 90 
                           ? 'text-red-500 bg-red-500/10 border border-red-500/30' :
@@ -293,14 +288,10 @@ export default function LiveBedsPage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex gap-2">
-                      <a
-                        href={`tel:${hospital.phone}`}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold"
-                      >
-                        Call
-                      </a>
+                      {hospital.phone && (
+                        <a href={`tel:${hospital.phone}`} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold">Call</a>
+                      )}
                       <a
                         href={`https://www.google.com/maps/dir/?api=1&destination=${hospital.name}`}
                         target="_blank"
@@ -312,7 +303,6 @@ export default function LiveBedsPage() {
                     </div>
                   </div>
 
-                  {/* Last Updated */}
                   <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500 flex items-center gap-2">
                     <FiClock size={12} />
                     Last updated: {hospital.lastUpdated ? new Date(hospital.lastUpdated).toLocaleTimeString() : 'Just now'}

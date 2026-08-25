@@ -1,108 +1,160 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __hhGemini: { genAI: GoogleGenerativeAI; modelName: string } | undefined;
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+async function callGemini(prompt: string): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await model.generateContent(prompt);
+    return (await result.response).text();
+  } catch (error) {
+    console.error('Gemini error:', error);
+    return null;
+  }
 }
 
-function getMockResponse(message: string, language: string): string {
-  const lower = message.toLowerCase();
-  const isHindi = language === 'hi';
-
-  if (lower.includes('emergency') || lower.includes('ambulance') || lower.includes('आपातकालीन') || lower.includes('एम्बुलेंस')) {
-    return isHindi
-      ? '🚨 आपातकालीन स्थिति के लिए:\n• एम्बुलेंस: 102 या 108\n• पुलिस: 100\n• अग्निशमन: 101\n\nकृपया तुरंत कॉल करें या हमारे Emergency पेज पर जाएं।'
-      : '🚨 For emergencies:\n• Ambulance: 102 or 108\n• Police: 100\n• Fire: 101\n\nPlease call immediately or visit our Emergency page for more numbers.';
+async function callOllama(prompt: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      })
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.message?.content || null;
+  } catch (error) {
+    return null;
   }
-  if (lower.includes('appointment') || lower.includes('book') || lower.includes('अपॉइंटमेंट') || lower.includes('बुक')) {
-    return isHindi
-      ? '📅 अपॉइंटमेंट बुक करने के लिए:\n1. Specialists पेज पर जाएं\n2. विशेषज्ञ चुनें\n3. "Book Appointment" बटन क्लिक करें\n\nक्या आप किसी विशेष विशेषज्ञ की तलाश कर रहे हैं?'
-      : '📅 To book an appointment:\n1. Go to the Specialists page\n2. Choose your specialist\n3. Click "Book Appointment"\n\nAre you looking for a specific type of specialist?';
-  }
-  if (lower.includes('hospital') || lower.includes('अस्पताल') || lower.includes('nearest') || lower.includes('नज़दीकी')) {
-    return isHindi
-      ? '🏥 नज़दीकी अस्पताल खोजने के लिए:\n• Hospitals पेज पर जाएं\n• Map व्यू पर क्लिक करें\n• अपनी लोकेशन allow करें\n\nहमारे पास 500+ सत्यापित अस्पताल हैं।'
-      : '🏥 To find nearby hospitals:\n• Go to the Hospitals page\n• Click the Map view icon\n• Allow your location access\n\nWe have 500+ verified hospitals with real-time bed availability.';
-  }
-  if (lower.includes('bed') || lower.includes('बेड') || lower.includes('availability') || lower.includes('उपलब्ध')) {
-    return isHindi
-      ? '🛏️ बेड उपलब्धता जांचने के लिए Hospitals पेज पर जाएं। हर अस्पताल कार्ड पर बेड की जानकारी दिखाई देती है:\n• हरा = उपलब्ध\n• लाल = भरे हुए\n• नीला = ICU'
-      : '🛏️ Check bed availability on the Hospitals page. Each hospital card shows:\n• Green = Available beds\n• Red = Occupied\n• Blue = ICU availability\n\nYou can also use the Map view to see all hospitals at a glance.';
-  }
-  if (lower.includes('doctor') || lower.includes('specialist') || lower.includes('डॉक्टर') || lower.includes('विशेषज्ञ')) {
-    return isHindi
-      ? '👨‍⚕️ विशेषज्ञ खोजने के लिए:\n• Specialists पेज पर जाएं\n• Specialty, Location, या Rating से फ़िल्टर करें\n• Online consultation भी उपलब्ध है\n\nकिस तरह के डॉक्टर की तलाश है?'
-      : '👨‍⚕️ To find specialists:\n• Visit the Specialists page\n• Filter by Specialty, Location, or Rating\n• Online consultation available\n\nWhat type of doctor are you looking for?';
-  }
-  if (lower.includes('health tip') || lower.includes('स्वास्थ्य') || lower.includes('tip')) {
-    return isHindi
-      ? '💡 स्वास्थ्य सुझाव:\n• रोजाना 8 गिलास पानी पिएं\n• 7-8 घंटे की नींद लें\n• फल और सब्जियां खाएं\n• रोजाना 30 मिनट व्यायाम करें\n• तनाव से बचें, योग करें'
-      : '💡 Health Tips:\n• Drink 8 glasses of water daily\n• Get 7-8 hours of sleep\n• Eat fruits and vegetables\n• Exercise 30 min daily\n• Practice stress management\n• Get regular health checkups';
-  }
-  if (lower.includes('medicine') || lower.includes('दवाई') || lower.includes('tablet')) {
-    return isHindi
-      ? '💊 दवाई संबंधित जानकारी:\n• हमेशा डॉक्टर की सलाह पर दवाई लें\n• Medicine delivery सेवा उपलब्ध है\n• Dashboard से prescription अपलोड करें\n\nक्या आप कोई विशेष दवाई ढूंढ रहे हैं?'
-      : '💊 Medicine information:\n• Always take medicines as prescribed\n• Medicine delivery service available\n• Upload prescriptions via Dashboard\n\nAre you looking for a specific medicine?';
-  }
-  if (lower.includes('camp') || lower.includes('शिविर') || lower.includes('checkup') || lower.includes('जांच')) {
-    return isHindi
-      ? '🏕️ आगामी स्वास्थ्य शिविर:\n• Health Camps पेज पर सभी शिविर देखें\n• कई शिविर मुफ्त हैं\n• अभी रजिस्टर करें!\n\nक्या आप किसी विशेष शहर में शिविर ढूंढ रहे हैं?'
-      : '🏕️ Upcoming Health Camps:\n• View all camps on Health Camps page\n• Many camps are FREE\n• Register now!\n\nLooking for camps in a specific city?';
-  }
-  if (lower.includes('hello') || lower.includes('hi') || lower.includes('namaste') || lower.includes('नमस्ते')) {
-    return isHindi
-      ? '🙏 नमस्ते! मैं आपका स्वास्थ्य सहायक हूं। आज मैं आपकी कैसे मदद कर सकता हूं?\n\nआप मुझसे पूछ सकते हैं:\n• अस्पताल खोजें\n• डॉक्टर से अपॉइंटमेंट\n• आपातकालीन मदद\n• स्वास्थ्य सुझाव'
-      : '🙏 Namaste! I\'m your Health Assistant. How can I help you today?\n\nYou can ask me about:\n• Finding hospitals\n• Doctor appointments\n• Emergency help\n• Health tips';
-  }
-
-  return isHindi
-    ? '🤖 मैं आपकी मदद के लिए यहां हूं! आप मुझसे पूछ सकते हैं:\n• अस्पताल और बेड उपलब्धता\n• डॉक्टर अपॉइंटमेंट\n• आपातकालीन सेवाएं\n• स्वास्थ्य सुझाव\n• दवाई जानकारी'
-    : '🤖 I\'m here to help! You can ask me about:\n• Hospitals & bed availability\n• Doctor appointments\n• Emergency services\n• Health tips & medicines\n• Health camps near you';
 }
 
-export async function POST(req: Request) {
-  let message = '', language = 'en', history: any[] = [];
+const HEALTH_SYSTEM_PROMPT = `You are ZyntraCare AI Health Assistant, a professional healthcare chatbot for Indian users.
+
+Your responsibilities:
+1. Provide accurate health information in simple language
+2. Help users find hospitals, doctors, and healthcare services
+3. Guide users through symptom checking
+4. Provide emergency assistance guidance
+5. Support multiple languages (English, Hindi, Hinglish)
+
+Important guidelines:
+- Always recommend consulting a doctor for serious symptoms
+- Never diagnose or prescribe medication
+- Provide general health information only
+- For emergencies, immediately direct to call 112/102/108
+- Be empathetic and professional
+- Keep responses concise and helpful
+
+Available actions users might ask about:
+- Finding hospitals nearby
+- Booking appointments
+- Emergency services (112, 102, 108)
+- Symptom checking
+- Medicine information
+- Health tips and wellness
+- Insurance and health plans
+
+Respond in the same language the user uses. If they use Hindi or Hinglish, respond in kind.`;
+
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    message = body.message || '';
-    language = body.language || 'en';
-    history = body.history || [];
-  } catch {
-    return NextResponse.json({ reply: 'Invalid request.' }, { status: 400 });
-  }
+    const { message, language = 'en', conversationHistory = [] } = body;
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ reply: getMockResponse(message, language) });
-  }
-
-  try {
-    // Cache the client/model choice across invocations (server runtime).
-    if (!globalThis.__hhGemini) {
-      globalThis.__hhGemini = { genAI: new GoogleGenerativeAI(apiKey), modelName: 'gemini-1.5-flash' };
+    if (!message) {
+      return NextResponse.json({ error: 'Message required' }, { status: 400 });
     }
-    const { genAI, modelName } = globalThis.__hhGemini;
-    const model = genAI.getGenerativeModel({ model: modelName });
 
-    const langMap: Record<string, string> = { en: 'English', hi: 'Hindi', bn: 'Bengali', ta: 'Tamil', te: 'Telugu', mr: 'Marathi' };
-    const langName = langMap[language] || 'English';
+    // Build conversation context
+    const conversationContext = conversationHistory
+      .slice(-10)
+      .map((msg: any) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+      .join('\n');
 
-    const systemPrompt = `You are "ZyntraCare Sentient AI", an advanced clinical symptom analyzer and medical advisor for an Indian healthcare platform. Respond in ${langName} language.
-Analyze the user's symptoms thoroughly based on vast medical literature. If the user describes a problem or disease, you MUST:
-1. Provide a step-by-step analysis of possible causes (differential diagnosis).
-2. Offer clear, actionable solutions, including evidence-based home remedies, OTC suggestions if safe, and lifestyle changes.
-3. Keep responses highly structured using bullet points and a professional tone. (Under 200 words).
-4. If it sounds like a severe emergency, immediately trigger a high-priority warning to call 102 (Ambulance) or 108.
-5. Always end with a strong medical disclaimer: "🩺 Note: This AI analysis is for informational purposes and cannot replace a doctor's diagnosis."`;
+    const fullPrompt = `${HEALTH_SYSTEM_PROMPT}\n\n${conversationContext ? 'Previous conversation:\n' + conversationContext + '\n\n' : ''}User: ${message}\n\nAssistant:`;
 
-    const historyText = history.slice(-6).map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
-    const fullPrompt = `${systemPrompt}\n\nConversation:\n${historyText}\nUser: ${message}\nAssistant:`;
+    // Try Ollama first (local, faster)
+    let reply = await callOllama(fullPrompt);
+    let source = 'ollama';
 
-    const result = await model.generateContent(fullPrompt);
-    const reply = result.response.text();
-    return NextResponse.json({ reply });
-  } catch {
-    return NextResponse.json({ reply: getMockResponse(message, language) });
+    // Try Gemini if Ollama fails
+    if (!reply && GEMINI_API_KEY) {
+      reply = await callGemini(fullPrompt);
+      source = 'gemini';
+    }
+
+    // Fallback to smart responses if both fail
+    if (!reply) {
+      reply = getSmartResponse(message, language);
+      source = 'smart-fallback';
+    }
+
+    return NextResponse.json({ reply, source });
+  } catch (error) {
+    console.error('Chat error:', error);
+    return NextResponse.json({ 
+      reply: 'I apologize for the technical difficulty. For immediate health concerns, please call 112 (emergency) or 102 (ambulance). How can I help you?',
+      source: 'error-fallback' 
+    });
   }
+}
+
+function getSmartResponse(message: string, language: string): string {
+  const lower = message.toLowerCase();
+
+  // Emergency detection
+  if (lower.includes('emergency') || lower.includes('help') || lower.includes('urgent') || lower.includes('accident')) {
+    return language === 'hi'
+      ? '🚨 आपातकाल! कृपया तुरंत इन नंबरों पर कॉल करें:\n\n• 112 - राष्ट्रीय आपातकाल\n• 102 - एम्बुलेंस\n• 108 - आपातकालीन सेवा\n\nक्या आपको नज़दीकी अस्पताल खोजने में मदद चाहिए?'
+      : '🚨 Emergency! Please call immediately:\n\n• 112 - National Emergency\n• 102 - Ambulance\n• 108 - Emergency Services\n\nDo you need help finding a nearby hospital?';
+  }
+
+  // Hospital search
+  if (lower.includes('hospital') || lower.includes('doctor') || lower.includes('clinic')) {
+    return language === 'hi'
+      ? '🏥 मैं आपको नज़दीकी अस्पताल खोजने में मदद कर सकता हूं। कृपया बताएं:\n\n1. आपका शहर क्या है?\n2. किस विशेषज्ञ की ज़रूरत है?\n\nया आप /hospitals पेज पर जा सकते हैं।'
+      : '🏥 I can help you find nearby hospitals. Please tell me:\n\n1. Your city name\n2. What specialty do you need?\n\nOr visit the /hospitals page for a live map.';
+  }
+
+  // Appointment
+  if (lower.includes('appointment') || lower.includes('book') || lower.includes('schedule')) {
+    return language === 'hi'
+      ? '📅 अपॉइंटमेंट बुक करने के लिए:\n\n1. /specialists पेज पर जाएं\n2. अपना डॉक्टर चुनें\n3. समय चुनें\n\nक्या आप किसी विशेष डॉक्टर की तलाश में हैं?'
+      : '📅 To book an appointment:\n\n1. Visit the /specialists page\n2. Choose your doctor\n3. Select a time slot\n\nAre you looking for a specific doctor?';
+  }
+
+  // Symptoms
+  if (lower.includes('symptom') || lower.includes('fever') || lower.includes('pain') || lower.includes('sick')) {
+    return language === 'hi'
+      ? '🩺 लक्षण जांच के लिए:\n\n1. /symptoms पेज पर जाएं\n2. अपने लक्षण चुनें\n3. AI विश्लेषण प्राप्त करें\n\n⚠️ गंभीर लक्षणों के लिए तुरंत डॉक्टर से संपर्क करें।'
+      : '🩺 For symptom checking:\n\n1. Visit the /symptoms page\n2. Select your symptoms\n3. Get AI-powered analysis\n\n⚠️ For severe symptoms, consult a doctor immediately.';
+  }
+
+  // Medicine
+  if (lower.includes('medicine') || lower.includes('drug') || lower.includes('pill') || lower.includes('pharmacy')) {
+    return language === 'hi'
+      ? '💊 दवाई की जानकारी के लिए:\n\n1. /pill-scanner पेज पर जाएं\n2. दवाई का नाम लिखें या फोटो अपलोड करें\n3. पूरी जानकारी प्राप्त करें\n\n📍 नज़दीकी फार्मेसी खोजने के लिए /pharmacies देखें।'
+      : '💊 For medicine information:\n\n1. Visit the /pill-scanner page\n2. Enter medicine name or upload photo\n3. Get complete information\n\n📍 Find nearby pharmacies at /pharmacies.';
+  }
+
+  // Insurance
+  if (lower.includes('insurance') || lower.includes('plan') || lower.includes('premium')) {
+    return language === 'hi'
+      ? '🛡️ स्वास्थ्य बीमा:\n\n1. /subscription पेज पर जाएं\n2. अपना प्लान चुनें\n3. प्रीमियम सुविधाएं प्राप्त करें\n\nहमारे प्लान:\n• Free: बुनियादी सुविधाएं\n• Premium: AI विश्लेषण, असीमित अपॉइंटमेंट'
+      : '🛡️ Health Insurance:\n\n1. Visit the /subscription page\n2. Choose your plan\n3. Get premium features\n\nOur plans:\n• Free: Basic features\n• Premium: AI analysis, unlimited appointments';
+  }
+
+  // Default response
+  return language === 'hi'
+    ? '🙏 नमस्ते! मैं ZyntraCare AI हूं। मैं आपकी मदद कर सकता हूं:\n\n• 🏥 अस्पताल खोजने में\n• 📅 अपॉइंटमेंट बुक करने में\n• 🩺 लक्षण जांच में\n• 💊 दवाई की जानकारी में\n• 🚨 आपातकाल में मदद\n\nआपको किस चीज़ में मदद चाहिए?'
+    : '🙏 Hello! I\'m ZyntraCare AI Health Assistant. I can help you with:\n\n• 🏥 Finding hospitals\n• 📅 Booking appointments\n• 🩺 Symptom checking\n• 💊 Medicine information\n• 🚨 Emergency assistance\n\nHow can I assist you today?';
 }

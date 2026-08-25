@@ -19,6 +19,20 @@ import SplashScreen from './SplashScreen';
 import { useState, useEffect } from 'react';
 
 import { NotificationProvider } from '@/components/Notifications';
+import { AdProvider, AdSlot, AdsterraMobileBanner, AdsterraNativeWidget, PageAdsInjector } from '@/components/ads';
+import { AD_PLACEMENTS, ADSTERRA_CONFIG } from '@/lib/ads/config';
+
+// Suppress harmless Three.js warnings (deprecations, shader precision, etc.)
+if (typeof console !== 'undefined') {
+  const _warn = console.warn;
+  console.warn = (...args) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (msg.includes('THREE.Clock: This module has been deprecated')) return;
+    if (msg.includes('THREE.WebGLProgram: Program Info Log')) return;
+    if (msg.includes('warning X4122')) return;
+    _warn(...args);
+  };
+}
 
 // AI Self-Healing System
 const SelfHealingSystem = dynamic(() => import('@/components/SelfHealingSystem'), { ssr: false });
@@ -29,6 +43,7 @@ const Navbar           = dynamic(() => import('@/components/Navbar'),           
 const Footer           = dynamic(() => import('@/components/Footer'),           { ssr: false });
 const EmergencyBanner  = dynamic(() => import('@/components/EmergencyBanner'),  { ssr: false });
 const EmergencyCallWidget = dynamic(() => import('@/components/EmergencyCallWidget'), { ssr: false });
+const VoiceEmergencyAssistant = dynamic(() => import('@/components/VoiceEmergencyAssistant'), { ssr: false });
 const CanvasBackground = dynamic(() => import('@/components/CanvasBackground'), { ssr: false });
 const ServiceWorkerRegistration = dynamic(() => import('@/components/ServiceWorkerRegistration'), { ssr: false });
 const Analytics        = dynamic(() => import('@/components/Analytics'),        { ssr: false });
@@ -62,6 +77,19 @@ function AppShell({ children }: { children: React.ReactNode }) {
   // useActiveUserHeartbeat();
   const loadTier = useStagedLoad();
 
+  // Suppress JSON fetch errors globally (not next-auth)
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      const msg = typeof args[0] === 'string' ? args[0] : args[0]?.toString() || '';
+      if (msg.includes('Failed to execute') || msg.includes('Unexpected end of JSON')) {
+        return;
+      }
+      originalError(...args);
+    };
+    return () => { console.error = originalError; };
+  }, []);
+
   return (
     <>
       <SplashScreen />
@@ -72,13 +100,20 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <CanvasBackground />
       </ClientOnly>
 
+      {/* Adsterra Mobile Banner (#10) — sticky bottom on mobile */}
+      <AdsterraMobileBanner />
+
       {/* Tier 1: Always-visible chrome */}
       <EmergencyBanner />
       <Navbar />
+      <AdSlot placement={AD_PLACEMENTS.GLOBAL_HEADER} size="LEADERBOARD" className="py-2" />
       <EmergencyCallWidget />
+      <VoiceEmergencyAssistant />
       <main id="main-content" className="flex-1 relative z-10" role="main">
         {children}
+        <PageAdsInjector />
       </main>
+      <AdSlot placement={AD_PLACEMENTS.GLOBAL_FOOTER} size="LEADERBOARD" className="py-2" />
       <Footer />
       <Analytics />
       <CookieConsent />
@@ -90,6 +125,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <EmergencyScrollMonitor />
           <ActiveTheoryCursor />
           <FeedbackModal />
+          <AdsterraNativeWidget
+            invokeUrl={ADSTERRA_CONFIG.nativeWidgetInvoke}
+            containerId={ADSTERRA_CONFIG.nativeWidgetContainer}
+            className="my-4"
+          />
         </ClientOnly>
       )}
 
@@ -100,12 +140,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider basePath="/api/auth" refetchInterval={0} refetchOnWindowFocus={false}>
       <LanguageProvider>
         <NotificationProvider>
           <SelfHealingSystem>
             <GlobalErrorHandler>
-              <AppShell>{children}</AppShell>
+              <AdProvider>
+                <AppShell>{children}</AppShell>
+              </AdProvider>
             </GlobalErrorHandler>
           </SelfHealingSystem>
         </NotificationProvider>

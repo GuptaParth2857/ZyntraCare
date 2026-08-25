@@ -1,72 +1,100 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-interface BloodDonor {
-  id: string;
-  name: string;
-  bloodType: string;
-  location: string;
-  distance: string;
-  phone: string;
-  available: boolean;
-  lastDonated: string;
-  donations: number;
-  verified: boolean;
-}
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
-const mockDonors: BloodDonor[] = [
-  { id: '1', name: 'Rahul S.', bloodType: 'O-', location: 'HSR Layout, Bangalore', distance: '1.2km', phone: '9876543210', available: true, lastDonated: '45 days ago', donations: 12, verified: true },
-  { id: '2', name: 'Priya M.', bloodType: 'A+', location: 'Koramangala, Bangalore', distance: '2.5km', phone: '9876543211', available: true, lastDonated: '90 days ago', donations: 8, verified: true },
-  { id: '3', name: 'Amit K.', bloodType: 'B+', location: 'Indiranagar, Bangalore', distance: '3.8km', phone: '9876543212', available: false, lastDonated: '30 days ago', donations: 15, verified: true },
-  { id: '4', name: 'Sneha R.', bloodType: 'AB+', location: 'Whitefield, Bangalore', distance: '5.2km', phone: '9876543213', available: true, lastDonated: '120 days ago', donations: 5, verified: true },
-  { id: '5', name: 'Vikram J.', bloodType: 'O+', location: 'JP Nagar, Bangalore', distance: '4.1km', phone: '9876543214', available: true, lastDonated: '60 days ago', donations: 20, verified: true },
-  { id: '6', name: 'Anjali P.', bloodType: 'A-', location: 'MG Road, Bangalore', distance: '2.0km', phone: '9876543215', available: true, lastDonated: '75 days ago', donations: 7, verified: false },
-  { id: '7', name: 'Rajesh T.', bloodType: 'B-', location: 'Bannerghatta, Bangalore', distance: '6.5km', phone: '9876543216', available: false, lastDonated: '25 days ago', donations: 3, verified: true },
-  { id: '8', name: 'Meera S.', bloodType: 'AB-', location: 'City Market, Bangalore', distance: '1.8km', phone: '9876543217', available: true, lastDonated: '180 days ago', donations: 10, verified: true },
-];
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const bloodGroup = searchParams.get('bloodGroup');
+  const city = searchParams.get('city');
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '20');
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const bloodType = searchParams.get('bloodType');
-  const location = searchParams.get('location');
-
-  let filtered = mockDonors;
-  
-  if (bloodType) {
-    filtered = filtered.filter(d => d.bloodType === bloodType);
-  }
-  
-  if (location) {
-    filtered = filtered.filter(d => d.location.toLowerCase().includes(location.toLowerCase()));
-  }
-
-  return NextResponse.json({
-    success: true,
-    data: filtered,
-    stats: {
-      total: mockDonors.length,
-      available: mockDonors.filter(d => d.available).length,
-      verified: mockDonors.filter(d => d.verified).length,
-      totalDonations: mockDonors.reduce((a, d) => a + d.donations, 0),
-    }
-  });
-}
-
-export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { name, phone, bloodType, location, urgency, message } = body;
+    const where: any = {
+      bloodGroup: { not: null },
+    };
 
-    if (!name || !phone || !bloodType || !location) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    if (bloodGroup) {
+      where.bloodGroup = bloodGroup;
     }
+
+    if (city) {
+      where.city = { contains: city };
+    }
+
+    const [donors, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          bloodGroup: true,
+          city: true,
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.user.count({ where }),
+    ]);
 
     return NextResponse.json({
-      success: true,
-      message: 'Blood request submitted successfully',
-      requestId: `BR-${Date.now()}`,
-      data: { name, bloodType, location, urgency, message }
+      donors: donors.map(d => ({
+        id: d.id,
+        name: d.name,
+        phone: d.phone,
+        bloodGroup: d.bloodGroup,
+        city: d.city,
+        available: true,
+      })),
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      bloodGroups: BLOOD_GROUPS,
     });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Invalid request' }, { status: 400 });
+    console.error('Blood donors API error:', error);
+    return NextResponse.json({ error: 'Failed to fetch donors' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, email, phone, bloodGroup, city } = body;
+
+    if (!bloodGroup) {
+      return NextResponse.json({ error: 'bloodGroup is required' }, { status: 400 });
+    }
+
+    const existing = await prisma.user.findFirst({ where: { phone } });
+    if (existing) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { bloodGroup, city },
+      });
+      return NextResponse.json({ message: 'Donor updated successfully' });
+    }
+
+    const donor = await prisma.user.create({
+      data: {
+        email: email || `donor_${Date.now()}@bloodbank.com`,
+        name: name || 'Anonymous Donor',
+        phone: phone || '',
+        bloodGroup,
+        city: city || '',
+        role: 'patient',
+      },
+    });
+
+    return NextResponse.json({
+      message: 'Registered as blood donor',
+      donor: { id: donor.id, name: donor.name, bloodGroup: donor.bloodGroup },
+    });
+  } catch (error) {
+    console.error('Blood donor POST error:', error);
+    return NextResponse.json({ error: 'Failed to register' }, { status: 500 });
   }
 }

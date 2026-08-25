@@ -18,15 +18,12 @@ interface Lab {
   duration: string;
 }
 
-const MOCK_LABS: Lab[] = [
-  { id: '1', name: 'Apollo Diagnostics', location: 'HSR Layout', distance: '1.2km', rating: 4.8, tests: ['Blood Test', 'CBC', 'Lipid Profile'], price: 499, originalPrice: 800, discount: 38, available: true, duration: '24 hours' },
-  { id: '2', name: 'Dr. Lal PathLabs', location: 'Koramangala', distance: '2.5km', rating: 4.6, tests: ['Thyroid', 'Diabetes', 'Liver'], price: 699, originalPrice: 1200, discount: 42, available: true, duration: '48 hours' },
-  { id: '3', name: 'City Lab', location: 'Indiranagar', distance: '3.0km', rating: 4.5, tests: ['Full Body Checkup'], price: 1499, originalPrice: 2500, discount: 40, available: true, duration: '72 hours' },
-  { id: '4', name: 'Sanjeevini Labs', location: 'JP Nagar', distance: '4.1km', rating: 4.7, tests: ['MRI', 'CT Scan'], price: 3499, originalPrice: 5000, discount: 30, available: false, duration: '24 hours' },
-];
+
 
 export default function LabBookingPage() {
-  const [labs] = useState<Lab[]>(MOCK_LABS);
+  const [labs, setLabs] = useState<Lab[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [date, setDate] = useState('');
@@ -35,6 +32,22 @@ export default function LabBookingPage() {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [bookingId, setBookingId] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', fasting: false });
+
+  useEffect(() => {
+    const fetchLabs = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/labs');
+        const data = await res.json();
+        setLabs(data.labs || data || []);
+      } catch (err) {
+        setError('Failed to load labs');
+        console.error('Error fetching labs:', err);
+      }
+      setLoading(false);
+    };
+    fetchLabs();
+  }, []);
 
   const availableLabs = labs.filter(l => l.available);
   
@@ -62,7 +75,7 @@ export default function LabBookingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-transparent">
       {/* Header */}
       <div className="bg-gradient-to-r from-violet-600 to-purple-700 text-white p-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -82,7 +95,22 @@ export default function LabBookingPage() {
         {/* Lab Selection */}
         <div className="space-y-3">
           <h2 className="font-bold text-lg">Select Lab</h2>
-          {availableLabs.map(lab => (
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm text-gray-400">Loading labs...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 bg-red-50 rounded-2xl">
+              <p className="text-red-500 font-medium">{error}</p>
+              <button onClick={() => window.location.reload()} className="mt-2 text-sm text-violet-600 underline">Retry</button>
+            </div>
+          ) : availableLabs.length === 0 ? (
+            <div className="text-center py-8 bg-slate-50 rounded-2xl">
+              <p className="text-slate-500">No labs available in your area</p>
+            </div>
+          ) : (
+          availableLabs.map(lab => (
             <motion.div
               key={lab.id}
               initial={{ opacity: 0, y: 10 }}
@@ -110,7 +138,7 @@ export default function LabBookingPage() {
                 <span className="text-xs text-slate-400">• {lab.duration}</span>
               </div>
             </motion.div>
-          ))}
+          )))}
         </div>
 
         {/* Test Selection */}

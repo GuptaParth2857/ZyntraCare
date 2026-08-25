@@ -96,22 +96,6 @@ async function getSupplyChainUpdates() {
   } catch { return []; }
 }
 
-function generateMockBedUpdate(hospitalId: string) {
-  const baseBeds = Math.floor(Math.random() * 50) + 10;
-  const available = Math.floor(Math.random() * baseBeds);
-  return {
-    type: 'bed_update',
-    hospitalId,
-    beds: {
-      total: baseBeds,
-      available,
-      icu: Math.floor(baseBeds * 0.1),
-      icuAvailable: Math.floor(available * 0.1)
-    },
-    timestamp: Date.now()
-  };
-}
-
 async function getInitialData() {
   const [beds, alerts, ambulances, supplies] = await Promise.all([
     getBedUpdates(),
@@ -120,59 +104,6 @@ async function getInitialData() {
     getSupplyChainUpdates(),
   ]);
   return { beds, alerts, ambulances, supplies };
-}
-
-function generateEmergencyAlert() {
-  const alertTypes = [
-    { severity: 'critical', message: 'Emergency: Cardiac arrest reported nearby', location: 'Within 2km' },
-    { severity: 'high', message: 'High demand for ICU beds in area', location: '5km radius' },
-    { severity: 'medium', message: 'Ambulance delay expected', location: 'Your area' },
-    { severity: 'low', message: 'Hospital capacity updated', location: 'Nearby facilities' }
-  ];
-  return {
-    type: 'emergency_alert',
-    data: alertTypes[Math.floor(Math.random() * alertTypes.length)],
-    timestamp: Date.now()
-  };
-}
-
-async function* generateSSE() {
-  const encoder = new TextEncoder();
-  
-  let connectedClients = 0;
-  const clientCounts = new Set<ReadableStreamDefaultController>();
-
-  while (true) {
-    try {
-      const eventTypes = ['bed_update', 'emergency_alert', 'heartbeat'];
-      const randomType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-      
-      let eventData;
-      
-      switch (randomType) {
-        case 'bed_update':
-          const hospitals = ['H001', 'H002', 'H003', 'H004', 'H005'];
-          eventData = generateMockBedUpdate(hospitals[Math.floor(Math.random() * hospitals.length)]);
-          break;
-        case 'emergency_alert':
-          if (Math.random() > 0.7) {
-            eventData = generateEmergencyAlert();
-          } else {
-            eventData = { type: 'heartbeat', timestamp: Date.now() };
-          }
-          break;
-        default:
-          eventData = { type: 'heartbeat', timestamp: Date.now() };
-      }
-      
-      const data = `data: ${JSON.stringify(eventData)}\n\n`;
-      yield encoder.encode(data);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-    } catch {
-      break;
-    }
-  }
 }
 
 export async function GET(req: NextRequest) {
@@ -194,37 +125,37 @@ export async function GET(req: NextRequest) {
       async function sendEvents() {
         while (isActive) {
           try {
-            cycle++;
-            const eventTypes = cycle % 5 === 0 
-              ? ['bed_update', 'emergency_alert', 'ambulance_location', 'supply_chain', 'heartbeat']
-              : ['bed_update', 'emergency_alert', 'heartbeat'];
-            const randomType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-            let eventData;
-            
-            switch (randomType) {
-              case 'bed_update': {
-                const hospitals = ['hospital_1', 'hospital_2', 'hospital_3', 'hospital_4', 'hospital_5'];
-                const hospitalId = hospitals[Math.floor(Math.random() * hospitals.length)];
-                eventData = generateMockBedUpdate(hospitalId);
-                break;
-              }
-              case 'emergency_alert': {
-                if (Math.random() > 0.75) {
-                  eventData = generateEmergencyAlert();
-                } else {
-                  eventData = { type: 'heartbeat', timestamp: Date.now() };
-                }
-                break;
-              }
-              default: {
-                eventData = { type: 'heartbeat', timestamp: Date.now() };
+            const [beds, alerts, ambulances, supplies] = await Promise.all([
+              getBedUpdates(),
+              getEmergencyAlerts(),
+              getAmbulanceLocations(),
+              getSupplyChainUpdates(),
+            ]);
+
+            if (beds.length > 0) {
+              for (const bed of beds) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(bed)}\n\n`));
               }
             }
+            if (alerts.length > 0) {
+              for (const alert of alerts) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(alert)}\n\n`));
+              }
+            }
+            if (ambulances.length > 0) {
+              for (const amb of ambulances) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(amb)}\n\n`));
+              }
+            }
+            if (supplies.length > 0) {
+              for (const supply of supplies) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(supply)}\n\n`));
+              }
+            }
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`));
             
-            const data = `data: ${JSON.stringify(eventData)}\n\n`;
-            controller.enqueue(encoder.encode(data));
-            
-            await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 4000));
+            await new Promise(resolve => setTimeout(resolve, 10000));
           } catch {
             break;
           }

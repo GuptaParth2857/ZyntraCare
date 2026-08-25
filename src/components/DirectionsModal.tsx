@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { FiNavigation, FiClock, FiMapPin, FiX, FiPhone } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 
 interface RouteInfo {
   distance: string;
   distanceKm: number;
   duration: number;
-  durationByTransit: string;
+  durationText: string;
   eta: string;
 }
 
@@ -42,28 +44,27 @@ export default function DirectionsModal({ isOpen, onClose, destination, userLoca
 
       const speedKmh = travelMode === 'driving' ? 30 : travelMode === 'walking' ? 5 : 15;
       const durationMin = Math.round((distanceKm / speedKmh) * 60);
-      const transitMin = Math.round(durationMin * 1.3) + Math.floor(Math.random() * 10);
       
       const eta = new Date();
       eta.setMinutes(eta.getMinutes() + durationMin);
       const etaStr = eta.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-      const transitEta = new Date();
-      transitEta.setMinutes(transitEta.getMinutes() + transitMin);
-      const transitEtaStr = transitEta.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-
       setRouteInfo({
         distance: distanceKm < 1 ? `${Math.round(distanceKm * 1000)}m` : `${distanceKm.toFixed(1)} km`,
         distanceKm,
         duration: durationMin,
-        durationByTransit: `${transitMin} min (arrive by ${transitEtaStr})`,
-        eta: `Arrive by ${etaStr}`,
+        durationText: durationMin < 60 ? `${durationMin} min` : `${Math.floor(durationMin/60)}h ${durationMin%60}min`,
+        eta: etaStr,
       });
       setLoading(false);
     };
 
     calculateRoute();
   }, [isOpen, travelMode, userLocation, destination]);
+
+  const handleNavigate = () => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}&travelmode=${travelMode}`, '_blank');
+  };
 
   if (!isOpen) return null;
 
@@ -72,107 +73,121 @@ export default function DirectionsModal({ isOpen, onClose, destination, userLoca
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end md:items-center justify-center p-0"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-slate-900 border border-white/20 rounded-3xl w-full max-w-lg overflow-hidden"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+        className="w-full md:max-w-md bg-slate-900 border-t-2 border-teal-500 rounded-t-3xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-white">{destination.name}</h3>
-            <p className="text-sm text-gray-400">{destination.address}</p>
+        {/* Header */}
+        <div className="p-4 bg-gradient-to-r from-teal-600 to-emerald-600">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <FiNavigation className="text-white" size={20} />
+              </div>
+              <div className="text-white">
+                <h3 className="font-bold text-base">🗺️ Navigate to Hospital</h3>
+                <p className="text-white/80 text-xs">{destination.name}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition"
+            >
+              <FiX size={16} />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition"
-          >
-            ✕
-          </button>
         </div>
 
+        {/* Content */}
         <div className="p-4">
-          <div className="flex gap-2 mb-6">
-            {[
-              { id: 'driving', icon: '🚗', label: 'Car' },
-              { id: 'walking', icon: '🚶', label: 'Walk' },
-              { id: 'cycling', icon: '🚴', label: 'Cycle' },
-            ].map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setTravelMode(mode.id as any)}
-                className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-medium transition-all ${
-                  travelMode === mode.id
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
-                }`}
-              >
-                <span className="text-lg">{mode.icon}</span>
-                <span>{mode.label}</span>
-              </button>
-            ))}
-          </div>
-
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400">Calculating route...</span>
             </div>
-          ) : routeInfo ? (
+          ) : routeInfo && (
             <div className="space-y-4">
-              <div className="bg-white/5 rounded-2xl p-6">
-                <div className="text-center">
-                  <div className="text-4xl font-black text-white mb-2">{routeInfo.distance}</div>
-                  <div className="text-gray-400">Total Distance</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 rounded-2xl p-5 text-center border border-purple-500/20">
-                  <div className="text-3xl mb-2">{travelMode === 'driving' ? '🚗' : travelMode === 'walking' ? '🚶' : '🚴'}</div>
-                  <div className="text-2xl font-bold text-white">{routeInfo.duration} min</div>
-                  <div className="text-xs text-gray-400 mt-1">{routeInfo.eta}</div>
-                </div>
-                <div className="bg-gradient-to-br from-teal-500/20 to-teal-600/10 rounded-2xl p-5 text-center border border-teal-500/20">
-                  <div className="text-3xl mb-2">🚇</div>
-                  <div className="text-2xl font-bold text-white">{routeInfo.durationByTransit.split(' ')[0]}</div>
-                  <div className="text-xs text-gray-400 mt-1">By Transit</div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 rounded-2xl p-4">
+              {/* Route Info Card */}
+              <div className="bg-slate-800/50 rounded-2xl p-4 border border-white/10">
                 <div className="flex items-center gap-4">
-                  <div className="w-4 h-4 bg-sky-500 rounded-full" />
-                  <div className="flex-1">
-                    <div className="text-sm text-white font-medium">Your Location</div>
-                    <div className="text-xs text-gray-400">Starting point</div>
+                  <div className="flex-1 text-center">
+                    <div className="text-3xl font-black text-white">{routeInfo.distance}</div>
+                    <div className="text-gray-400 text-xs mt-1">Distance</div>
+                  </div>
+                  <div className="w-px h-12 bg-white/10" />
+                  <div className="flex-1 text-center">
+                    <div className="text-3xl font-black text-teal-400">{routeInfo.durationText}</div>
+                    <div className="text-gray-400 text-xs mt-1">Travel Time</div>
                   </div>
                 </div>
-                <div className="ml-2 w-0.5 h-8 bg-gradient-to-b from-sky-500 to-purple-500" />
-                <div className="flex items-center gap-4">
-                  <div className="w-4 h-4 bg-purple-500 rounded-full" />
-                  <div className="flex-1">
-                    <div className="text-sm text-white font-medium">{destination.name}</div>
-                    <div className="text-xs text-gray-400">{destination.address}</div>
-                  </div>
+                
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2">
+                  <FiClock className="text-teal-400" size={14} />
+                  <span className="text-teal-400 text-sm font-semibold">ETA: {routeInfo.eta}</span>
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=${userLocation.lat},${userLocation.lng};${destination.lat},${destination.lng}`;
-                  window.open(url, '_blank');
-                }}
-                className="w-full py-4 bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-500 hover:to-teal-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-              >
-                <span>🗺️</span> Open Full Map
-              </button>
+              {/* Travel Mode */}
+              <div className="flex gap-2">
+                {[
+                  { id: 'driving', icon: <FaCar />, label: 'Drive' },
+                  { id: 'walking', icon: '🚶', label: 'Walk' },
+                  { id: 'cycling', icon: '🚴', label: 'Cycle' },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setTravelMode(mode.id as any)}
+                    className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-semibold transition-all ${
+                      travelMode === mode.id
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
+                    }`}
+                  >
+                    {mode.icon}
+                    <span>{mode.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleNavigate}
+                  className="py-4 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/30"
+                >
+                  <FiNavigation size={18} />
+                  Open Maps
+                </button>
+                <a
+                  href={`tel:102`}
+                  className="py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
+                >
+                  <FiPhone size={18} />
+                  Call 102
+                </a>
+              </div>
+
+              {/* Destination Info */}
+              <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                    <FiMapPin className="text-teal-400" size={16} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white text-sm font-semibold">{destination.name}</p>
+                    <p className="text-gray-400 text-xs">{destination.address || 'Hospital'}</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : null}
+          )}
         </div>
       </motion.div>
     </motion.div>

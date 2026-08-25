@@ -12,34 +12,64 @@ interface VoiceMessage {
   duration: number;
 }
 
-const savedVoices = [
-  { id: 'v1', name: 'Daughter (Priya)', relation: 'Daughter', voice: 'daughter', preview: true },
-  { id: 'v2', name: 'Son (Rahul)', relation: 'Son', voice: 'son', preview: true },
-  { id: 'v3', name: 'Wife (Sunita)', relation: 'Wife', voice: 'wife', preview: false },
-];
+interface SavedVoice {
+  id: string;
+  name: string;
+  relation: string;
+  voice: string;
+  preview: boolean;
+}
 
-const scheduledReminders = [
-  { id: '1', time: '8:00 AM', message: 'Papa, aapki BP ki dawai lene ka time ho gaya hai', voice: 'daughter', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
-  { id: '2', time: '2:00 PM', message: 'Papa, lunch ke baad medicine zaroor lein', voice: 'daughter', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
-  { id: '3', time: '8:00 PM', message: 'Papa, aapni raat ki dawai lijiye', voice: 'son', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
-];
-
-const sampleMessages: VoiceMessage[] = [
-  { id: '1', text: 'Papa, aap khaise ho? Aaj kal theek hain na?', voice: 'daughter', timestamp: '10:30 AM', duration: 5 },
-  { id: '2', text: 'Beta, main theek hoon. Tum kaise ho?', voice: 'daughter', timestamp: '10:35 AM', duration: 4 },
-  { id: '3', text: 'Main bhi theek hoon papa. Aapne medicine liya?', voice: 'daughter', timestamp: '10:36 AM', duration: 3 },
-];
+interface ScheduledReminder {
+  id: string;
+  time: string;
+  message: string;
+  voice: string;
+  days: string[];
+}
 
 export default function DementiaVoicePage() {
+  const [savedVoices, setSavedVoices] = useState<SavedVoice[]>([]);
+  const [scheduledReminders, setScheduledReminders] = useState<ScheduledReminder[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>('daughter');
-  const [messages, setMessages] = useState<VoiceMessage[]>(sampleMessages);
+  const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [customMessage, setCustomMessage] = useState('');
   const [isAITyping, setIsAITyping] = useState(false);
   const [livePulse, setLivePulse] = useState(0);
   const [nextReminder, setNextReminder] = useState(30);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
+  useEffect(() => {
+    const fetchVoiceData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/voice-reminders');
+        if (!res.ok) throw new Error('Failed to fetch voice data');
+        const data = await res.json();
+        setSavedVoices(data.savedVoices || [
+          { id: 'v1', name: 'Daughter (Priya)', relation: 'Daughter', voice: 'daughter', preview: true },
+          { id: 'v2', name: 'Son (Rahul)', relation: 'Son', voice: 'son', preview: true },
+          { id: 'v3', name: 'Wife (Sunita)', relation: 'Wife', voice: 'wife', preview: false },
+        ]);
+        setScheduledReminders(data.scheduledReminders || [
+          { id: '1', time: '8:00 AM', message: 'Papa, aapki BP ki dawai lene ka time ho gaya hai', voice: 'daughter', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+          { id: '2', time: '2:00 PM', message: 'Papa, lunch ke baad medicine zaroor lein', voice: 'daughter', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+          { id: '3', time: '8:00 PM', message: 'Papa, aapni raat ki dawai lijiye', voice: 'son', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        ]);
+        setMessages(data.messages || []);
+      } catch (err) {
+        setError('Failed to load voice data');
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchVoiceData();
+  }, []);
 
   useEffect(() => {
     const pulseInterval = setInterval(() => setLivePulse(prev => (prev + 1) % 100), 80);
@@ -118,7 +148,7 @@ export default function DementiaVoicePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden font-inter text-white">
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter text-white">
       <div className="max-w-7xl mx-auto px-4 pt-8 pb-24">
         
         <motion.div

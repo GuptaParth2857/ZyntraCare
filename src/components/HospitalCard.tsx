@@ -2,7 +2,8 @@
 'use client';
 
 import { Hospital } from '@/types';
-import { FiMapPin, FiPhone, FiClock, FiStar, FiHeart, FiShield, FiActivity, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import { toArray } from '@/lib/utils';
+import { FiMapPin, FiPhone, FiClock, FiStar, FiHeart, FiShield, FiActivity, FiTrendingUp, FiUsers, FiNavigation } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useInView } from 'framer-motion';
@@ -50,7 +51,9 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
 
   const imageSrc = hospital.image || '';
 
-  const occupancyPercentage = Math.round((hospital.beds.occupied / hospital.beds.total) * 100);
+  const occupancyPercentage = hospital.beds 
+    ? Math.round((((hospital.beds.total - (hospital.beds.available ?? 0)) / hospital.beds.total) * 100)) 
+    : 0;
   const isLight = variant === 'light';
 
   const occupancyColor =
@@ -101,6 +104,14 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
+
+        {/* Distance Badge */}
+        {hospital.distance != null && (
+          <span className="absolute top-3 left-3 z-20 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 bg-sky-500/90 text-white border border-sky-400/30 shadow-md backdrop-blur-sm">
+            <FiNavigation size={10} />
+            {hospital.distance < 1 ? `${Math.round(hospital.distance * 1000)} m` : `${hospital.distance.toFixed(1)} km`}
+          </span>
+        )}
 
         {/* Emergency Badge */}
         {hospital.emergency && (
@@ -160,7 +171,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               viewport={{ once: true }}
               transition={{ delay: 0.2, type: 'spring' }}
             >
-              <AnimatedNumber value={hospital.beds.available} />
+              <AnimatedNumber value={hospital.beds?.available || 0} />
             </motion.p>
             <p className={`text-[10px] ${isLight ? 'text-emerald-700/70' : 'text-emerald-300/70'} font-bold uppercase tracking-wide relative z-10`}>Beds Free</p>
           </motion.div>
@@ -183,7 +194,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               viewport={{ once: true }}
               transition={{ delay: 0.3, type: 'spring' }}
             >
-              <AnimatedNumber value={hospital.beds.icuAvailable} />
+              <AnimatedNumber value={hospital.beds?.icuAvailable || 0} />
             </motion.p>
             <p className={`text-[10px] ${isLight ? 'text-sky-700/70' : 'text-sky-300/70'} font-bold uppercase tracking-wide relative z-10`}>ICU Free</p>
           </motion.div>
@@ -206,7 +217,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               viewport={{ once: true }}
               transition={{ delay: 0.4, type: 'spring' }}
             >
-              <AnimatedNumber value={hospital.doctors} />
+              <AnimatedNumber value={hospital.doctors || 0} />
             </motion.p>
             <p className={`text-[10px] ${isLight ? 'text-violet-700/70' : 'text-violet-300/70'} font-bold uppercase tracking-wide relative z-10`}>Doctors</p>
           </motion.div>
@@ -254,7 +265,7 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
 
         {/* Specialties */}
         <div className="flex flex-wrap gap-1.5" aria-label="Specialties">
-          {hospital.specialties.slice(0, 3).map(specialty => (
+          {toArray(hospital.specialties).slice(0, 3).map(specialty => (
             <span
               key={specialty}
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -266,9 +277,9 @@ export default function HospitalCard({ hospital, variant = 'dark' }: HospitalCar
               {specialty}
             </span>
           ))}
-          {hospital.specialties.length > 3 && (
+          {(hospital.specialties || []).length > 3 && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isLight ? 'text-slate-500 bg-slate-50' : 'text-gray-500 bg-white/5'}`}>
-              +{hospital.specialties.length - 3} more
+              +{(hospital.specialties || []).length - 3} more
             </span>
           )}
         </div>

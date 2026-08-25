@@ -43,25 +43,15 @@ export default function AIVisionPage() {
       
       if (data.results) {
         setResults(data.results);
-      } else if (data.error) {
-        const mockResults: ScanResult[] = [
-          { condition: 'Skin Lesion Detection', confidence: 92, severity: 'warning', description: 'Minor discoloration detected. Recommend dermatologist consultation within 2 weeks.' },
-          { condition: 'Inflammation markers', confidence: 78, severity: 'normal', description: 'No significant inflammation detected.' },
-        ];
-        setResults(mockResults);
       }
     } catch (err) {
-      const mockResults: ScanResult[] = [
-        { condition: 'Skin Lesion Detection', confidence: 92, severity: 'warning', description: 'Minor discoloration detected. Recommend dermatologist consultation within 2 weeks.' },
-        { condition: 'Inflammation markers', confidence: 78, severity: 'normal', description: 'No significant inflammation detected.' },
-      ];
-      setResults(mockResults);
+      console.error('Vision analysis failed:', err);
     }
     setAnalyzing(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="max-w-4xl mx-auto px-4 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center gap-3 mb-6">

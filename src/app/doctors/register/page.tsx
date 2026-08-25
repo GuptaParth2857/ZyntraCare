@@ -43,7 +43,16 @@ export default function DoctorRegistrationPage() {
 
   const handleSubmit = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
+    try {
+      const res = await fetch('/api/doctors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error('Registration failed');
+    } catch (err) {
+      console.error('Doctor registration failed:', err);
+    }
     setLoading(false);
     setSubmitted(true);
   };

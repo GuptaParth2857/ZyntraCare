@@ -1,17 +1,19 @@
-// src/components/EmergencyBanner.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { FiPhone, FiX } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { emergencyNumbers } from '@/data/mockData';
+
+const AMBULANCE_NUMBERS = [
+  { number: '102', description: 'National Ambulance Service' },
+  { number: '108', description: 'Emergency Ambulance' },
+  { number: '112', description: 'National Emergency' },
+];
 
 export default function EmergencyBanner() {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [currentNumber, setCurrentNumber] = useState(0);
-
-  const ambulanceNumbers = emergencyNumbers.filter(n => n.type === 'ambulance');
 
   useEffect(() => {
     setMounted(true);
@@ -21,14 +23,10 @@ export default function EmergencyBanner() {
   useEffect(() => {
     if (!visible) return;
     const interval = setInterval(() => {
-      setCurrentNumber(prev => (prev + 1) % ambulanceNumbers.length);
+      setCurrentNumber(prev => (prev + 1) % AMBULANCE_NUMBERS.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [visible, ambulanceNumbers.length]);
-
-  const handleDismiss = () => {
-    setVisible(false);
-  };
+  }, [visible]);
 
   if (!mounted) return null;
 
@@ -46,7 +44,6 @@ export default function EmergencyBanner() {
           className="relative overflow-hidden bg-gradient-to-r from-red-700 via-red-600 to-rose-700 text-white py-2 px-4 z-[60]"
           style={{ boxShadow: '0 2px 20px rgba(220,38,38,0.4)' }}
         >
-          {/* Animated scan line */}
           <motion.div
             animate={{ x: ['-100%', '100vw'] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
@@ -75,15 +72,15 @@ export default function EmergencyBanner() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.25 }}
-                  href={`tel:${ambulanceNumbers[currentNumber]?.number}`}
-                  aria-label={`Call ambulance: ${ambulanceNumbers[currentNumber]?.number}`}
+                  href={`tel:${AMBULANCE_NUMBERS[currentNumber]?.number}`}
+                  aria-label={`Call ambulance: ${AMBULANCE_NUMBERS[currentNumber]?.number}`}
                   className="bg-white text-red-700 px-4 py-0.5 rounded-full font-black text-base hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-600"
                 >
-                  {ambulanceNumbers[currentNumber]?.number}
+                  {AMBULANCE_NUMBERS[currentNumber]?.number}
                 </motion.a>
               </AnimatePresence>
               <span className="text-xs text-red-200 hidden md:inline">
-                {ambulanceNumbers[currentNumber]?.description}
+                {AMBULANCE_NUMBERS[currentNumber]?.description}
               </span>
             </div>
 
@@ -93,7 +90,7 @@ export default function EmergencyBanner() {
           </div>
 
           <button
-            onClick={handleDismiss}
+            onClick={() => setVisible(false)}
             aria-label="Dismiss emergency banner"
             className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white"
           >

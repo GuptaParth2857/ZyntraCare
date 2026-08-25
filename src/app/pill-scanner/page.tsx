@@ -58,33 +58,33 @@ export default function PillScannerPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleScan = () => {
-    setScanning(true);
-    setResult(null);
-    setTimeout(() => {
-      setScanning(false);
-      const mockMedicine = mockResults['paracetamol'];
-      setResult(mockMedicine);
-    }, 2500);
+  const handleScan = async () => {
+    fileInputRef.current?.click();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setScanning(true);
-      setTimeout(() => {
-        setScanning(false);
-        setResult(mockResults['paracetamol']);
-      }, 2000);
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const res = await fetch('/api/pill-scanner', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.medicine) setResult(data.medicine);
+      } catch { /* fallback */ }
+      setScanning(false);
     }
   };
 
-  const handleSearch = () => {
-    if (searchQuery.toLowerCase().includes('crocin') || searchQuery.toLowerCase().includes('paracetamol')) {
-      setResult(mockResults['paracetamol']);
-    } else if (searchQuery.toLowerCase().includes('novamox') || searchQuery.toLowerCase().includes('amoxicillin')) {
-      setResult(mockResults['amoxicillin']);
-    }
+  const handleSearch = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch('/api/pill-scanner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'search', query: searchQuery }) });
+      const data = await res.json();
+      if (data.medicine) setResult(data.medicine);
+    } catch { /* fallback */ }
+    setScanning(false);
   };
 
   return (

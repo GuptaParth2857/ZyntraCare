@@ -27,42 +27,33 @@ export default function PredictiveAnalyticsPage() {
 
   useEffect(() => {
     setLoading(true);
-    setTimeout(() => {
-      const mockPredictions: Prediction[] = Array.from({ length: timeRange === '7d' ? 7 : timeRange === '14d' ? 14 : 30 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() + i - (timeRange === '7d' ? 7 : timeRange === '14d' ? 14 : 30));
-        return {
-          day: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          predicted: Math.floor(40 + Math.random() * 30),
-          actual: i < 3 ? Math.floor(35 + Math.random() * 25) : undefined,
-          confidence: Math.floor(85 + Math.random() * 12),
-        };
+    fetch(`/api/predict-flow?range=${timeRange}`)
+      .then(res => res.json())
+      .then(data => {
+        setPredictions(data.predictions || []);
+        setAlerts(data.alerts || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
       });
-      
-      const mockAlerts: Alert[] = [
-        { id: '1', type: 'warning', message: 'Dengue cases expected to spike next week', action: 'Stock 50+ ORS packets' },
-        { id: '2', type: 'critical', message: ' Oxygen demand surge predicted forWeek 3', action: 'Contact supplier now' },
-        { id: '3', type: 'info', message: 'Seasonal flu expected to decrease', action: 'Normal operations' },
-      ];
-      
-      setPredictions(mockPredictions);
-      setAlerts(mockAlerts);
-      setLoading(false);
-    }, 1500);
   }, [timeRange]);
 
-  const sampleData = [
-    { name: 'Mon', admissions: 45, discharges: 38, emergencies: 12 },
-    { name: 'Tue', admissions: 52, discharges: 45, emergencies: 15 },
-    { name: 'Wed', admissions: 48, discharges: 42, emergencies: 10 },
-    { name: 'Thu', admissions: 55, discharges: 48, emergencies: 18 },
-    { name: 'Fri', admissions: 62, discharges: 55, emergencies: 20 },
-    { name: 'Sat', admissions: 58, discharges: 50, emergencies: 16 },
-    { name: 'Sun', admissions: 42, discharges: 35, emergencies: 14 },
-  ];
+  const [sampleData, setSampleData] = useState([
+    { name: 'Mon', admissions: 0, discharges: 0, emergencies: 0 },
+  ]);
+
+  useEffect(() => {
+    fetch('/api/hospitals/footfall')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.length) setSampleData(data);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Header */}

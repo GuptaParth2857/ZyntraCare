@@ -82,27 +82,19 @@ export default function LegalPage() {
             </p>
           </motion.div>
 
-          {/* Certification Badges */}
+          {/* Compliance Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="flex flex-wrap justify-center gap-6 mb-12"
+            className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 mb-12"
           >
-            {[
-              { name: 'HIPAA', color: 'bg-green-500' },
-              { name: 'ISO 27001', color: 'bg-blue-500' },
-              { name: 'SOC 2', color: 'bg-purple-500' },
-              { name: 'GDPR', color: 'bg-orange-500' },
-            ].map((cert) => (
-              <div
-                key={cert.name}
-                className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-full"
-              >
-                <FiCheckCircle className="text-green-400" />
-                <span className="text-white font-semibold">{cert.name}</span>
-              </div>
-            ))}
+            <h3 className="text-white font-bold mb-3">{lang === 'hi' ? 'हमारी प्रतिबद्धताएं' : 'Our Commitments'}</h3>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              {lang === 'hi'
+                ? 'ZyntraCare आपके डेटा की सुरक्षा को गंभीरता से लेता है। हम आपकी व्यक्तिगत और स्वास्थ्य जानकारी की सुरक्षा के लिए उद्योग-मानक एन्क्रिप्शन और सुरक्षा प्रथाओं का उपयोग करते हैं। हमारी प्रथाएं भारत के IT अधिनियम 2000 और वैश्विक गोपनीयता सिद्धांतों के अनुरूप हैं।'
+                : 'ZyntraCare takes your data security seriously. We use industry-standard encryption and security practices to protect your personal and health information. Our practices align with India\'s IT Act 2000 and global privacy principles.'}
+            </p>
           </motion.div>
 
           {/* Accordion Sections */}

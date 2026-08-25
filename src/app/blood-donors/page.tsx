@@ -19,28 +19,54 @@ interface BloodDonor {
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-const MOCK_DONORS: BloodDonor[] = [
-  { id: '1', name: 'Rahul S.', bloodType: 'O-', location: 'HSR Layout, Bangalore', distance: '1.2km', phone: '9876543210', available: true, lastDonated: '45 days ago', donations: 12, verified: true },
-  { id: '2', name: 'Priya M.', bloodType: 'A+', location: 'Koramangala, Bangalore', distance: '2.5km', phone: '9876543211', available: true, lastDonated: '90 days ago', donations: 8, verified: true },
-  { id: '3', name: 'Amit K.', bloodType: 'B+', location: 'Indiranagar, Bangalore', distance: '3.8km', phone: '9876543212', available: false, lastDonated: '30 days ago', donations: 15, verified: true },
-  { id: '4', name: 'Sneha R.', bloodType: 'AB+', location: 'Whitefield, Bangalore', distance: '5.2km', phone: '9876543213', available: true, lastDonated: '120 days ago', donations: 5, verified: true },
-  { id: '5', name: 'Vikram J.', bloodType: 'O+', location: 'JP Nagar, Bangalore', distance: '4.1km', phone: '9876543214', available: true, lastDonated: '60 days ago', donations: 20, verified: true },
-  { id: '6', name: 'Anjali P.', bloodType: 'A-', location: 'MG Road, Bangalore', distance: '2.0km', phone: '9876543215', available: true, lastDonated: '75 days ago', donations: 7, verified: false },
-  { id: '7', name: 'Rajesh T.', bloodType: 'B-', location: ' Bannerghatta, Bangalore', distance: '6.5km', phone: '9876543216', available: false, lastDonated: '25 days ago', donations: 3, verified: true },
-  { id: '8', name: 'Meera S.', bloodType: 'AB-', location: 'City Market, Bangalore', distance: '1.8km', phone: '9876543217', available: true, lastDonated: '180 days ago', donations: 10, verified: true },
-];
-
 export default function BloodDonorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBlood, setSelectedBlood] = useState<string>('');
-  const [donors, setDonors] = useState<BloodDonor[]>(MOCK_DONORS);
+  const [donors, setDonors] = useState<BloodDonor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showRequest, setShowRequest] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [requestForm, setRequestForm] = useState({ name: '', phone: '', bloodType: '', urgency: 'normal', location: '', message: '' });
   const [requestSent, setRequestSent] = useState(false);
+  const [requestError, setRequestError] = useState('');
+  const [registerForm, setRegisterForm] = useState({ name: '', phone: '', email: '', bloodGroup: '', city: '' });
+  const [registerSent, setRegisterSent] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState('');
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const fetchDonors = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/blood-donors');
+        const data = await res.json();
+        const rawDonors = data.donors || data || [];
+        const mapped = rawDonors.map((d: any) => ({
+          id: d.id || String(Math.random()),
+          name: d.name || 'Anonymous',
+          bloodType: d.bloodType || d.bloodGroup || '',
+          location: d.location || d.city || '',
+          distance: d.distance || 'N/A',
+          phone: d.phone || '',
+          available: d.available !== undefined ? d.available : true,
+          lastDonated: d.lastDonated || 'Never',
+          donations: d.donations || 0,
+          verified: d.verified || false,
+        }));
+        setDonors(mapped);
+      } catch (err) {
+        setError('Failed to load donors');
+        console.error('Error fetching donors:', err);
+      }
+      setLoading(false);
+    };
+    fetchDonors();
   }, []);
 
   const filteredDonors = donors.filter(donor => {
@@ -49,13 +75,46 @@ export default function BloodDonorsPage() {
     return matchesSearch && matchesBlood;
   });
 
-  const handleRequest = () => {
-    setRequestSent(true);
-    setTimeout(() => {
-      setShowRequest(false);
-      setRequestSent(false);
-      setRequestForm({ name: '', phone: '', bloodType: '', urgency: 'normal', location: '', message: '' });
-    }, 3000);
+  const handleRequest = async () => {
+    setRequestError('');
+    try {
+      const res = await fetch('/api/blood-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestForm),
+      });
+      if (!res.ok) throw new Error('Failed to send request');
+      setRequestSent(true);
+      setTimeout(() => {
+        setShowRequest(false);
+        setRequestSent(false);
+        setRequestForm({ name: '', phone: '', bloodType: '', urgency: 'normal', location: '', message: '' });
+      }, 3000);
+    } catch (err) {
+      setRequestError('Failed to send request. Please try again.');
+    }
+  };
+
+  const handleRegister = async () => {
+    setRegisterError('');
+    setRegisterLoading(true);
+    try {
+      const res = await fetch('/api/blood-donors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registerForm),
+      });
+      if (!res.ok) throw new Error('Failed to register');
+      setRegisterSent(true);
+      setTimeout(() => {
+        setShowRegister(false);
+        setRegisterSent(false);
+        setRegisterForm({ name: '', phone: '', email: '', bloodGroup: '', city: '' });
+      }, 3000);
+    } catch (err) {
+      setRegisterError('Failed to register. Please try again.');
+    }
+    setRegisterLoading(false);
   };
 
   const bloodTypeColors: Record<string, string> = {
@@ -70,7 +129,7 @@ export default function BloodDonorsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-transparent text-white">
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-red-900 via-slate-900 to-slate-900">
         <div className="absolute inset-0 opacity-20">
@@ -166,6 +225,12 @@ export default function BloodDonorsPage() {
               ))}
             </div>
             <button
+              onClick={() => setShowRegister(true)}
+              className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl font-bold flex items-center gap-2"
+            >
+              <FiUser /> Register as Donor
+            </button>
+            <button
               onClick={() => setShowRequest(true)}
               className="px-6 py-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl font-bold flex items-center gap-2"
             >
@@ -184,7 +249,20 @@ export default function BloodDonorsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading ? (
+          <div className="text-center py-16">
+            <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Finding donors near you...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <FiAlertCircle className="text-4xl text-red-500 mx-auto mb-4" />
+            <p className="text-xl font-bold text-red-400">{error}</p>
+            <button onClick={() => window.location.reload()} className="mt-4 px-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-bold">
+              Retry
+            </button>
+          </div>
+        ) : (<>
           <AnimatePresence>
             {filteredDonors.map((donor, index) => (
               <motion.div
@@ -238,16 +316,124 @@ export default function BloodDonorsPage() {
               </motion.div>
             ))}
           </AnimatePresence>
-        </div>
 
-        {filteredDonors.length === 0 && (
+        {filteredDonors.length === 0 && !loading && !error && (
           <div className="text-center py-16">
             <FiDroplet className="text-6xl text-gray-700 mx-auto mb-4" />
             <p className="text-xl font-bold">No donors found</p>
             <p className="text-gray-400">Try changing your filters or request blood</p>
           </div>
         )}
+        </>)}
       </div>
+
+      {/* Register as Donor Modal */}
+      <AnimatePresence>
+        {showRegister && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => !registerSent && setShowRegister(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 rounded-3xl border border-white/10 p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {registerSent ? (
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiCheckCircle className="text-emerald-400 text-4xl" />
+                  </div>
+                  <h3 className="text-xl font-bold">Registered!</h3>
+                  <p className="text-gray-400 mt-2">You're now registered as a blood donor</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <FiUser className="text-emerald-400" /> Register as Donor
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm text-gray-400">Full Name *</label>
+                      <input
+                        type="text"
+                        value={registerForm.name}
+                        onChange={(e) => setRegisterForm({...registerForm, name: e.target.value})}
+                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400">Phone *</label>
+                      <input
+                        type="tel"
+                        value={registerForm.phone}
+                        onChange={(e) => setRegisterForm({...registerForm, phone: e.target.value})}
+                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        placeholder="10-digit phone"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400">Email</label>
+                      <input
+                        type="email"
+                        value={registerForm.email}
+                        onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})}
+                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-gray-400">Blood Group *</label>
+                        <select
+                          value={registerForm.bloodGroup}
+                          onChange={(e) => setRegisterForm({...registerForm, bloodGroup: e.target.value})}
+                          className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        >
+                          <option value="">Select</option>
+                          {BLOOD_GROUPS.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-400">City *</label>
+                        <input
+                          type="text"
+                          value={registerForm.city}
+                          onChange={(e) => setRegisterForm({...registerForm, city: e.target.value})}
+                          className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                          placeholder="Your city"
+                        />
+                      </div>
+                    </div>
+                    {registerError && <p className="text-red-400 text-sm">{registerError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowRegister(false)}
+                        className="flex-1 py-3 bg-white/10 text-white rounded-xl font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleRegister}
+                        disabled={registerLoading || !registerForm.name || !registerForm.phone || !registerForm.bloodGroup || !registerForm.city}
+                        className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl font-bold disabled:opacity-50"
+                      >
+                        {registerLoading ? 'Registering...' : 'Register'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Request Modal */}
       <AnimatePresence>
@@ -344,6 +530,7 @@ export default function BloodDonorsPage() {
                         placeholder="Additional details..."
                       />
                     </div>
+                    {requestError && <p className="text-red-400 text-sm">{requestError}</p>}
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowRequest(false)}

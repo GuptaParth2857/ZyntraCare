@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toArray } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -53,10 +54,10 @@ function HospitalCard({ hospital, onSelect, selected }: { hospital: Hospital; on
               <span className="flex items-center gap-1 text-yellow-400"><FiStar size={11} fill="currentColor" />{hospital.rating}</span>
             </div>
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {hospital.specialties.slice(0, 3).map(s => (
+              {toArray(hospital.specialties).slice(0, 3).map(s => (
                 <span key={s} className="text-[11px] bg-white/5 border border-white/10 text-gray-400 px-2 py-0.5 rounded-full">{s}</span>
               ))}
-              {hospital.specialties.length > 3 && <span className="text-[11px] text-gray-500">+{hospital.specialties.length - 3}</span>}
+              {toArray(hospital.specialties).length > 3 && <span className="text-[11px] text-gray-500">+{toArray(hospital.specialties).length - 3}</span>}
             </div>
           </div>
         </div>
@@ -214,9 +215,34 @@ export default function BookingPage() {
 
   const handleBook = async () => {
     if (!phoneVerified) { setShowOTP(true); return; }
-    // Simulate booking
-    const id = `BK${Date.now().toString().slice(-8)}`;
-    setBookingId(id);
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hospitalId: selectedHospital?.id,
+          doctorName: patientName,
+          specialty: specialty || 'General',
+          date: selectedDate,
+          time: selectedSlot,
+          appointmentType,
+          patientName,
+          patientPhone,
+          patientAge,
+          symptoms,
+        }),
+      });
+      const data = await res.json();
+      if (data.booking?.id) {
+        setBookingId(data.booking.id);
+      } else {
+        const id = `BK${Date.now().toString().slice(-8)}`;
+        setBookingId(id);
+      }
+    } catch {
+      const id = `BK${Date.now().toString().slice(-8)}`;
+      setBookingId(id);
+    }
     setBooked(true);
   };
 

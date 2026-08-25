@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Facility {
   id: number;
   name: string;
-  type: 'hospital' | 'clinic' | 'pharmacy';
+  type: 'hospital' | 'clinic' | 'pharmacy' | 'pet_shop';
   lat: number;
   lng: number;
   distance: number;
@@ -61,6 +61,15 @@ const TYPE_CONFIG = {
     legendLabel: 'Pharmacies',
     icon: '💊',
   },
+  pet_shop: {
+    color: '#f97316',
+    bg: 'bg-orange-500',
+    border: 'border-orange-500/40',
+    glow: 'rgba(249,115,22,0.7)',
+    label: 'P',
+    legendLabel: 'Pet Shops',
+    icon: '🐾',
+  },
 };
 
 export default function LiveHealthMap({ 
@@ -87,7 +96,7 @@ export default function LiveHealthMap({
   const [selected, setSelected] = useState<Facility | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('Requesting location...');
-  const [counts, setCounts] = useState({ hospital: 0, clinic: 0, pharmacy: 0 });
+  const [counts, setCounts] = useState({ hospital: 0, clinic: 0, pharmacy: 0, pet_shop: 0 });
   const [showDirections, setShowDirections] = useState(false);
   const [directionsTarget, setDirectionsTarget] = useState<Facility | null>(propDirectionsTarget || null);
   const [showDirectionsModal, setShowDirectionsModal] = useState(false);
@@ -219,9 +228,19 @@ export default function LiveHealthMap({
     updateUserPin();
   }, [userLocation]);
 
-  // Fetch nearby facilities via Overpass API
+  // Fetch nearby facilities via Overpass API (only if no facilities prop given)
   useEffect(() => {
     if (!userLocation) return;
+    if (propFacilities && propFacilities.length > 0) {
+      setFacilities(propFacilities);
+      setCounts(prev => ({
+        ...prev,
+        pet_shop: propFacilities.filter(f => f.type === 'pet_shop').length,
+      }));
+      setStatus(`${propFacilities.length} pet shops nearby`);
+      setLoading(false);
+      return;
+    }
 
     const fetch = async () => {
       setStatus('Fetching nearby facilities...');
@@ -278,6 +297,7 @@ out center;`;
           hospital: parsed.filter(f => f.type === 'hospital').length,
           clinic: parsed.filter(f => f.type === 'clinic').length,
           pharmacy: parsed.filter(f => f.type === 'pharmacy').length,
+          pet_shop: parsed.filter(f => f.type === 'pet_shop').length,
         });
         setStatus(`Found ${parsed.length} facilities nearby`);
       } catch {
@@ -410,7 +430,7 @@ out center;`;
 
       {/* Legend */}
       <div className="absolute top-4 right-4 z-30 bg-black/75 backdrop-blur-md border border-white/10 rounded-xl px-3 py-2 space-y-1.5">
-        {(['hospital', 'clinic', 'pharmacy'] as const).map(type => (
+        {(['hospital', 'clinic', 'pharmacy', 'pet_shop'] as const).map(type => (
           <div key={type} className="flex items-center gap-2">
             <span
               className="w-3 h-3 rounded-sm flex-shrink-0"

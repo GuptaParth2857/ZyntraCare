@@ -80,10 +80,14 @@ export function useEmergencyAlerts() {
     try {
       const params = status ? `?status=${status}` : '';
       const res = await fetch(`/api/emergency${params}`);
-      const json = await res.json();
+      if (!res.ok) throw new Error('API error');
+      const text = await res.text();
+      if (!text) throw new Error('Empty response');
+      const json = JSON.parse(text);
       setAlerts(json.alerts || []);
     } catch (e) {
       console.error('Fetch alerts error:', e);
+      setAlerts([]);
     } finally {
       setLoading(false);
     }

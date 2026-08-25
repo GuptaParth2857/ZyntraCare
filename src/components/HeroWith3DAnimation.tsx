@@ -60,6 +60,7 @@ function FloatingParticles() {
           count={count}
           array={particlesPosition.current}
           itemSize={3}
+          args={[particlesPosition.current, 3]}
         />
       </bufferGeometry>
       <pointsMaterial size={0.03} color="#14b8a6" transparent opacity={0.7} />

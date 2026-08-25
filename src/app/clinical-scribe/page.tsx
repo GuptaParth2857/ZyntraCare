@@ -81,19 +81,42 @@ const INITIAL_REPORT: GeneratedReport = {
 };
 
 export default function ClinicalScribePage() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const [currentSpeaker, setCurrentSpeaker] = useState<'patient' | 'doctor'>('patient');
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>(
+    SAMPLE_CONVERSATION.map((c, i) => ({
+      id: i.toString(),
+      speaker: c.speaker as 'doctor' | 'patient' | 'ai',
+      text: c.text,
+      timestamp: new Date().toLocaleTimeString(),
+      emotion: c.emotion,
+    }))
+  );
+  const [detectedEntities, setDetectedEntities] = useState<MedicalEntity[]>(DETECTED_ENTITIES);
   const [showReport, setShowReport] = useState(false);
-  const [report, setReport] = useState<GeneratedReport | null>(null);
+  const [report, setReport] = useState<GeneratedReport>(INITIAL_REPORT);
+  const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [processingState, setProcessingState] = useState<'idle' | 'listening' | 'processing' | 'complete'>('idle');
-  const [detectedEntities, setDetectedEntities] = useState<MedicalEntity[]>([]);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [isLiveProcessing, setIsLiveProcessing] = useState(false);
-  const [useRealMic, setUseRealMic] = useState(false);
-  const transcriptRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
   const [liveText, setLiveText] = useState('');
+  const [useRealMic, setUseRealMic] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/scribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: '', speaker: 'ai' }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.transcript) setTranscript(data.transcript);
+        if (data.entities) setDetectedEntities(data.entities);
+        if (data.report) { setReport(data.report); setShowReport(true); }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   const startRealRecording = () => {
     if (typeof window === 'undefined') return;
@@ -111,7 +134,7 @@ export default function ClinicalScribePage() {
     setTranscript([]);
     setDetectedEntities([]);
     setShowReport(false);
-    setReport(null);
+    setReport(INITIAL_REPORT);
 
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.continuous = true;
@@ -241,7 +264,7 @@ export default function ClinicalScribePage() {
     setTranscript([]);
     setDetectedEntities([]);
     setShowReport(false);
-    setReport(null);
+    setReport(INITIAL_REPORT);
 
     let conversationIndex = 0;
     const conversationInterval = setInterval(() => {
@@ -263,7 +286,6 @@ export default function ClinicalScribePage() {
       };
 
       setTranscript(prev => [...prev, newEntry]);
-      setCurrentSpeaker(entry.speaker === 'patient' ? 'patient' : 'doctor');
 
       if (entry.speaker === 'doctor') {
         const newEntity: MedicalEntity | null = extractEntities(entry.text);
@@ -338,7 +360,7 @@ export default function ClinicalScribePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-6">
+    <div className="min-h-screen bg-transparent text-white p-6">
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
