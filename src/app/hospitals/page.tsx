@@ -93,8 +93,11 @@ export default function HospitalsPage() {
 
   // Sort places by selected criteria
   const sortedPlaces = useMemo(() => {
-    if (sortBy === 'beds') return filteredPlaces;
-    return filteredPlaces;
+    const sorted = [...filteredPlaces];
+    if (sortBy === 'rating') sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    else if (sortBy === 'beds') sorted.sort((a, b) => (b.totalBeds || 0) - (a.totalBeds || 0));
+    else if (sortBy === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
   }, [filteredPlaces, sortBy]);
 
   // Convert places to Hospital type for compatibility
@@ -105,11 +108,11 @@ export default function HospitalsPage() {
         name: place.name,
         address: place.address || '',
         city: place.address?.split(',')[0] || 'Unknown',
-        state: 'Delhi',
+        state: place.address?.split(',').pop()?.trim() || 'Delhi',
         phone: place.phone || '',
-        rating: 4 + Math.random(),
+        rating: place.rating || 4.2,
         specialties: place.type === 'hospital' ? ['General Medicine', 'Emergency Care'] : ['General'],
-        beds: { available: Math.floor(Math.random() * 50) + 10, total: Math.floor(Math.random() * 100) + 50 },
+        beds: { available: place.totalBeds ? Math.floor(place.totalBeds * 0.6) : 30, total: place.totalBeds || 50 },
         emergency: place.type === 'hospital',
         lat: place.lat,
         lng: place.lng,

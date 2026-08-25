@@ -270,7 +270,7 @@ export default function CampsPage() {
       if (selectedService && !camp.services.some(s => s.toLowerCase().includes(selectedService.toLowerCase()))) return false;
       return true;
     });
-  }, [selectedState, selectedService]);
+  }, [camps, selectedState, selectedService]);
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-x-hidden font-inter pb-24 text-white">

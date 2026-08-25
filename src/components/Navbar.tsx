@@ -171,8 +171,8 @@ export default function Navbar() {
                 <button className="px-3 py-2 rounded-xl font-medium text-sm text-gray-400 hover:text-white hover:bg-white/8 transition-all">
                   More ▾
                 </button>
-                <div className="absolute top-full left-0 mt-2 w-[700px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="grid grid-cols-5 gap-4">
+                <div className="absolute top-full right-0 mt-2 w-[95vw] max-w-[700px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                     <div>
                       <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2">Find Care</h4>
                       {megaMenuLinks.findCare.map(link => (

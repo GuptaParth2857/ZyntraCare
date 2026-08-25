@@ -394,7 +394,7 @@ export default function BookingPage() {
                   <label className="text-gray-300 font-semibold text-sm mb-3 flex items-center gap-2"><FiClock size={14} /> Available Slots</label>
                   <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
                     {TIME_SLOTS.map(slot => {
-                      const isBooked = Math.random() < 0.3;
+                      const isBooked = [3, 7, 11].includes(TIME_SLOTS.indexOf(slot));
                       return (
                         <button key={slot} onClick={() => !isBooked && setSelectedSlot(slot)} disabled={isBooked}
                           className={`py-2.5 px-2 rounded-xl border text-xs font-semibold transition ${isBooked ? 'opacity-30 cursor-not-allowed bg-white/5 border-white/5 text-gray-600' : selectedSlot === slot ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>

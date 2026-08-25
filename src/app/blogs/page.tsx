@@ -1,10 +1,10 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiArrowLeft, FiClock, FiSearch, FiArrowRight, FiHeart, FiTrendingUp } from 'react-icons/fi';
-import ClientOnly from '@/components/ClientOnly';
 import { AnimatedGradientText, MorphingBlob } from '@/components/PremiumAnimations';
 
 const BLOG_POSTS = [
@@ -128,6 +128,26 @@ const categoryColors: Record<string, string> = {
 };
 
 export default function BlogsPage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [visibleCount, setVisibleCount] = useState(6);
+
+  const CATEGORIES = ['All', 'Nutrition', 'Mental Health', 'Wellness', 'Fitness', 'Cardiology', 'Eye Care'];
+
+  const filteredPosts = useMemo(() => {
+    return BLOG_POSTS.filter(post => {
+      const matchesSearch = !searchQuery || 
+        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = activeCategory === 'All' || post.category === activeCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchQuery, activeCategory]);
+
+  const visiblePosts = filteredPosts.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredPosts.length;
+
   const getCardColor = (color: string) => {
     switch (color) {
       case 'emerald': return { from: 'from-emerald-500/10', to: 'to-teal-500/10', border: 'hover:border-emerald-500/30', glow: 'hover:shadow-emerald-500/10' };
@@ -226,6 +246,8 @@ export default function BlogsPage() {
                 <input
                   type="text"
                   placeholder="Search health topics, nutrition advice, mental well-being..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-14 pr-4 py-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition shadow-xl shadow-black/20"
                 />
               </div>
@@ -233,7 +255,7 @@ export default function BlogsPage() {
 
             {/* Filter Pills */}
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-              {['All', 'Nutrition', 'Mental Health', 'Wellness', 'Fitness', 'Cardiology'].map((tag, idx) => (
+              {CATEGORIES.map((tag, idx) => (
                 <motion.button
                   key={tag}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -241,7 +263,12 @@ export default function BlogsPage() {
                   transition={{ delay: 0.5 + idx * 0.05 }}
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-5 py-3 bg-white/5 backdrop-blur-xl border border-white/10 hover:border-emerald-500/40 hover:bg-emerald-500/10 rounded-xl whitespace-nowrap font-bold text-slate-300 hover:text-emerald-400 transition shadow-lg shadow-black/10"
+                  onClick={() => setActiveCategory(tag)}
+                  className={`px-5 py-3 backdrop-blur-xl border rounded-xl whitespace-nowrap font-bold transition shadow-lg shadow-black/10 ${
+                    activeCategory === tag
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      : 'bg-white/5 border-white/10 text-slate-300 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400'
+                  }`}
                 >
                   {tag}
                 </motion.button>
@@ -295,6 +322,7 @@ export default function BlogsPage() {
                   src="https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=800"
                   alt="Featured article"
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
@@ -315,8 +343,13 @@ export default function BlogsPage() {
 
         {/* Blog Grid */}
         <div className="max-w-7xl mx-auto px-4">
+          {visiblePosts.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-slate-400 text-lg">No articles found matching your search.</p>
+            </div>
+          ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {BLOG_POSTS.map((post, idx) => {
+            {visiblePosts.map((post, idx) => {
               const colors = getCardColor(post.color);
               return (
                 <motion.div
@@ -405,25 +438,29 @@ export default function BlogsPage() {
               );
             })}
           </div>
+          )}
 
           {/* Load More */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="flex justify-center mt-16"
-          >
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/10 text-white px-10 py-4 rounded-2xl font-bold transition-all shadow-xl shadow-black/20"
+          {hasMore && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="flex justify-center mt-16"
             >
-              Load More Articles
-              <motion.div animate={{ y: [0, 3, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
-                <FiArrowRight />
-              </motion.div>
-            </motion.button>
-          </motion.div>
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setVisibleCount(prev => prev + 6)}
+                className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/10 text-white px-10 py-4 rounded-2xl font-bold transition-all shadow-xl shadow-black/20"
+              >
+                Load More Articles
+                <motion.div animate={{ y: [0, 3, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                  <FiArrowRight />
+                </motion.div>
+              </motion.button>
+            </motion.div>
+          )}
 
           {/* Newsletter Section */}
           <motion.div

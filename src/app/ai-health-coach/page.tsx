@@ -43,13 +43,14 @@ export default function AIHealthCoachPage() {
   const [typing, setTyping] = useState(false);
   const [metrics] = useState<HealthMetric[]>(HEALTH_METRICS);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  const sendMessage = (overrideInput?: string) => {
+    const text = overrideInput || input;
+    if (!text.trim()) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      message: input,
+      message: text,
       timestamp: new Date().toLocaleTimeString(),
     };
     setMessages(prev => [...prev, userMsg]);
@@ -57,7 +58,7 @@ export default function AIHealthCoachPage() {
     setTyping(true);
 
     setTimeout(() => {
-      const keyword = input.toLowerCase();
+      const keyword = text.toLowerCase();
       const match = SUGGESTIONS.find(s => keyword.includes(s.keyword));
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -144,7 +145,7 @@ export default function AIHealthCoachPage() {
           {['Heart health', 'Sleep tips', 'Reduce stress', 'Exercise plan', 'Diet advice'].map(action => (
             <button
               key={action}
-              onClick={() => { setInput(action); setTimeout(sendMessage, 100); }}
+              onClick={() => sendMessage(action)}
               className="flex-shrink-0 px-3 py-1.5 bg-white/10 rounded-full text-xs font-medium"
             >
               {action}

@@ -93,7 +93,7 @@ function SpecialistsContent() {
     const spec = activeSpecialtyTab || selectedSpecialty;
     if (spec) result = result.filter(d => d.specialty === spec);
 
-    if (selectedLocation) result = result.filter(d => d.hospitalName.toLowerCase().includes(selectedLocation.toLowerCase()));
+    if (selectedLocation) result = result.filter(d => (d.city || '').toLowerCase().includes(selectedLocation.toLowerCase()));
     if (showAvailableOnly) result = result.filter(d => d.available);
 
     if (sortBy === 'rating') result.sort((a, b) => b.rating - a.rating);

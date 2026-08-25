@@ -58,22 +58,20 @@ export function useNearbyPlaces(
     setError(null);
 
     try {
-      // Overpass API query for real hospitals, clinics, pharmacies
       const query = `
-        [out:json][timeout:30];
+        [out:json][timeout:20];
         (
           node["amenity"="hospital"](around:${radius * 1000},${userLat},${userLng});
           way["amenity"="hospital"](around:${radius * 1000},${userLat},${userLng});
           node["amenity"="clinic"](around:${radius * 1000},${userLat},${userLng});
-          way["amenity"="clinic"](around:${radius * 1000},${userLat},${userLng});
-          node["shop"="chemist"](around:${radius * 1000},${userLat},${userLng});
-          way["shop"="chemist"](around:${radius * 1000},${userLat},${userLng});
           node["amenity"="pharmacy"](around:${radius * 1000},${userLat},${userLng});
-          way["amenity"="pharmacy"](around:${radius * 1000},${userLat},${userLng});
         );
         out body;
         out center;
       `;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 18000);
 
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
@@ -81,7 +79,10 @@ export function useNearbyPlaces(
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);

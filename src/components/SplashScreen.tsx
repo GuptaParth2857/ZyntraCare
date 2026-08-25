@@ -159,6 +159,7 @@ export default function SplashScreen() {
                 src="/images/publiczyntracare-logo.png" 
                 alt="ZyntraCare" 
                 fill 
+                sizes="100vw"
                 className="object-cover" 
                 priority 
               />

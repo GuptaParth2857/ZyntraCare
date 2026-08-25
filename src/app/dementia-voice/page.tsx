@@ -54,8 +54,8 @@ export default function DementiaVoicePage() {
   }, []);
 
   useEffect(() => {
-    if (!isAITyping && messages.length > 0) {
-      const autoReplyInterval = setInterval(() => {
+    if (!isAITyping && messages.length > 0 && messages.length % 2 === 1) {
+      const timer = setTimeout(() => {
         setIsAITyping(true);
         setTimeout(() => {
           setMessages(prev => [...prev, {
@@ -67,10 +67,10 @@ export default function DementiaVoicePage() {
           }]);
           setIsAITyping(false);
         }, 2000);
-      }, 45000);
-      return () => clearInterval(autoReplyInterval);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
-  }, [isAITyping, messages.length]);
+  }, [messages.length, isAITyping]);
 
   const startRecording = async () => {
     try {

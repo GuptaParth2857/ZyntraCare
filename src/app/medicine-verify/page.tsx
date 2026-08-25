@@ -21,11 +21,12 @@ export default function MedicineVerifyPage() {
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  const handleSearch = async () => {
-    if (!searchCode.trim()) return;
+  const handleSearch = async (overrideCode?: string) => {
+    const code = overrideCode || searchCode;
+    if (!code.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/medicine-verify?code=${searchCode}`);
+      const res = await fetch(`/api/medicine-verify?code=${code}`);
       const data = await res.json();
       if (data.success) {
         setResult(data.medicine);
@@ -114,7 +115,7 @@ export default function MedicineVerifyPage() {
                 key={code}
                 onClick={() => {
                   setSearchCode(code);
-                  handleSearch();
+                  handleSearch(code);
                 }}
                 className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full transition"
               >

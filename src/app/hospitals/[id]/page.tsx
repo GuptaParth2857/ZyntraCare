@@ -83,8 +83,8 @@ const specialtyIcons: Record<string, React.ReactNode> = {
     );
   }
 
-  const occupancyPercent = bedData?.beds?.occupancyPercent || Math.round((hospital.beds.occupied / hospital.beds.total) * 100);
-  const icuOccupancyPercent = bedData?.beds?.icu?.occupancyPercent || Math.round(((hospital.beds.icu - hospital.beds.icuAvailable) / hospital.beds.icu) * 100);
+  const occupancyPercent = bedData?.beds?.occupancyPercent || Math.round(((hospital.beds?.occupied || 0) / (hospital.beds?.total || 1)) * 100) || 0;
+  const icuOccupancyPercent = bedData?.beds?.icu?.occupancyPercent || Math.round((((hospital.beds?.icu || 0) - (hospital.beds?.icuAvailable || 0)) / (hospital.beds?.icu || 1)) * 100) || 0;
 
   const getOccupancyColor = (percent: number) => {
     if (percent > 80) return 'text-red-500';
@@ -125,6 +125,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
                   src={hospital.image}
                   alt={hospital.name}
                   fill
+                  sizes="(max-width: 768px) 100vw, 80vw"
                   className="object-cover"
                   onError={() => setImgError(true)}
                 />

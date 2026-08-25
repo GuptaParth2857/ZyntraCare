@@ -8,40 +8,30 @@ export async function GET(req: NextRequest) {
   const lng = parseFloat(searchParams.get('lng') || '77.2090');
   const radius = parseInt(searchParams.get('radius') || '10000'); // meters
 
-  // Extended OpenStreetMap Overpass API query for comprehensive healthcare facilities
+  // Simplified Overpass API query — fewer categories = faster response
   const overpassQuery = `
-    [out:json][timeout:60];
+    [out:json][timeout:25];
     (
       node["amenity"="hospital"](around:${radius},${lat},${lng});
       way["amenity"="hospital"](around:${radius},${lat},${lng});
-      relation["amenity"="hospital"](around:${radius},${lat},${lng});
-      
       node["amenity"="clinic"](around:${radius},${lat},${lng});
-      way["amenity"="clinic"](around:${radius},${lat},${lng});
-      relation["amenity"="clinic"](around:${radius},${lat},${lng});
-      
-      node["healthcare"="hospital"](around:${radius},${lat},${lng});
-      way["healthcare"="hospital"](around:${radius},${lat},${lng});
-      relation["healthcare"="hospital"](around:${radius},${lat},${lng});
-      
-      node["healthcare"="clinic"](around:${radius},${lat},${lng});
-      way["healthcare"="clinic"](around:${radius},${lat},${lng});
-      relation["healthcare"="clinic"](around:${radius},${lat},${lng});
-      
       node["amenity"="pharmacy"](around:${radius},${lat},${lng});
-      way["amenity"="pharmacy"](around:${radius},${lat},${lng});
-      relation["amenity"="pharmacy"](around:${radius},${lat},${lng});
     );
     out center tags;
   `;
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: overpassQuery,
       headers: { 'Content-Type': 'text/plain' },
-      next: { revalidate: 300 }, // cache 5 mins
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       // Return fallback silently instead of throwing

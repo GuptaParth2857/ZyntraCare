@@ -33,6 +33,7 @@ export default function LabBookingPage() {
   const [time, setTime] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [bookingId, setBookingId] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', fasting: false });
 
   const availableLabs = labs.filter(l => l.available);
@@ -55,11 +56,10 @@ export default function LabBookingPage() {
   };
 
   const confirmBooking = () => {
+    setBookingId(`LB-${Date.now()}`);
     setBookingConfirmed(true);
     setShowPayment(false);
   };
-
-  const bookingId = `LB-${Date.now()}`;
 
   return (
     <div className="min-h-screen bg-slate-50">

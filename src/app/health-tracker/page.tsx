@@ -36,12 +36,12 @@ const VACCINES: Vaccine[] = [
 
 export default function VaccinationPage() {
   const [goals] = useState<HealthGoal[]>([
-    { id: '1', name: 'Steps', type: 'fitness', target: '10000', current: 7234, icon: '👟', color: 'blue' },
-    { id: '2', name: 'Water', type: 'nutrition', target: '8 glasses', current: 5, icon: '💧', color: 'cyan' },
-    { id: '3', name: 'Sleep', type: 'sleep', target: '8 hours', current: 6.5, icon: '😴', color: 'purple' },
-    { id: '4', name: 'Meditation', type: 'mental', target: '15 min', current: 10, icon: '🧘', color: 'amber' },
-    { id: '5', name: 'Heart Rate', type: 'fitness', target: '<100 bpm', current: 72, icon: '❤️', color: 'red' },
-    { id: '6', name: 'Calories', type: 'nutrition', target: '2000', current: 1850, icon: '🔥', color: 'orange' },
+    { id: '1', name: 'Steps', type: 'fitness', target: '10000', current: 7234, icon: '👟', color: 'bg-blue-500' },
+    { id: '2', name: 'Water', type: 'nutrition', target: '8', current: 5, icon: '💧', color: 'bg-cyan-500' },
+    { id: '3', name: 'Sleep', type: 'sleep', target: '8', current: 6.5, icon: '😴', color: 'bg-purple-500' },
+    { id: '4', name: 'Meditation', type: 'mental', target: '15', current: 10, icon: '🧘', color: 'bg-amber-500' },
+    { id: '5', name: 'Heart Rate', type: 'fitness', target: '100', current: 72, icon: '❤️', color: 'bg-red-500' },
+    { id: '6', name: 'Calories', type: 'nutrition', target: '2000', current: 1850, icon: '🔥', color: 'bg-orange-500' },
   ]);
 
   return (
@@ -97,7 +97,7 @@ export default function VaccinationPage() {
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-2 mb-1">
                   <div
-                    className={`h-2 rounded-full bg-${goal.color}-500`}
+                    className={`h-2 rounded-full ${goal.color}`}
                     style={{ width: `${Math.min(100, (goal.current / parseInt(goal.target)) * 100)}%` }}
                   />
                 </div>

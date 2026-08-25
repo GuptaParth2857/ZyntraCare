@@ -27,36 +27,36 @@ export default function TriagePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-transparent py-12">
       <div className="max-w-2xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Emergency Priority Check</h1>
-        <p className="text-gray-600 mb-8">Describe your symptoms and we'll recommend priority level.</p>
+        <h1 className="text-3xl font-bold text-white mb-4">Emergency Priority Check</h1>
+        <p className="text-gray-400 mb-8">Describe your symptoms and we'll recommend priority level.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <textarea
             value={symptoms}
             onChange={(e) => setSymptoms(e.target.value)}
             placeholder="E.g., Chest pain, difficulty breathing, bleeding..."
-            className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-primary-500"
+            className="w-full p-4 border border-white/10 bg-white/5 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500"
             rows={4}
             required
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition disabled:opacity-50"
+            className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-500 transition disabled:opacity-50"
           >
             {loading ? 'Analyzing...' : 'Get Priority'}
           </button>
         </form>
         {priority && (
-          <div className="mt-8 p-6 bg-white rounded-xl shadow-lg">
-            <h2 className="font-bold text-xl mb-2">Recommended Priority</h2>
+          <div className="mt-8 p-6 bg-white/5 border border-white/10 rounded-xl">
+            <h2 className="font-bold text-xl mb-2 text-white">Recommended Priority</h2>
             <div className={`text-3xl font-bold ${
-              priority === 'high' ? 'text-red-600' : priority === 'medium' ? 'text-orange-500' : 'text-green-600'
+              priority === 'high' ? 'text-red-500' : priority === 'medium' ? 'text-amber-500' : 'text-emerald-500'
             }`}>
               {priority.toUpperCase()}
             </div>
-            <p className="mt-4 text-gray-600">
+            <p className="mt-4 text-gray-400">
               {priority === 'high' && 'Seek immediate medical attention. Call 102 or go to nearest emergency room.'}
               {priority === 'medium' && 'Visit a clinic or hospital within the next few hours.'}
               {priority === 'low' && 'Schedule a regular appointment with your doctor.'}

@@ -141,7 +141,7 @@ export default function WellnessPage() {
                     <div className="w-full bg-slate-100 rounded-full h-2">
                       <div
                         className="bg-amber-500 h-2 rounded-full"
-                        style={{ width: mission.progress > 0 ? '50%' : '0%' }}
+                        style={{ width: `${Math.min(100, mission.progress)}%` }}
                       />
                     </div>
                   </div>
