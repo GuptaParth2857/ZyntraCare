@@ -23,6 +23,14 @@ function PlaceCard({ place, onSelect, isSelected = false, compact = false, showM
         return { bg: 'bg-purple-500/15', border: 'border-purple-500/30', text: 'text-purple-400', icon: '🔬' };
       case 'pharmacy':
         return { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-400', icon: '💊' };
+      case 'dentist':
+        return { bg: 'bg-pink-500/15', border: 'border-pink-500/30', text: 'text-pink-400', icon: '🦷' };
+      case 'pet_clinic':
+        return { bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-400', icon: '🐾' };
+      case 'pet_shop':
+        return { bg: 'bg-amber-500/15', border: 'border-amber-500/30', text: 'text-amber-400', icon: '🐕' };
+      case 'pet_pharmacy':
+        return { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-400', icon: '💊' };
       default:
         return { bg: 'bg-gray-500/15', border: 'border-gray-500/30', text: 'text-gray-400', icon: '📍' };
     }

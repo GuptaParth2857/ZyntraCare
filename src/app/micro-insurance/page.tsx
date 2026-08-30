@@ -37,20 +37,9 @@ interface Member {
   verified: boolean;
 }
 
-const VILLAGE_POOLS: VillagePool[] = [
-  { id: 'VP-001', name: 'Rampur Gaon', state: 'UP', members: 87, poolAmount: 124200, monthlyContribution: 100, claimsPaid: 12, active: true },
-  { id: 'VP-002', name: 'Shivpuri Colony', state: 'MP', members: 156, poolAmount: 287500, monthlyContribution: 100, claimsPaid: 28, active: true },
-  { id: 'VP-003', name: 'Lakshmi Nagar', state: 'Maharashtra', members: 92, poolAmount: 156800, monthlyContribution: 100, claimsPaid: 15, active: true },
-  { id: 'VP-004', name: 'Gandhi Tola', state: 'Bihar', members: 134, poolAmount: 201500, monthlyContribution: 100, claimsPaid: 19, active: true },
-  { id: 'VP-005', name: 'Nehru Basti', state: 'Rajasthan', members: 78, poolAmount: 112400, monthlyContribution: 100, claimsPaid: 8, active: false },
-];
+const VILLAGE_POOLS: VillagePool[] = [];
 
-const RECENT_CLAIMS: Claim[] = [
-  { id: 'CLM-001', member: 'Ramesh Kumar', village: 'Rampur Gaon', reason: 'Bone Fracture', amount: 25000, status: 'approved', timestamp: '2 hours ago' },
-  { id: 'CLM-002', member: 'Sunita Devi', village: 'Shivpuri Colony', reason: 'Emergency Surgery', amount: 45000, status: 'approved', timestamp: '5 hours ago' },
-  { id: 'CLM-003', member: 'Ahmed Khan', village: 'Lakshmi Nagar', reason: 'Heart Treatment', amount: 65000, status: 'pending', timestamp: '1 day ago' },
-  { id: 'CLM-004', member: 'Priya Singh', village: 'Gandhi Tola', reason: 'Child Birth', amount: 15000, status: 'approved', timestamp: '2 days ago' },
-];
+const RECENT_CLAIMS: Claim[] = [];
 
 export default function MicroInsurancePage() {
   const [pools, setPools] = useState<VillagePool[]>(VILLAGE_POOLS);
@@ -59,21 +48,35 @@ export default function MicroInsurancePage() {
   const [walletBalance, setWalletBalance] = useState(3450);
   const [pulse, setPulse] = useState(0);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [members, setMembers] = useState<Member[]>([
-    { id: 'M-001', name: 'You (Member)', joined: 'Jan 2024', claims: 0, verified: true },
-    { id: 'M-002', name: 'Ramesh Kumar', joined: 'Jan 2024', claims: 1, verified: true },
-    { id: 'M-003', name: 'Sunita Devi', joined: 'Feb 2024', claims: 1, verified: true },
-    { id: 'M-004', name: 'Vijay Sharma', joined: 'Feb 2024', claims: 0, verified: true },
-    { id: 'M-005', name: 'Meera Patel', joined: 'Mar 2024', claims: 0, verified: true },
-  ]);
+  const [members, setMembers] = useState<Member[]>([]);
+
+  useEffect(() => {
+    const fetchPools = async () => {
+      try {
+        const res = await fetch('/api/micro-insurance');
+        const data = await res.json();
+        if (data.success && data.plans) {
+          const mapped = data.plans.map((p: any) => ({
+            id: p.id,
+            name: p.name || 'Village Pool',
+            state: p.provider || 'India',
+            members: 0,
+            poolAmount: p.coverage || 0,
+            monthlyContribution: p.premium || 0,
+            claimsPaid: 0,
+            active: p.isActive !== false,
+          }));
+          setPools(mapped);
+          if (mapped.length) setMyVillage(mapped[0]);
+        }
+      } catch {}
+    };
+    fetchPools();
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => setPulse(prev => (prev + 1) % 100), 100);
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    setMyVillage(pools[0]);
   }, []);
 
   const handleJoinVillage = () => {

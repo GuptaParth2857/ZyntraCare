@@ -293,29 +293,48 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
   const [isMobile, setIsMobile] = useState(false);
   const [bloomIntensity, setBloomIntensity] = useState(2.0);
   const [particleCount, setParticleCount] = useState(80);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+
+  // Only run the 3D canvas when the section is actually on screen.
+  // Keeps the exact same animation/feature, but stops hammering the GPU
+  // while it's off-screen — the main cause of lag on the home page.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') { setInView(true); return; }
+    const io = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { rootMargin: '200px 0px', threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Honor OS "reduce motion" by rendering a lighter static scene
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mq.matches) {
+      setBloomIntensity(0.5);
+      setParticleCount(24);
+    }
+  }, []);
 
   useEffect(() => {
     const checkDevice = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setBloomIntensity(mobile ? 1.0 : 2.0);
-      setParticleCount(mobile ? 40 : 80);
+      setBloomIntensity(mobile ? 0.8 : 1.6);
+      setParticleCount(mobile ? 32 : 70);
     };
     checkDevice();
     window.addEventListener('resize', checkDevice, { passive: true });
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (mq.matches) {
-      setBloomIntensity(0.5);
-      setParticleCount(30);
-    }
-  }, []);
-
   return (
     <div
+      ref={wrapRef}
       className="relative w-full overflow-hidden select-none group"
       style={{ height }}
     >
@@ -377,45 +396,49 @@ export default function DNAUltra3D({ height = 600 }: { height?: number }) {
         </div>
       </div>
 
-      <Suspense fallback={<Loader />}>
-        <Canvas
-          camera={{ position: [0, 0.5, 8], fov: 38 }}
-          gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8 }}
-          dpr={isMobile ? [1, 1] : [1, 1.5]}
-          onPointerDown={() => setIsInteracting(true)}
-          onPointerUp={() => setIsInteracting(false)}
-        >
-          <color attach="background" args={['#060d12']} />
+      {inView ? (
+        <Suspense fallback={<Loader />}>
+          <Canvas
+            camera={{ position: [0, 0.5, 8], fov: 38 }}
+            gl={{ antialias: true, powerPreference: 'high-performance', alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.8, stencil: false, depth: true }}
+            dpr={isMobile ? [1, 1] : [1, 1.5]}
+            onPointerDown={() => setIsInteracting(true)}
+            onPointerUp={() => setIsInteracting(false)}
+          >
+            <color attach="background" args={['#060d12']} />
 
-          <ambientLight intensity={0.5} color="#a5f3fc" />
-          <directionalLight position={[4, 8, 6]} intensity={4} color="#f0fdfa" />
-          <directionalLight position={[-4, -2, -6]} intensity={2.5} color="#67e8f9" />
-          <pointLight position={[0, 0, 5]} intensity={3} color="#22d3ee" distance={15} />
-          <pointLight position={[0, 6, 0]} intensity={2} color="#60a5fa" distance={14} />
-          <pointLight position={[0, -6, 0]} intensity={1.5} color="#22d3ee" distance={14} />
-          <pointLight position={[3, 3, 3]} intensity={1.5} color="#fbbf24" distance={10} />
+            <ambientLight intensity={0.5} color="#a5f3fc" />
+            <directionalLight position={[4, 8, 6]} intensity={4} color="#f0fdfa" />
+            <directionalLight position={[-4, -2, -6]} intensity={2.5} color="#67e8f9" />
+            <pointLight position={[0, 0, 5]} intensity={3} color="#22d3ee" distance={15} />
+            <pointLight position={[0, 6, 0]} intensity={2} color="#60a5fa" distance={14} />
+            <pointLight position={[0, -6, 0]} intensity={1.5} color="#22d3ee" distance={14} />
+            <pointLight position={[3, 3, 3]} intensity={1.5} color="#fbbf24" distance={10} />
 
-          <CinematicDNA bloomIntensity={bloomIntensity} particleCount={particleCount} />
+            <CinematicDNA bloomIntensity={bloomIntensity} particleCount={particleCount} />
 
-          <Environment preset="night" />
+            <Environment preset="night" />
 
-          <OrbitControls
-            enablePan={false}
-            enableZoom={true}
-            autoRotate
-            autoRotateSpeed={0.4}
-            dampingFactor={0.08}
-            enableDamping
-            minDistance={4}
-            maxDistance={16}
-            zoomSpeed={0.6}
-          />
+            <OrbitControls
+              enablePan={false}
+              enableZoom={true}
+              autoRotate
+              autoRotateSpeed={0.4}
+              dampingFactor={0.08}
+              enableDamping
+              minDistance={4}
+              maxDistance={16}
+              zoomSpeed={0.6}
+            />
 
           <EffectComposer>
             <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.04} intensity={2.0 * bloomIntensity} mipmapBlur />
           </EffectComposer>
         </Canvas>
-      </Suspense>
+        </Suspense>
+      ) : (
+        <Loader />
+      )}
     </div>
   );
 }

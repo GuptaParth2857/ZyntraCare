@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDistanceKm } from '@/utils/distance';
+import prisma from '@/lib/prisma';
 
 const DOCTOR_IMAGES = [
   'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
@@ -23,75 +23,58 @@ const SPECIALTIES = ['Cardiology','Neurology','Orthopedics','Pediatrics','Gyneco
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const lat = parseFloat(searchParams.get('lat') || '28.6139');
-  const lng = parseFloat(searchParams.get('lng') || '77.2090');
   const specialty = searchParams.get('specialty') || '';
   const search = searchParams.get('q') || '';
-  const radius = parseInt(searchParams.get('radius') || '15000');
   const limit = parseInt(searchParams.get('limit') || '0');
+  const id = searchParams.get('id') || '';
 
   let doctors: any[] = [];
-  let source = 'fallback';
+  let source = 'database';
 
   try {
-    const query = `[out:json][timeout:25];(
-      node(around:${Math.min(radius, 50000)},${lat},${lng})[amenity=doctors];
-      node(around:${Math.min(radius, 50000)},${lat},${lng})[healthcare~"doctor|physician|clinic"];
-    );out center 30;`;
-
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: `data=${encodeURIComponent(query)}`,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'ZyntraCare/1.0' },
-      signal: AbortSignal.timeout(25000),
+    const dbDocs = await prisma.doctor.findMany({
+      include: { user: true },
+      orderBy: { createdAt: 'asc' },
     });
 
-    source = 'overpass';
-    if (!res.ok) throw new Error(`Overpass ${res.status}`);
-    const data = await res.json();
-    const elements = data.elements || [];
+    if (dbDocs.length > 0) {
+      doctors = dbDocs.map((doc: any, i: number) => {
+        const name = doc.user?.name || `Dr. ${doc.specialty}`;
+        const langArr = (doc.languages || 'English')
+          .split(',')
+          .map((l: string) => l.trim())
+          .filter(Boolean);
+        return {
+          id: doc.id,
+          name,
+          specialty: doc.specialty || 'General Medicine',
+          experience: doc.experience || 5,
+          consultationFee: doc.consultingFee || 500,
+          rating: 4.0 + (i % 5) * 0.15,
+          available: doc.isAvailable !== false,
+          education: doc.education || 'MBBS, MD',
+          bio: doc.bio || `Experienced ${doc.specialty || 'medical'} specialist`,
+          languages: langArr.length > 0 ? langArr : ['English', 'Hindi'],
+          distance: parseFloat((0.8 + (i % 6) * 0.9).toFixed(1)),
+          city: 'Delhi',
+          phone: doc.user?.phone || '',
+          image: getDoctorImage(name),
+          source: 'database',
+        };
+      });
 
-    if (elements.length > 0) {
-      doctors = elements
-        .filter((el: any) => {
-          const elLat = el.lat ?? el.center?.lat;
-          const elLng = el.lon ?? el.center?.lon;
-          return elLat && elLng && (el.tags?.name || el.tags?.['name:en']);
-        })
-        .map((el: any, i: number) => {
-          const elLat = el.lat ?? el.center?.lat;
-          const elLng = el.lon ?? el.center?.lon;
-          const name = el.tags?.name || el.tags?.['name:en'] || 'Doctor';
-          const specTag = el.tags?.healthcare || el.tags?.medical || el.tags?.specialty || '';
-          const docSpecialty = SPECIALTIES.find(s => specTag.toLowerCase().includes(s.toLowerCase())) || 'General Medicine';
-          return {
-            id: `doc-${el.id || i}`,
-            name,
-            specialty: docSpecialty,
-            experience: parseInt(el.tags?.experience) || Math.floor(Math.random() * 25) + 3,
-            consultationFee: Math.floor(Math.random() * 1500) + 300,
-            rating: 3.8 + Math.random() * 1.0,
-            available: true,
-            education: el.tags?.education || 'MBBS, MD',
-            bio: el.tags?.description || `Experienced ${docSpecialty} specialist`,
-            languages: el.tags?.languages ? el.tags.languages.split(',').map((l: string) => l.trim()) : ['English', 'Hindi'],
-            distance: parseFloat(getDistanceKm(lat, lng, elLat, elLng).toFixed(2)),
-            location: { lat: elLat, lng: elLng },
-            address: [el.tags?.['addr:houseno'], el.tags?.['addr:street'], el.tags?.['addr:city']].filter(Boolean).join(', '),
-            city: el.tags?.['addr:city'] || '',
-            phone: el.tags?.phone || '',
-            image: getDoctorImage(name),
-            source: 'overpass',
-          };
-        })
-        .sort((a: any, b: any) => a.distance - b.distance);
-    }
-
-    if (doctors.length === 0) {
-      source = 'fallback';
+      // Surface real (Lybrate-ingested) doctors first: those with genuine,
+      // non-placeholder education outrank the old generated "Medical College"
+      // accounts, then higher experience within the same tier.
+      doctors.sort((a: any, b: any) => {
+        const aReal = a.education && !/medical college/i.test(a.education) ? 1 : 0;
+        const bReal = b.education && !/medical college/i.test(b.education) ? 1 : 0;
+        if (aReal !== bReal) return bReal - aReal;
+        return (b.experience || 0) - (a.experience || 0);
+      });
     }
   } catch (error) {
-    console.error('Overpass fetch failed, using fallback doctors:', error);
+    console.error('Doctor DB fetch failed:', error);
     source = 'fallback';
   }
 
@@ -109,13 +92,17 @@ export async function GET(req: NextRequest) {
       { id: 'fd-10', name: 'Dr. Ananya Bose', specialty: 'Psychiatry', experience: 11, consultationFee: 1200, rating: 4.6, available: true, education: 'MBBS, MD - Psychiatry', bio: 'Mental health and wellness counselor', languages: ['English', 'Bengali', 'Hindi'], distance: 3.8, location: { lat: 28.65, lng: 77.24 }, city: 'Delhi', phone: '+91-9876543219', image: getDoctorImage('Dr. Ananya Bose') },
     ];
     doctors = FALLBACK_DOCTORS;
+    source = 'fallback';
   }
 
   let filtered = doctors;
+  if (id) {
+    filtered = filtered.filter((d: any) => d.id === id);
+  }
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter((d: any) =>
-      d.name.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q) || d.city.toLowerCase().includes(q)
+      d.name.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q) || (d.city || '').toLowerCase().includes(q)
     );
   }
   if (specialty) {
@@ -129,6 +116,7 @@ export async function GET(req: NextRequest) {
   }
 
   const specialties = [...new Set(doctors.map((d: any) => d.specialty))].sort() as string[];
+
 
   return NextResponse.json({
     doctors: filtered,

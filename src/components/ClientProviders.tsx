@@ -140,7 +140,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider basePath="/api/auth" refetchInterval={0} refetchOnWindowFocus={false}>
+    <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
       <LanguageProvider>
         <NotificationProvider>
           <SelfHealingSystem>

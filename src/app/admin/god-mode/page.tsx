@@ -27,35 +27,15 @@ interface HealthMetric {
   color: string;
 }
 
-const INDIA_CITIES = [
-  { name: 'Mumbai', lat: 19.076, lng: 72.877, size: 1.2 },
-  { name: 'Delhi', lat: 28.613, lng: 77.209, size: 1.1 },
-  { name: 'Bangalore', lat: 12.971, lng: 77.594, size: 1.0 },
-  { name: 'Chennai', lat: 13.082, lng: 80.271, size: 0.9 },
-  { name: 'Kolkata', lat: 22.573, lng: 88.363, size: 0.85 },
-  { name: 'Hyderabad', lat: 17.375, lng: 78.474, size: 0.9 },
-  { name: 'Pune', lat: 18.520, lng: 73.856, size: 0.8 },
-  { name: 'Ahmedabad', lat: 23.030, lng: 72.580, size: 0.75 },
-  { name: 'Jaipur', lat: 26.912, lng: 75.787, size: 0.7 },
-  { name: 'Lucknow', lat: 26.846, lng: 80.946, size: 0.65 },
-  { name: 'Kanpur', lat: 26.449, lng: 80.332, size: 0.6 },
-  { name: 'Nagpur', lat: 21.146, lng: 79.084, size: 0.55 },
-  { name: 'Indore', lat: 22.719, lng: 75.858, size: 0.5 },
-  { name: 'Coimbatore', lat: 11.017, lng: 76.955, size: 0.5 },
-];
+interface City {
+  name: string;
+  lat: number;
+  lng: number;
+  size: number;
+}
 
-const ALERT_TYPES = ['Heart Attack SOS', 'Stroke Alert', 'Dengue Outbreak', 'Blood Shortage', 'Drone Dispatch', 'Organ Match Found'];
-const MESSAGES = [
-  'Emergency SOS received - ETA 8 mins',
-  'Critical condition detected - Drone dispatched',
-  'Outbreak pattern identified - Alert sent',
-  'Blood unit matched - Hospital notified',
-  'Drone delivering medicine - Live tracking',
-  'Organ match confirmed - All parties alerted'
-];
-
-function generateLiveAlert(): LiveAlert {
-  const city = INDIA_CITIES[Math.floor(Math.random() * INDIA_CITIES.length)];
+function generateLiveAlert(cities: City[], messages: string[]): LiveAlert {
+  const city = cities[Math.floor(Math.random() * cities.length)];
   const types: LiveAlert['type'][] = ['emergency', 'critical', 'warning', 'success'];
   return {
     id: `ALT-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -63,7 +43,7 @@ function generateLiveAlert(): LiveAlert {
     city: city.name,
     lat: city.lat + (Math.random() - 0.5) * 2,
     lng: city.lng + (Math.random() - 0.5) * 2,
-    message: MESSAGES[Math.floor(Math.random() * MESSAGES.length)],
+    message: messages[Math.floor(Math.random() * messages.length)],
     time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
     priority: Math.floor(Math.random() * 10) + 1
   };
@@ -79,22 +59,16 @@ export default function GodModePage() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [systemPulse, setSystemPulse] = useState(0);
   const [liveFeed, setLiveFeed] = useState<string[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [messages, setMessages] = useState<string[]>([]);
+  const [feedMessages, setFeedMessages] = useState<string[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const initialAlerts = Array.from({ length: 12 }, generateLiveAlert);
-    setAlerts(initialAlerts);
+    let alertInterval: NodeJS.Timeout;
+    let pulseInterval: NodeJS.Timeout;
 
-    setHealthMetrics([
-      { label: 'Active Users', value: activeConnections, change: 12.5, icon: <FiUsers />, color: 'text-blue-400' },
-      { label: 'Drones Active', value: droneCount, change: 8.3, icon: <FiZap />, color: 'text-cyan-400' },
-      { label: 'Emergencies', value: activeEmergencies, change: -15.2, icon: <FiAlertTriangle />, color: 'text-red-400' },
-      { label: 'Health Records', value: totalRecords, change: 24.7, icon: <FiDatabase />, color: 'text-green-400' },
-      { label: 'Response Time', value: 4.2, change: -22.1, icon: <FiClock />, color: 'text-amber-400' },
-      { label: 'System Uptime', value: 99.97, change: 0.01, icon: <FiActivity />, color: 'text-emerald-400' },
-    ]);
-
-    const feedMessages = [
+    const feedBase = [
       '🔴 Mumbai: Emergency SOS detected - Heart rate 180bpm',
       '🚁 Drone #447 dispatched from Mumbai Hub',
       '🏥 Fortis Hospital bed availability confirmed',
@@ -106,31 +80,62 @@ export default function GodModePage() {
       '🔗 Organ match found - Blood Type O negative',
       '👁️ Accessibility mode activated via eye tracking',
     ];
-    setLiveFeed(feedMessages.slice(0, 5));
+    setFeedMessages(feedBase);
+    setLiveFeed(feedBase.slice(0, 5));
 
-    const alertInterval = setInterval(() => {
-      const newAlert = generateLiveAlert();
-      setAlerts(prev => [newAlert, ...prev.slice(0, 49)]);
-      setActiveConnections(prev => prev + Math.floor(Math.random() * 5));
-      setDroneCount(prev => prev + (Math.random() > 0.7 ? 1 : Math.random() > 0.5 ? -1 : 0));
-      setActiveEmergencies(prev => Math.max(0, prev + (Math.random() > 0.6 ? -1 : 1)));
-      setTotalRecords(prev => prev + Math.floor(Math.random() * 100));
+    setHealthMetrics([
+      { label: 'Active Users', value: activeConnections, change: 12.5, icon: <FiUsers />, color: 'text-blue-400' },
+      { label: 'Drones Active', value: droneCount, change: 8.3, icon: <FiZap />, color: 'text-cyan-400' },
+      { label: 'Emergencies', value: activeEmergencies, change: -15.2, icon: <FiAlertTriangle />, color: 'text-red-400' },
+      { label: 'Health Records', value: totalRecords, change: 24.7, icon: <FiDatabase />, color: 'text-green-400' },
+      { label: 'Response Time', value: 4.2, change: -22.1, icon: <FiClock />, color: 'text-amber-400' },
+      { label: 'System Uptime', value: 99.97, change: 0.01, icon: <FiActivity />, color: 'text-emerald-400' },
+    ]);
 
-      if (Math.random() > 0.6) {
-        setLiveFeed(prev => [
-          `${feedMessages[Math.floor(Math.random() * feedMessages.length)]} [${new Date().toLocaleTimeString()}]`,
-          ...prev.slice(0, 9)
-        ]);
-      }
-    }, 3000);
+    let citiesData: City[] = [];
+    let messagesData: string[] = [];
+    let feedData = feedBase;
 
-    const pulseInterval = setInterval(() => {
-      setSystemPulse(prev => (prev + 1) % 100);
-    }, 100);
+    fetch('/api/admin/config')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('failed'))))
+      .then((data) => {
+        citiesData = data.cities || [];
+        messagesData = data.messages || [];
+        setCities(citiesData);
+        setMessages(messagesData);
+        feedData = data.alertTypes?.length ? data.alertTypes : feedBase;
+        setFeedMessages(feedData);
+      })
+      .catch(() => {
+        setFeedMessages(feedBase);
+      })
+      .finally(() => {
+        setAlerts(Array.from({ length: 12 }, () => generateLiveAlert(citiesData, messagesData)));
+
+        alertInterval = setInterval(() => {
+          const newAlert = generateLiveAlert(citiesData, messagesData);
+          setAlerts(prev => [newAlert, ...prev.slice(0, 49)]);
+          setActiveConnections(prev => prev + Math.floor(Math.random() * 5));
+          setDroneCount(prev => prev + (Math.random() > 0.7 ? 1 : Math.random() > 0.5 ? -1 : 0));
+          setActiveEmergencies(prev => Math.max(0, prev + (Math.random() > 0.6 ? -1 : 1)));
+          setTotalRecords(prev => prev + Math.floor(Math.random() * 100));
+
+          if (Math.random() > 0.6) {
+            setLiveFeed(prev => [
+              `${feedData[Math.floor(Math.random() * feedData.length)]} [${new Date().toLocaleTimeString()}]`,
+              ...prev.slice(0, 9)
+            ]);
+          }
+        }, 3000);
+
+        pulseInterval = setInterval(() => {
+          setSystemPulse(prev => (prev + 1) % 100);
+        }, 100);
+      });
 
     return () => {
-      clearInterval(alertInterval);
-      clearInterval(pulseInterval);
+      if (alertInterval) clearInterval(alertInterval);
+      if (pulseInterval) clearInterval(pulseInterval);
     };
   }, []);
 
@@ -161,7 +166,7 @@ export default function GodModePage() {
       const scaleX = canvas.width / 40;
       const scaleY = canvas.height / 30;
 
-      INDIA_CITIES.forEach((city) => {
+      cities.forEach((city) => {
         const x = centerX + (city.lng - 78) * scaleX;
         const y = centerY - (city.lat - 22) * scaleY;
         const size = city.size * 8 + Math.sin(systemPulse / 10 + city.lat) * 2;
@@ -211,7 +216,7 @@ export default function GodModePage() {
     };
 
     drawMap();
-  }, [systemPulse, selectedCity, alerts]);
+  }, [systemPulse, selectedCity, alerts, cities]);
 
   const getAlertColor = (type: LiveAlert['type']) => {
     const colors = {
@@ -304,7 +309,7 @@ export default function GodModePage() {
               const centerX = rect.width / 2;
               const scaleX = rect.width / 40;
               
-              const city = INDIA_CITIES.find((c) => {
+              const city = cities.find((c) => {
                 const cityX = centerX + (c.lng - 78) * scaleX;
                 return Math.abs(cityX - x) < 30;
               });

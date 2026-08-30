@@ -65,6 +65,15 @@ model User {
   sentMeshMessages  MeshMessage[]
   voiceReminders    VoiceReminder[]
   communityPosts    CommunityPost[]
+  healthTimelineEvents HealthTimelineEvent[]
+  medicalID        MedicalID?
+  appointmentReminders AppointmentReminder[]
+  insuranceClaims  InsuranceClaim[]
+  challengeParticipations ChallengeParticipation[]
+  mentalHealthEntries MentalHealthEntry[]
+  mealPlans         MealPlan[]
+  pillDispensers    PillDispenser[]
+  doctorReviews     DoctorReview[]
 }
 
 model OtpToken {
@@ -814,6 +823,30 @@ model Pharmacy {
   @@index([state])
 }
 
+// ─── NEARBY PLACES (Overture Maps, real POIs) ────────────────
+// Read-only reference data ingested from the Overture Maps "places" theme.
+// Kept separate from admin-managed Hospital/Lab/Pharmacy records so
+// third-party bulk data never pollutes verified records.
+model NearbyPlace {
+  id         String   @id @default(cuid())
+  name       String
+  type       String // hospital | clinic | pharmacy | lab | dentist | pet_clinic | pet_shop
+  address    String   @default("")
+  city       String   @default("")
+  state      String   @default("")
+  pincode    String   @default("")
+  phone      String   @default("")
+  lat        Float
+  lng        Float
+  categories String   @default("") // Overture category keys, JSON array
+  source     String   @default("overture")
+  createdAt  DateTime @default(now())
+
+  @@index([lat, lng])
+  @@index([type])
+  @@index([city])
+}
+
 // ─── BLOGS ──────────────────────────────────────────────────
 
 model Blog {
@@ -1179,4 +1212,330 @@ model MedicineSupply {
   notes             String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+}
+
+// ─── HEALTH TIMELINE ────────────────────────────────────
+
+model HealthTimelineEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String   @default("")
+  category    String   // visit | report | vaccination | surgery | diagnosis | medication | lab
+  date        String
+  hospital    String   @default("")
+  doctor      String   @default("")
+  attachments String   @default("[]") // JSON array
+  metadata    String   @default("{}") // JSON for extra data
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+}
+
+// ─── HOSPITAL QUEUE ────────────────────────────────────
+
+model QueueEntry {
+  id          String   @id @default(cuid())
+  hospitalId  String
+  userId      String?
+  patientName String
+  department  String
+  queueNumber Int
+  status      String   @default("waiting") // waiting | in_progress | completed | cancelled
+  priority    String   @default("normal") // normal | urgent | emergency
+  estimatedWait Int    @default(15)
+  actualWait  Int?
+  joinedAt    DateTime @default(now())
+  servedAt    DateTime?
+  completedAt DateTime?
+
+  @@index([hospitalId])
+  @@index([status])
+}
+
+// ─── MEDICAL ID ────────────────────────────────────────
+
+model MedicalID {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  bloodGroup        String   @default("")
+  allergies         String   @default("") // comma-separated
+  conditions        String   @default("") // comma-separated
+  medications       String   @default("") // comma-separated
+  emergencyContact1 String   @default("")
+  emergencyPhone1   String   @default("")
+  emergencyContact2 String   @default("")
+  emergencyPhone2   String   @default("")
+  organDonor        Boolean  @default(false)
+  insuranceProvider String   @default("")
+  insuranceNumber   String   @default("")
+  notes             String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── APPOINTMENT REMINDERS ──────────────────────────────
+
+model AppointmentReminder {
+  id          String   @id @default(cuid())
+  userId      String
+  appointmentId String?
+  title       String
+  dateTime    String
+  location    String   @default("")
+  reminderBefore Int  @default(60) // minutes
+  type        String   @default("appointment") // appointment | medication | lab | followup
+  notes       String   @default("")
+  isRead      Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([dateTime])
+}
+
+// ─── INSURANCE CLAIMS ──────────────────────────────────
+
+model InsuranceClaim {
+  id              String   @id @default(cuid())
+  userId          String
+  policyId        String?
+  hospitalName    String
+  treatmentType   String
+  claimAmount     Float
+  approvedAmount  Float?
+  status          String   @default("submitted") // submitted | processing | approved | rejected | paid
+  documents       String   @default("[]") // JSON array of document URLs
+  diagnosis       String   @default("")
+  treatmentDate   String
+  claimNumber     String   @default("")
+  notes           String   @default("")
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ─── HEALTH CHALLENGES ─────────────────────────────────
+
+model HealthChallenge {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String   // fitness | nutrition | mental | sleep | hydration
+  duration    Int      // days
+  targetValue Float
+  unit        String
+  points      Int      @default(100)
+  icon        String   @default("")
+  isActive    Boolean  @default(true)
+  startDate   String
+  endDate     String
+  createdAt   DateTime @default(now())
+
+  participations ChallengeParticipation[]
+}
+
+model ChallengeParticipation {
+  id          String   @id @default(cuid())
+  challengeId String
+  userId      String
+  progress    Float    @default(0)
+  completed   Boolean  @default(false)
+  rank        Int?
+  joinedAt    DateTime @default(now())
+  completedAt DateTime?
+
+  challenge HealthChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([userId])
+}
+
+// ─── DOCTOR REVIEWS ────────────────────────────────────
+
+model DoctorReview {
+  id          String   @id @default(cuid())
+  doctorId    String
+  userId      String?
+  userName    String   @default("Anonymous")
+  rating      Int      // 1-5
+  title       String   @default("")
+  comment     String
+  visitType   String   @default("in_person") // in_person | online
+  wouldRecommend Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([doctorId])
+  @@index([rating])
+}
+
+// ─── CLINICAL TRIALS ───────────────────────────────────
+
+model ClinicalTrial {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  phase        String   // Phase 1 | Phase 2 | Phase 3 | Phase 4
+  condition    String
+  intervention String
+  sponsor      String
+  location     String
+  ageRange     String   @default("")
+  eligibility  String   // JSON array of criteria
+  status       String   @default("recruiting") // recruiting | active | completed | suspended
+  startDate    String
+  endDate      String?
+  contactEmail String   @default("")
+  contactPhone String   @default("")
+  url          String   @default("")
+  createdAt    DateTime @default(now())
+
+  @@index([condition])
+  @@index([status])
+}
+
+// ─── PILL DISPENSER ────────────────────────────────────
+
+model PillDispenser {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceName  String
+  deviceCode  String   @default("")
+  status      String   @default("online") // online | offline | low_battery | error
+  batteryLevel Int     @default(100)
+  compartments String  @default("[]") // JSON array of compartment configs
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedules   PillSchedule[]
+  dispenseLogs DispenseLog[]
+  alerts      DispenserAlert[]
+
+  @@index([userId])
+}
+
+model PillSchedule {
+  id            String   @id @default(cuid())
+  dispenserId   String
+  medicineName  String
+  dosage        String
+  compartment   Int
+  times         String   // JSON array ["08:00","20:00"]
+  daysOfWeek    String   @default("[1,2,3,4,5,6,7]") // JSON array
+  isActive      Boolean  @default(true)
+  startDate     String
+  endDate       String?
+  createdAt     DateTime @default(now())
+
+  dispenser PillDispenser @relation(fields: [dispenserId], references: [id], onDelete: Cascade)
+
+  @@index([dispenserId])
+}
+
+model DispenseLog {
+  id          String   @id @default(cuid())
+  dispenserId String
+  medicine    String
+  dosage      String
+  compartment Int
+  status      String   // dispensed | missed | skipped | error
+  dispensedAt DateTime @default(now())
+
+  dispenser PillDispenser @relation(fields: [dispenserId], references: [id], onDelete: Cascade)
+
+  @@index([dispenserId])
+}
+
+model DispenserAlert {
+  id          String   @id @default(cuid())
+  dispenserId String
+  type        String   // low_supply | malfunction | battery_low | missed_dose
+  message     String
+  severity    String   @default("info") // info | warning | critical
+  acknowledged Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  dispenser PillDispenser @relation(fields: [dispenserId], references: [id], onDelete: Cascade)
+
+  @@index([dispenserId])
+}
+
+// ─── MEAL PLANS ────────────────────────────────────────
+
+model MealPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  weekStart   String
+  days        String   // JSON object with 7 days of meals
+  totalCalories Float  @default(0)
+  totalProtein Float  @default(0)
+  totalCarbs  Float   @default(0)
+  totalFat    Float   @default(0)
+  dietType    String   @default("balanced") // balanced | vegetarian | vegan | keto | paleo
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── MENTAL HEALTH ─────────────────────────────────────
+
+model MentalHealthEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  date        String
+  mood        Int      // 1-10
+  anxiety     Int      @default(0) // 0-10
+  sleepHours  Float?
+  sleepQuality Int?    // 1-5
+  stressLevel Int      @default(0) // 0-10
+  notes       String   @default("")
+  activities  String   @default("[]") // JSON array
+  screeningType String @default("") // PHQ-9 | GAD-7
+  screeningScore Int?
+  screeningAnswers String @default("[]") // JSON
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+}
+
+// ─── MEDICINE INTERACTIONS (Knowledge Base) ─────────────
+
+model MedicineInteraction {
+  id          String   @id @default(cuid())
+  medicine1   String
+  medicine2   String
+  severity    String   // mild | moderate | severe | critical
+  description String
+  recommendation String
+  createdAt   DateTime @default(now())
+
+  @@index([medicine1])
+  @@index([medicine2])
+  @@unique([medicine1, medicine2])
 }

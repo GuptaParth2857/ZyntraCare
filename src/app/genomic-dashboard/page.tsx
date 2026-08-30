@@ -38,34 +38,6 @@ interface HealthRisk {
   genes: string[];
 }
 
-const defaultGeneVariants: GeneVariant[] = [
-  { gene: 'CYP2C9', variant: '*2', genotype: 'AA', phenotype: 'Normal Metabolizer', effect: 'normal', drugResponse: 'Warfarin: Normal sensitivity', recommendation: 'Standard dosing' },
-  { gene: 'CYP2C19', variant: '*2', genotype: 'AA', phenotype: 'Normal Metabolizer', effect: 'normal', drugResponse: 'Clopidogrel: Normal activation', recommendation: 'Standard dosing' },
-  { gene: 'CYP2D6', variant: '*10', genotype: 'CT', phenotype: 'Intermediate Metabolizer', effect: 'reduced', drugResponse: 'Codeine: Reduced conversion to morphine', recommendation: 'Use alternative pain reliever' },
-  { gene: 'SLCO1B1', variant: '521T>C', genotype: 'TT', phenotype: 'Normal Function', effect: 'normal', drugResponse: 'Statins: Normal risk', recommendation: 'Standard statin therapy' },
-  { gene: 'VKORC1', variant: '-1639G>A', genotype: 'GG', phenotype: 'Normal Expression', effect: 'normal', drugResponse: 'Warfarin: Standard sensitivity', recommendation: 'Standard dosing' },
-  { gene: 'TPMT', variant: '*3A', genotype: 'GG', phenotype: 'Normal Activity', effect: 'normal', drugResponse: 'Thiopurines: Normal metabolism', recommendation: 'Standard dosing' },
-  { gene: 'DPYD', variant: '*2A', genotype: 'AA', phenotype: 'Normal Function', effect: 'normal', drugResponse: 'Fluoropyrimidines: Normal metabolism', recommendation: 'Standard dosing' },
-  { gene: 'ABCB1', variant: '3435C>T', genotype: 'CC', phenotype: 'Normal Transport', effect: 'normal', drugResponse: 'P-gp substrates: Normal transport', recommendation: 'Standard dosing' },
-];
-
-const defaultDrugRecommendations: DrugRecommendation[] = [
-  { drug: 'Paracetamol', category: 'Pain/Fever', suitability: 'optimal', reason: 'Safe for CYP2D6 intermediate metabolizers', dosage: '500-1000mg every 6 hours' },
-  { drug: 'Ibuprofen', category: 'Pain/Anti-inflammatory', suitability: 'optimal', reason: 'No known gene-drug interactions', dosage: '400mg every 6-8 hours' },
-  { drug: 'Codeine', category: 'Pain', suitability: 'avoid', reason: 'Reduced conversion to active morphine - ineffective', dosage: 'Not recommended' },
-  { drug: 'Metoprolol', category: 'Beta-blocker', suitability: 'acceptable', reason: 'Slightly increased sensitivity', dosage: 'Start with half dose' },
-  { drug: 'Simvastatin', category: 'Statin', suitability: 'optimal', reason: 'Normal SLCO1B1 function - low myopathy risk', dosage: '20-40mg daily' },
-  { drug: 'Warfarin', category: 'Anticoagulant', suitability: 'acceptable', reason: 'Requires careful INR monitoring', dosage: 'Initial 2-5mg, adjust per INR' },
-];
-
-const defaultHealthRisks: HealthRisk[] = [
-  { condition: 'Type 2 Diabetes', risk: 'moderate', score: 35, genes: ['TCF7L2', 'PPARG', 'KCNJ11'] },
-  { condition: 'Cardiovascular Disease', risk: 'low', score: 22, genes: ['9p21', 'APOE', 'LDLR'] },
-  { condition: 'Breast Cancer', risk: 'low', score: 18, genes: ['BRCA1', 'BRCA2', 'PALB2'] },
-  { condition: 'Thrombosis Risk', risk: 'low', score: 12, genes: ['F2', 'F5', 'MTHFR'] },
-  { condition: 'Alzheimers Risk', risk: 'moderate', score: 42, genes: ['APOE', 'TREM2', 'CLU'] },
-];
-
 export default function GenomicDashboardPage() {
   const [geneVariants, setGeneVariants] = useState<GeneVariant[]>([]);
   const [drugRecommendations, setDrugRecommendations] = useState<DrugRecommendation[]>([]);
@@ -80,23 +52,31 @@ export default function GenomicDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/genomic-data');
+        const res = await fetch('/api/genomic-data?userId=demo-user');
         if (res.ok) {
           const data = await res.json();
-          setGeneVariants(data.geneVariants || defaultGeneVariants);
-          setDrugRecommendations(data.drugRecommendations || defaultDrugRecommendations);
-          setHealthRisks(data.healthRisks || defaultHealthRisks);
+          const genomic = data.genomicData;
+          if (genomic && genomic.data) {
+            const parsed = typeof genomic.data === 'string' ? JSON.parse(genomic.data) : genomic.data;
+            setGeneVariants(parsed.geneVariants || []);
+            setDrugRecommendations(parsed.drugRecommendations || []);
+            setHealthRisks(parsed.healthRisks || []);
+          } else {
+            setGeneVariants([]);
+            setDrugRecommendations([]);
+            setHealthRisks([]);
+          }
         } else {
-          setGeneVariants(defaultGeneVariants);
-          setDrugRecommendations(defaultDrugRecommendations);
-          setHealthRisks(defaultHealthRisks);
+          setGeneVariants([]);
+          setDrugRecommendations([]);
+          setHealthRisks([]);
         }
       } catch (err) {
         setError('Failed to load genomic data');
         console.error(err);
-        setGeneVariants(defaultGeneVariants);
-        setDrugRecommendations(defaultDrugRecommendations);
-        setHealthRisks(defaultHealthRisks);
+        setGeneVariants([]);
+        setDrugRecommendations([]);
+        setHealthRisks([]);
       }
       setLoading(false);
     };
@@ -134,6 +114,17 @@ export default function GenomicDashboardPage() {
     { key: 'risks' as const, label: 'Health Risks', icon: <FiActivity size={16} /> },
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+          <p className="text-cyan-400 font-bold tracking-widest uppercase text-sm">Loading Genomic Data</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-transparent text-white relative overflow-hidden">
       <div className="relative z-10">
@@ -154,12 +145,24 @@ export default function GenomicDashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/25 flex items-center gap-2 shadow-lg shadow-green-500/5">
+              <div className={`px-3 py-2 rounded-xl flex items-center gap-2 shadow-lg ${
+                geneVariants.length > 0
+                  ? 'bg-green-500/10 border border-green-500/25 shadow-green-500/5'
+                  : 'bg-amber-500/10 border border-amber-500/25 shadow-amber-500/5'
+              }`}>
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    geneVariants.length > 0 ? 'bg-green-400' : 'bg-amber-400'
+                  }`} />
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                    geneVariants.length > 0 ? 'bg-green-500' : 'bg-amber-500'
+                  }`} />
                 </span>
-                <span className="text-green-300 text-sm font-medium">Profile Loaded</span>
+                <span className={`text-sm font-medium ${
+                  geneVariants.length > 0 ? 'text-green-300' : 'text-amber-300'
+                }`}>
+                  {geneVariants.length > 0 ? 'Profile Loaded' : 'No Data Yet'}
+                </span>
               </div>
               <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-cyan-500/20">
                 <FiUpload size={14} />
@@ -169,6 +172,25 @@ export default function GenomicDashboardPage() {
           </div>
         </motion.div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/25 rounded-xl text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+
+        {geneVariants.length === 0 && drugRecommendations.length === 0 && healthRisks.length === 0 && !error && (
+          <div className="text-center py-20 bg-white/[0.02] rounded-3xl border border-white/[0.06] mb-8">
+            <FiGitMerge size={48} className="mx-auto text-slate-600 mb-4" />
+            <p className="text-slate-400 text-lg font-medium">No genomic data available</p>
+            <p className="text-slate-600 text-sm mt-2 mb-6">Upload your DNA data to see personalized drug recommendations and health risks</p>
+            <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-xl font-bold transition-all flex items-center gap-2 mx-auto">
+              <FiUpload size={16} />
+              Upload DNA Data
+            </button>
+          </div>
+        )}
+
+        {(geneVariants.length > 0 || drugRecommendations.length > 0 || healthRisks.length > 0) && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
             <motion.div
@@ -384,9 +406,9 @@ export default function GenomicDashboardPage() {
               <div className="space-y-3.5">
                 {[
                   { label: 'Metabolizer Status', value: 'Intermediate', color: 'text-amber-400' },
-                  { label: 'Genes Tested', value: '8', color: 'text-white font-mono' },
-                  { label: 'Drug-Gene Interactions', value: '12', color: 'text-white font-mono' },
-                  { label: 'Actionable Variants', value: '3', color: 'text-green-400 font-mono' },
+                  { label: 'Genes Tested', value: String(geneVariants.length), color: 'text-white font-mono' },
+                  { label: 'Drug-Gene Interactions', value: String(drugRecommendations.length), color: 'text-white font-mono' },
+                  { label: 'Actionable Variants', value: String(geneVariants.filter(g => g.effect !== 'normal').length), color: 'text-green-400 font-mono' },
                 ].map((item, i) => (
                   <div key={i} className="flex justify-between items-center py-2 border-b border-white/[0.04] last:border-0">
                     <span className="text-sm text-slate-400">{item.label}</span>
@@ -407,27 +429,36 @@ export default function GenomicDashboardPage() {
                 Important Warnings
               </h2>
               <div className="space-y-3">
-                <div className="p-3.5 bg-red-500/8 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-colors">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                    <span className="text-red-300 font-bold text-sm">Codeine — Avoid</span>
+                {drugRecommendations.filter(d => d.suitability === 'avoid').map((drug, i) => (
+                  <div key={i} className="p-3.5 bg-red-500/8 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-colors">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                      <span className="text-red-300 font-bold text-sm">{drug.drug} — Avoid</span>
+                    </div>
+                    <p className="text-xs text-slate-400 pl-4">{drug.reason}</p>
                   </div>
-                  <p className="text-xs text-slate-400 pl-4">Your CYP2D6 genotype means codeine may not work effectively</p>
-                </div>
-                <div className="p-3.5 bg-amber-500/8 border border-amber-500/20 rounded-xl hover:bg-amber-500/10 transition-colors">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    <span className="text-amber-300 font-bold text-sm">Metoprolol — Caution</span>
+                ))}
+                {drugRecommendations.filter(d => d.suitability === 'acceptable').map((drug, i) => (
+                  <div key={i} className="p-3.5 bg-amber-500/8 border border-amber-500/20 rounded-xl hover:bg-amber-500/10 transition-colors">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                      <span className="text-amber-300 font-bold text-sm">{drug.drug} — Caution</span>
+                    </div>
+                    <p className="text-xs text-slate-400 pl-4">{drug.reason}</p>
                   </div>
-                  <p className="text-xs text-slate-400 pl-4">Consider starting with half the standard dose</p>
-                </div>
-                <div className="p-3.5 bg-green-500/8 border border-green-500/20 rounded-xl hover:bg-green-500/10 transition-colors">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                    <span className="text-green-300 font-bold text-sm">Statins — Approved</span>
+                ))}
+                {drugRecommendations.filter(d => d.suitability === 'optimal').slice(0, 2).map((drug, i) => (
+                  <div key={i} className="p-3.5 bg-green-500/8 border border-green-500/20 rounded-xl hover:bg-green-500/10 transition-colors">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      <span className="text-green-300 font-bold text-sm">{drug.drug} — Approved</span>
+                    </div>
+                    <p className="text-xs text-slate-400 pl-4">{drug.reason}</p>
                   </div>
-                  <p className="text-xs text-slate-400 pl-4">Normal SLCO1B1 function — standard statin therapy safe</p>
-                </div>
+                ))}
+                {drugRecommendations.length === 0 && (
+                  <p className="text-slate-500 text-sm">No warnings — upload DNA data to see personalized alerts.</p>
+                )}
               </div>
             </motion.div>
 
@@ -499,6 +530,7 @@ export default function GenomicDashboardPage() {
             </AnimatePresence>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

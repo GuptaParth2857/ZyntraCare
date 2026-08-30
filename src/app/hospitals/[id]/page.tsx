@@ -6,7 +6,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FiPhone, FiMapPin, FiClock, FiStar, FiShield, FiActivity, FiAlertCircle, FiNavigation, FiArrowLeft, FiArrowRight, FiHeart, FiCheckCircle, FiAlertTriangle, FiThermometer, FiDroplet, FiEye, FiZap, FiTarget, FiTruck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { hospitals as allHospitals } from '@/data/mockData';
 import { Hospital } from '@/types';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -49,16 +48,21 @@ const specialtyIcons: Record<string, React.ReactNode> = {
 };
 
   useEffect(() => {
-    const found = allHospitals.find(h => h.id === id);
-    setHospital(found || null);
-    
-    fetch('/api/beds')
-      .then(res => res.json())
-      .then(data => {
-        const hospitalBed = data.hospitals?.find((h: any) => h.id === id);
-        setBedData(hospitalBed);
-      })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/hospitals?limit=200')
+        .then(res => res.json())
+        .then(data => (data.hospitals || []))
+        .catch(() => []),
+      fetch('/api/beds')
+        .then(res => res.json())
+        .then(data => (data.hospitals || []))
+        .catch(() => []),
+    ]).then(([apiHospitals, apiBeds]) => {
+      const found = apiHospitals.find((h: any) => h.id === id);
+      setHospital(found || null);
+      const hospitalBed = apiBeds.find((h: any) => h.id === id);
+      setBedData(hospitalBed);
+    }).finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
@@ -93,7 +97,9 @@ const specialtyIcons: Record<string, React.ReactNode> = {
   };
 
   const getDirectionsUrl = () => {
-    return `https://www.google.com/maps/dir/?api=1&destination=${hospital.location.lat},${hospital.location.lng}`;
+    const lat = hospital.location?.lat ?? 28.6139;
+    const lng = hospital.location?.lng ?? 77.209;
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   };
 
   return (
@@ -210,7 +216,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                <p className="text-3xl font-black text-emerald-400">{bedData?.beds?.available || hospital.beds.available}</p>
+                <p className="text-3xl font-black text-emerald-400">{bedData?.beds?.available || hospital.beds?.available}</p>
                 <p className="text-sm text-gray-400 mt-1">General Beds Available</p>
                 <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
                   <div 
@@ -221,7 +227,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
               </div>
               
               <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                <p className="text-3xl font-black text-sky-400">{bedData?.beds?.icu?.available || hospital.beds.icuAvailable}</p>
+                <p className="text-3xl font-black text-sky-400">{bedData?.beds?.icu?.available || hospital.beds?.icuAvailable}</p>
                 <p className="text-sm text-gray-400 mt-1">ICU Beds Available</p>
                 <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
                   <div 
@@ -299,7 +305,7 @@ const specialtyIcons: Record<string, React.ReactNode> = {
             >
               <h3 className="text-xl font-bold text-white mb-4">Specialties & Services</h3>
               <div className="grid grid-cols-2 gap-3">
-                {hospital.specialties.map((specialty, idx) => (
+                {hospital.specialties?.map((specialty, idx) => (
                   <div key={idx} className="flex items-center gap-2 bg-slate-800/50 px-3 py-2 rounded-xl">
                     {specialtyIcons[specialty] || specialtyIcons.default}
                     <span className="text-white text-sm">{specialty}</span>
@@ -361,9 +367,9 @@ const specialtyIcons: Record<string, React.ReactNode> = {
         onClose={() => setShowDirections(false)}
         destination={hospital ? {
           name: hospital.name,
-          address: hospital.address,
-          lat: hospital.location.lat,
-          lng: hospital.location.lng,
+          address: hospital.address || '',
+          lat: hospital.location?.lat ?? 28.6139,
+          lng: hospital.location?.lng ?? 77.209,
         } : { name: '', address: '', lat: 0, lng: 0 }}
         userLocation={userLocation || { lat: 28.6139, lng: 77.2090 }}
       />

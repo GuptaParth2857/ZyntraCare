@@ -14,6 +14,7 @@ import { AnimatedGradientText, MorphingBlob, FloatingIcon, PulseRing } from '@/c
 import ClientOnly from '@/components/ClientOnly';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { PlaceCard } from '@/components/PlaceCard';
+import { PlaceType } from '@/hooks/useNearbyPlaces';
 import { AdSlot } from '@/components/ads';
 import { AD_PLACEMENTS } from '@/lib/ads/config';
 
@@ -117,8 +118,8 @@ const DEFAULT_POSITION = { lat: 28.6139, lng: 77.2090 };
 
 function HeroNearbyMap() {
   const { position, requestLocation } = useGeolocation();
-  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'lab' | 'pharmacy'>('all');
-  const [radius, setRadius] = useState(10);
+  const [selectedType, setSelectedType] = useState<string>('all');
+  const [radius, setRadius] = useState(15);
   const [allPlaces, setAllPlaces] = useState<any[]>([]);
   const [fetchState, setFetchState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const latRef = useRef(0);
@@ -159,7 +160,7 @@ function HeroNearbyMap() {
     return allPlaces.map((h: any) => ({
       id: h.id,
       name: h.name,
-      type: (h.type || 'hospital') as 'hospital' | 'lab' | 'pharmacy',
+      type: (h.type || h.facilityType || 'hospital') as PlaceType,
       lat: h.location?.lat || userLat,
       lng: h.location?.lng || userLng,
       address: h.address || h.city || '',
@@ -175,71 +176,85 @@ function HeroNearbyMap() {
     return places.filter(p => p.type === selectedType);
   }, [places, selectedType]);
 
-  const counts = useMemo(() => ({
-    hospital: places.filter(p => p.type === 'hospital').length,
-    lab: places.filter(p => p.type === 'lab').length,
-    pharmacy: places.filter(p => p.type === 'pharmacy').length,
-  }), [places]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {
+      hospital: 0, clinic: 0, lab: 0, pharmacy: 0, pet_clinic: 0, pet_shop: 0, dentist: 0,
+    };
+    places.forEach(p => {
+      if (c[p.type] !== undefined) c[p.type]++;
+    });
+    return c;
+  }, [places]);
+
+  const typeButtons: { key: string; label: string; icon: string; active: string }[] = [
+    { key: 'all', label: 'All', icon: '', active: 'bg-teal-500 text-white' },
+    { key: 'hospital', label: 'Hospital', icon: '🏥', active: 'bg-red-500 text-white' },
+    { key: 'clinic', label: 'Clinic', icon: '🩺', active: 'bg-blue-500 text-white' },
+    { key: 'pharmacy', label: 'Pharmacy', icon: '💊', active: 'bg-emerald-500 text-white' },
+    { key: 'lab', label: 'Lab', icon: '🔬', active: 'bg-purple-500 text-white' },
+    { key: 'pet_clinic', label: 'Pet Clinic', icon: '🐾', active: 'bg-orange-500 text-white' },
+    { key: 'pet_shop', label: 'Pet Shop', icon: '🐕', active: 'bg-amber-500 text-white' },
+    { key: 'dentist', label: 'Dentist', icon: '🦷', active: 'bg-pink-500 text-white' },
+  ];
 
   return (
-    <div className="w-full h-full flex flex-col min-h-[300px]">
-      <div className="flex-1 w-full h-full min-h-[250px] relative">
+    <div className="w-full h-full flex flex-col min-h-[420px]">
+      <div className="flex-1 w-full h-full min-h-[380px] relative">
         <NearbyMap
           places={filteredPlaces}
           userLat={userLat}
           userLng={userLng}
           radius={radius}
-          height={220}
+          height={380}
           compact
           showRadiusCircle
         />
       </div>
-      
-      <div className="bg-slate-900/90 backdrop-blur-sm p-4 space-y-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button onClick={() => setSelectedType('all')} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'all' ? 'bg-teal-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-            All ({places.length})
-          </button>
-          <button onClick={() => setSelectedType('hospital')} className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'hospital' ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-            🏥 {counts.hospital}
-          </button>
-          <button onClick={() => setSelectedType('lab')} className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'lab' ? 'bg-purple-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-            🔬 {counts.lab}
-          </button>
-          <button onClick={() => setSelectedType('pharmacy')} className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedType === 'pharmacy' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-            💊 {counts.pharmacy}
-          </button>
-          
-          <div className="ml-auto flex items-center gap-1">
+
+      <div className="bg-slate-900/90 backdrop-blur-sm p-3 space-y-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          {typeButtons.map(btn => (
+            <button
+              key={btn.key}
+              onClick={() => setSelectedType(btn.key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                selectedType === btn.key
+                  ? btn.active
+                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
+              }`}
+            >
+              {btn.icon && <span className="mr-1">{btn.icon}</span>}
+              {btn.label} {btn.key !== 'all' && `(${counts[btn.key] || 0})`}
+            </button>
+          ))}
+
+          <div className="ml-auto flex items-center gap-1 flex-shrink-0">
             <FiFilter size={12} className="text-slate-500" />
             <select value={radius} onChange={(e) => { setRadius(Number(e.target.value)); latRef.current = 0; }} className="bg-white/5 text-slate-400 text-xs px-2 py-1.5 rounded-lg border-none outline-none">
               {[5, 10, 15, 20, 30, 50].map(r => (<option key={r} value={r}>{r}km</option>))}
             </select>
           </div>
         </div>
-        
+
         {filteredPlaces.length > 0 ? (
-          <div className="space-y-2 max-h-[120px] overflow-y-auto scrollbar-thin">
-            {filteredPlaces.slice(0, 4).map((place: any, idx: number) => (
-              <PlaceCard key={`${place.id}_${idx}`} place={place} compact />
-            ))}
-            {filteredPlaces.length > 4 && (
-              <Link href="/hospitals" className="flex items-center justify-center gap-2 text-teal-400 text-xs font-semibold py-2 hover:text-teal-300 transition">
+          <div className="relative">
+            <div className="flex gap-2 overflow-x-auto scrollbar-thin pb-1">
+              {filteredPlaces.slice(0, 6).map((place: any, idx: number) => (
+                <div key={`${place.id}_${idx}`} className="flex-shrink-0 w-52">
+                  <PlaceCard place={place} compact />
+                </div>
+              ))}
+            </div>
+            {filteredPlaces.length > 6 && (
+              <Link href="/hospitals" className="flex items-center justify-center gap-2 text-teal-400 text-xs font-semibold py-1.5 hover:text-teal-300 transition">
                 View all {filteredPlaces.length} places <FiArrowRight size={12} />
               </Link>
             )}
           </div>
         ) : (
-          <div className="text-center py-4">
-            <p className="text-slate-500 text-sm">
-              {fetchState === 'loading' ? 'Searching nearby...' : `No places found within ${radius}km`}
-            </p>
-            {fetchState !== 'loading' && (
-              <button onClick={() => setRadius(Math.min(radius + 10, 50))} className="text-teal-400 text-xs mt-1 hover:text-teal-300">
-                Expand search to {Math.min(radius + 10, 50)}km
-              </button>
-            )}
-          </div>
+          <p className="text-center text-slate-500 text-sm py-2">
+            {fetchState === 'loading' ? 'Searching nearby...' : 'No places found in this area yet.'}
+          </p>
         )}
       </div>
     </div>
@@ -860,16 +875,33 @@ export default function Home() {
   const { position, requestLocation } = useGeolocation();
   const [topHospitals, setTopHospitals] = useState<any[]>([]);
   const [topDoctors, setTopDoctors] = useState<any[]>([]);
+  const [liveStats, setLiveStats] = useState<Record<string, string>>({});
 
   useEffect(() => {
     requestLocation();
   }, []);
 
   useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then((s) => {
+        if (!s || typeof s.hospitals !== 'number') return;
+        const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K+` : `${n}+`;
+        setLiveStats({
+          hospitals: fmt(s.hospitals),
+          doctors: fmt(s.doctors),
+          patients: s.users >= 1000 ? `${(s.users / 1000).toFixed(1).replace(/\.0$/, '')}K+` : `${s.users}+`,
+          cities: `${s.cities || 500}+`,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const userLat = position?.lat ?? 28.6139;
     const userLng = position?.lng ?? 77.2090;
 
-    fetch(`/api/hospitals?limit=3&lat=${userLat}&lng=${userLng}&nearby=true`)
+    fetch(`/api/hospitals?top=true&limit=6`)
       .then(r => r.json())
       .then(d => { if (d.hospitals?.length) setTopHospitals(d.hospitals); })
       .catch(() => {});
@@ -985,10 +1017,10 @@ export default function Home() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: FiShield, label: t('verifiedHospitals'), value: '500+', idx: 0 },
-              { icon: FiUsers,  label: t('expertDoctors'),     value: '2,000+', idx: 1 },
-              { icon: FiHeart,  label: t('happyPatients'),     value: '1M+', idx: 2 },
-              { icon: FiAward,  label: t('yearsService'),      value: '15+', idx: 3 },
+              { icon: FiShield, label: t('verifiedHospitals'), value: liveStats.hospitals || '500+', idx: 0 },
+              { icon: FiUsers,  label: t('expertDoctors'),     value: liveStats.doctors || '2,000+', idx: 1 },
+              { icon: FiHeart,  label: t('happyPatients'),     value: liveStats.patients || '1M+', idx: 2 },
+              { icon: FiAward,  label: t('yearsService'),      value: liveStats.cities || '15+', idx: 3 },
             ].map(stat => (
               <MemoizedStatCard key={stat.label} {...stat} />
             ))}

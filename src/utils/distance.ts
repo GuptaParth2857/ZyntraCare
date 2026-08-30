@@ -44,11 +44,13 @@ function toRad(deg: number): number {
  * @param km - Distance in kilometers
  * @returns Formatted string (e.g., "1.2 km" or "500 m")
  */
-export function formatDistance(km: number): string {
-  if (km < 1) {
-    return `${Math.round(km * 1000)} m`;
+export function formatDistance(km: number | string): string {
+  const num = typeof km === 'string' ? parseFloat(km) : km;
+  if (isNaN(num)) return '? km';
+  if (num < 1) {
+    return `${Math.round(num * 1000)} m`;
   }
-  return `${km.toFixed(1)} km`;
+  return `${num.toFixed(1)} km`;
 }
 
 /**

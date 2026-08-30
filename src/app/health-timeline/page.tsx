@@ -36,26 +36,7 @@ const EVENT_TYPE_CONFIG = {
   vitals: { label: 'Vitals Check', color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30', dot: 'bg-gray-400', emoji: '⚪' },
 };
 
-const INITIAL_EVENTS: HealthEvent[] = [
-  { id: '1', type: 'hospital', title: 'Annual Health Checkup', date: '2026-08-10', hospital: 'AIIMS, New Delhi', doctor: 'Dr. Rajesh Sharma (General Physician)', summary: 'Complete blood work, ECG, chest X-ray. All vitals normal. BMI 23.4. Recommended vitamin D supplement.', location: 'Ansari Nagar, New Delhi' },
-  { id: '2', type: 'lab', title: 'Complete Blood Count (CBC)', date: '2026-08-08', hospital: 'Thyrocare Labs', doctor: 'Dr. Priya Mehta', summary: 'Hemoglobin: 14.2 g/dL (Normal), WBC: 7,200 (Normal), Platelets: 2,50,000 (Normal). All parameters within range.', location: 'Andheri East, Mumbai' },
-  { id: '3', type: 'prescription', title: 'Vitamin D & B12 Course', date: '2026-08-10', hospital: 'AIIMS, New Delhi', doctor: 'Dr. Rajesh Sharma', summary: 'D-Rise 60K: 1 capsule weekly for 12 weeks. Neurocobal B12: 1 tablet daily for 3 months. Repeat test after 3 months.', location: 'Ansari Nagar, New Delhi' },
-  { id: '4', type: 'vaccination', title: 'COVID-19 Booster (Precautionary)', date: '2026-07-20', hospital: 'Fortis Hospital, Gurugram', doctor: 'Dr. Anand Verma', summary: 'Covaxin booster administered. No adverse effects observed. Next dose as per government guidelines.', location: 'Sector 44, Gurugram' },
-  { id: '5', type: 'emergency', title: 'Acute Appendicitis', date: '2026-06-15', hospital: 'Max Super Speciality Hospital, Saket', doctor: 'Dr. Suresh Kumar (General Surgery)', summary: 'Laparoscopic appendectomy performed. Surgery successful. 2-day hospital stay. Full recovery in 2 weeks.', location: 'Press Enclave Road, New Delhi' },
-  { id: '6', type: 'hospital', title: 'Dental Checkup & Cleaning', date: '2026-05-25', hospital: 'Dental Care Clinic', doctor: 'Dr. Meera Joshi (BDS, MDS)', summary: 'Routine cleaning done. No cavities detected. Wisdom tooth advised for monitoring. Next visit in 6 months.', location: 'Lajpat Nagar, New Delhi' },
-  { id: '7', type: 'lab', title: 'Lipid Profile & Thyroid', date: '2026-05-20', hospital: 'Dr. Lal PathLabs', doctor: 'Dr. Kavita Singh', summary: 'Total Cholesterol: 195 (Desirable), LDL: 115 (Borderline), HDL: 52 (Normal), TSH: 2.8 mIU/L (Normal). advised dietary changes.', location: 'Nehru Place, New Delhi' },
-  { id: '8', type: 'vitals', title: 'Monthly Vitals Check', date: '2026-05-01', hospital: 'Home Health Check', doctor: 'Self-monitored', summary: 'BP: 122/78 mmHg, Heart Rate: 72 bpm, SpO2: 98%, Temperature: 98.4°F, Weight: 72 kg, Blood Sugar (Fasting): 95 mg/dL.', location: 'Home' },
-  { id: '9', type: 'hospital', title: 'Eye Examination', date: '2026-04-18', hospital: 'AIIMS Eye Centre', doctor: 'Dr. Pradeep Mohanta (Ophthalmologist)', summary: 'Vision: 6/6 both eyes (corrected). No signs of glaucoma or retinal issues. Power stable: -2.5D both eyes. Continue glasses.', location: 'Ansari Nagar, New Delhi' },
-  { id: '10', type: 'vaccination', title: 'Influenza Vaccine (Annual)', date: '2026-03-15', hospital: 'Apollo Hospital, Delhi', doctor: 'Dr. Nisha Agarwal', summary: 'Fluarix Tetra administered. Mild soreness at injection site for 2 days. No other side effects.', location: 'Sarita Vihar, New Delhi' },
-  { id: '11', type: 'prescription', title: 'Allergy Medication', date: '2026-03-10', hospital: 'Fortis Hospital, Gurugram', doctor: 'Dr. Amita Roy (ENT)', summary: 'Montair LC: 1 tablet at night for 2 weeks. Avil 25mg: As needed for acute episodes. Nasal saline irrigation recommended.', location: 'Sector 44, Gurugram' },
-  { id: '12', type: 'lab', title: 'Diabetes Screening (HbA1c)', date: '2026-02-10', hospital: 'SRL Diagnostics', doctor: 'Dr. Rajiv Kumar', summary: 'HbA1c: 5.6% (Normal - below 5.7%). Fasting Glucose: 92 mg/dL. Post-meal: 132 mg/dL. No diabetes risk detected.', location: 'Rajouri Garden, New Delhi' },
-  { id: '13', type: 'hospital', title: 'Physiotherapy Session', date: '2026-01-20', hospital: 'Medanta Hospital, Gurugram', doctor: 'Dr. Sanjay Gupta (Physiotherapist)', summary: 'Lower back pain management. Ultrasound therapy + exercises. Advised ergonomic chair at workplace. 6-session course prescribed.', location: 'Sector 38, Gurugram' },
-  { id: '14', type: 'vitals', title: 'Annual Vitals Baseline', date: '2026-01-05', hospital: 'Home Health Check', doctor: 'Self-monitored', summary: 'BP: 118/75 mmHg, Heart Rate: 68 bpm, SpO2: 99%, Temperature: 98.2°F, Weight: 74 kg, Blood Sugar: 88 mg/dL.', location: 'Home' },
-  { id: '15', type: 'lab', title: 'Full Body Health Package', date: '2025-12-20', hospital: 'Manipal Hospitals', doctor: 'Dr. Deepa Menon', summary: 'Comprehensive panel: CBC, LFT, KFT, Lipid, Thyroid, HbA1c, Vitamin D, B12, Iron. All parameters normal. Vitamin D borderline at 22 ng/mL.', location: 'Whitefield, Bangalore' },
-  { id: '16', type: 'hospital', title: 'Dermatology Consultation', date: '2025-11-15', hospital: 'Apollo Hospital, Hyderabad', doctor: 'Dr. Kiran Reddy (Dermatologist)', summary: 'Recurrent skin allergy diagnosed as contact dermatitis. Prescribed Cetirizine + Locoid cream. Patch test recommended if recurs.', location: 'Jubilee Hills, Hyderabad' },
-  { id: '17', type: 'emergency', title: 'Food Poisoning', date: '2025-10-05', hospital: 'Medanta Hospital, Gurugram', doctor: 'Dr. Arvind Sharma (Emergency Medicine)', summary: 'Severe dehydration from food poisoning. IV fluids administered. Discharged same day with oral rehydration salts and antiemetics.', location: 'Sector 38, Gurugram' },
-  { id: '18', type: 'vaccination', title: 'Hepatitis B - Dose 1', date: '2025-09-01', hospital: 'AIIMS, New Delhi', doctor: 'Dr. Sunita Verma', summary: 'Engerix-B 20mcg administered. First of 3-dose series. No adverse reactions. Next dose scheduled after 1 month.', location: 'Ansari Nagar, New Delhi' },
-];
+const INITIAL_EVENTS: HealthEvent[] = [];
 
 export default function HealthTimelinePage() {
   const [events, setEvents] = useState<HealthEvent[]>([]);
@@ -65,22 +46,17 @@ export default function HealthTimelinePage() {
   const [newEvent, setNewEvent] = useState<NewEventForm>({ type: 'hospital', title: '', date: new Date().toISOString().split('T')[0], hospital: '', doctor: '', summary: '', details: '' });
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('zyntracare_health_timeline');
-    if (saved) {
-      setEvents(JSON.parse(saved));
-    } else {
-      setEvents(INITIAL_EVENTS);
-      localStorage.setItem('zyntracare_health_timeline', JSON.stringify(INITIAL_EVENTS));
-    }
+    setLoading(true);
+    fetch('/api/health-timeline?userId=demo-user')
+      .then(res => res.json())
+      .then(data => setEvents(data.events || data || []))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (events.length > 0) {
-      localStorage.setItem('zyntracare_health_timeline', JSON.stringify(events));
-    }
-  }, [events]);
 
   const filteredEvents = useMemo(() => {
     return events
@@ -121,6 +97,12 @@ export default function HealthTimelinePage() {
     setEvents(prev => [event, ...prev]);
     setShowAddForm(false);
     setNewEvent({ type: 'hospital', title: '', date: new Date().toISOString().split('T')[0], hospital: '', doctor: '', summary: '', details: '' });
+
+    fetch('/api/health-timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 'demo-user', event }),
+    }).catch(() => {});
   };
 
   const generateShareText = () => {
@@ -274,7 +256,12 @@ export default function HealthTimelinePage() {
             </motion.div>
 
             {/* Timeline Events */}
-            {Object.entries(groupedByMonth).length === 0 ? (
+            {loading ? (
+              <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center">
+                <div className="w-10 h-10 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400 text-lg">Loading timeline...</p>
+              </div>
+            ) : Object.entries(groupedByMonth).length === 0 ? (
               <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center">
                 <FiClock size={48} className="text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-400 text-lg">No events found</p>

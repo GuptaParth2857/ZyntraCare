@@ -24,28 +24,9 @@ interface BedData {
   lastUpdatedBy: string;
 }
 
-const DEFAULT_BED_DATA: BedData = {
-  hospitalId: 'H001',
-  hospitalName: '',
-  totalBeds: 100,
-  availableBeds: 25,
-  occupiedBeds: 75,
-  totalICU: 20,
-  availableICU: 5,
-  occupiedICU: 15,
-  generalWard: 60,
-  generalAvailable: 15,
-  pediatric: 10,
-  pediatricAvailable: 3,
-  maternity: 10,
-  maternityAvailable: 2,
-  lastUpdated: new Date().toISOString(),
-  lastUpdatedBy: 'Admin'
-};
-
 export default function HospitalBedDashboard() {
-  const [bedData, setBedData] = useState<BedData>(DEFAULT_BED_DATA);
-  const [loading, setLoading] = useState(false);
+  const [bedData, setBedData] = useState<BedData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -54,17 +35,35 @@ export default function HospitalBedDashboard() {
   const fetchBedStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/beds/realtime?hospitalId=${bedData.hospitalId}`);
+      const res = await fetch('/api/beds');
       const data = await res.json();
-      if (data.success && data.data) {
-        setBedData(prev => ({ ...prev, ...data.data }));
+      if (data.hospitals?.length) {
+        const h = data.hospitals[0];
+        setBedData({
+          hospitalId: h.id,
+          hospitalName: h.name,
+          totalBeds: h.beds?.total || 0,
+          availableBeds: h.beds?.available || 0,
+          occupiedBeds: h.beds?.occupied || 0,
+          totalICU: h.beds?.icu?.total || 0,
+          availableICU: h.beds?.icu?.available || 0,
+          occupiedICU: h.beds?.icu?.occupied || 0,
+          generalWard: h.beds?.total || 0,
+          generalAvailable: h.beds?.available || 0,
+          pediatric: 0,
+          pediatricAvailable: 0,
+          maternity: 0,
+          maternityAvailable: 0,
+          lastUpdated: h.lastUpdated || new Date().toISOString(),
+          lastUpdatedBy: 'System',
+        });
       }
     } catch (err) {
       console.error('Error fetching bed status:', err);
     } finally {
       setLoading(false);
     }
-  }, [bedData.hospitalId]);
+  }, []);
 
   useEffect(() => {
     fetchBedStatus();
@@ -73,6 +72,7 @@ export default function HospitalBedDashboard() {
   }, [fetchBedStatus]);
 
   const handleSave = async () => {
+    if (!bedData) return;
     setSaving(true);
     setError('');
     setSaved(false);
@@ -105,24 +105,25 @@ export default function HospitalBedDashboard() {
 
   const updateField = (field: keyof BedData, value: number) => {
     setBedData(prev => {
-      const updated = { ...prev, [field]: value };
-      
+      if (!prev) return prev;
+      const updated: BedData = { ...prev, [field]: value };
+
       if (['totalBeds', 'availableBeds', 'totalICU', 'availableICU'].includes(field)) {
         updated.occupiedBeds = updated.totalBeds - updated.availableBeds;
         updated.occupiedICU = updated.totalICU - updated.availableICU;
       }
-      
+
       updated.lastUpdated = new Date().toISOString();
       return updated;
     });
   };
 
-  const occupancyPercent = bedData.totalBeds > 0 
-    ? Math.round(((bedData.totalBeds - bedData.availableBeds) / bedData.totalBeds) * 100) 
+  const occupancyPercent = bedData && bedData.totalBeds > 0
+    ? Math.round(((bedData.totalBeds - bedData.availableBeds) / bedData.totalBeds) * 100)
     : 0;
 
-  const icuOccupancy = bedData.totalICU > 0 
-    ? Math.round(((bedData.totalICU - bedData.availableICU) / bedData.totalICU) * 100) 
+  const icuOccupancy = bedData && bedData.totalICU > 0
+    ? Math.round(((bedData.totalICU - bedData.availableICU) / bedData.totalICU) * 100)
     : 0;
 
   const getStatusColor = (percent: number) => {
@@ -136,6 +137,17 @@ export default function HospitalBedDashboard() {
     if (percent >= 70) return 'HIGH';
     return 'NORMAL';
   };
+
+  if (!bedData) {
+    return (
+      <div className="min-h-screen bg-transparent text-white p-4 md:p-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-sm">Loading bed status…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-transparent text-white p-4 md:p-8">

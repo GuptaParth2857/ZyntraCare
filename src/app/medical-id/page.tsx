@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'qrcode';
 import {
@@ -51,7 +51,7 @@ const DEFAULT_INFO: MedicalInfo = {
   organDonor: false,
 };
 
-function debounce<T extends (...args: unknown[]) => unknown>(fn: T, delay: number) {
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
   let timeoutId: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
@@ -65,26 +65,29 @@ export default function MedicalIdPage() {
   const [copied, setCopied] = useState(false);
   const [showPwaInstructions, setShowPwaInstructions] = useState(false);
   const [medicalInfo, setMedicalInfo] = useState<MedicalInfo>(DEFAULT_INFO);
-  const STORAGE_KEY = 'zyntracare_medical_id';
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setMedicalInfo({
-          ...DEFAULT_INFO,
-          ...parsed,
-          emergencyContacts: parsed.emergencyContacts || DEFAULT_INFO.emergencyContacts,
-        });
-      } catch {
-        /* ignore */
-      }
-    }
+    setLoading(true);
+    fetch('/api/medical-id?userId=demo-user')
+      .then(res => res.json())
+      .then(data => {
+        const info = data.medicalInfo || data;
+        if (info && info.name) {
+          setMedicalInfo({
+            ...DEFAULT_INFO,
+            ...info,
+            emergencyContacts: info.emergencyContacts || DEFAULT_INFO.emergencyContacts,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const generateQR = useCallback(
-    debounce(async (info: MedicalInfo) => {
+  const generateQR = useMemo(
+    () =>
+      debounce(async (info: MedicalInfo) => {
       if (info.name && info.bloodType) {
         const qrData = JSON.stringify({
           name: info.name,
@@ -114,7 +117,24 @@ export default function MedicalIdPage() {
   }, [medicalInfo, generateQR]);
 
   const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(medicalInfo));
+    const info = medicalInfo;
+    const contacts = info.emergencyContacts || [];
+    fetch('/api/medical-id', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'demo-user',
+        bloodGroup: info.bloodType,
+        allergies: (info.allergies || []).join(', '),
+        medications: (info.medications || []).join(', '),
+        conditions: (info.conditions || []).join(', '),
+        emergencyContact1: contacts[0]?.name || '',
+        emergencyPhone1: contacts[0]?.phone || '',
+        emergencyContact2: contacts[1]?.name || '',
+        emergencyPhone2: contacts[1]?.phone || '',
+        organDonor: info.organDonor,
+      }),
+    }).catch(() => {});
     setIsEditMode(false);
   };
 
@@ -253,6 +273,17 @@ export default function MedicalIdPage() {
         </motion.div>
 
         {/* Main Card */}
+        {loading ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-slate-900/70 backdrop-blur-2xl border border-red-500/20 rounded-3xl p-12 text-center"
+          >
+            <div className="w-10 h-10 border-2 border-red-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Loading medical ID...</p>
+          </motion.div>
+        ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -433,6 +464,7 @@ export default function MedicalIdPage() {
             </div>
           </div>
         </motion.div>
+        )}
 
         {/* Edit Mode Overlay */}
         <AnimatePresence>

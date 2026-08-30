@@ -84,23 +84,10 @@ export default function DementiaVoicePage() {
   }, []);
 
   useEffect(() => {
-    if (!isAITyping && messages.length > 0 && messages.length % 2 === 1) {
-      const timer = setTimeout(() => {
-        setIsAITyping(true);
-        setTimeout(() => {
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            text: 'Ji papa, humein yaad dilayiye humara health behtar ho raha hai',
-            voice: 'daughter' as any,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            duration: 4
-          }]);
-          setIsAITyping(false);
-        }, 2000);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [messages.length, isAITyping]);
+    return () => {
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
 
   const startRecording = async () => {
     try {
@@ -117,21 +104,30 @@ export default function DementiaVoicePage() {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          text: 'New voice message recorded',
-          voice: selectedVoice as any,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          duration: 3
-        }]);
-      }, 1000);
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: 'New voice message recorded',
+        voice: selectedVoice as any,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        duration: 3
+      }]);
     }
   };
 
   const playMessage = (message: VoiceMessage) => {
-    setIsPlaying(true);
-    setTimeout(() => setIsPlaying(false), message.duration * 1000);
+    if (!window.speechSynthesis) {
+      console.warn('Speech synthesis not supported');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message.text);
+    utterance.lang = 'hi-IN';
+    utterance.rate = 0.9;
+    utterance.pitch = message.voice === 'daughter' ? 1.2 : message.voice === 'son' ? 0.85 : 1.0;
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+    window.speechSynthesis.speak(utterance);
   };
 
   const sendCustomMessage = () => {

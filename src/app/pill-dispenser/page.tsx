@@ -44,37 +44,11 @@ interface DeviceStatus {
 const TIME_SLOTS = ['Morning', 'Afternoon', 'Evening', 'Night'];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const INITIAL_MEDICATIONS: Medication[] = [
-  { id: 'm1', name: 'Metformin', dosage: '500mg', frequency: 'Twice daily', quantityRemaining: 45, reorderThreshold: 10, schedule: { Mon: ['Morning', 'Evening'], Tue: ['Morning', 'Evening'], Wed: ['Morning', 'Evening'], Thu: ['Morning', 'Evening'], Fri: ['Morning', 'Evening'], Sat: ['Morning', 'Evening'], Sun: ['Morning', 'Evening'] } },
-  { id: 'm2', name: 'Amlodipine', dosage: '5mg', frequency: 'Once daily', quantityRemaining: 22, reorderThreshold: 7, schedule: { Mon: ['Morning'], Tue: ['Morning'], Wed: ['Morning'], Thu: ['Morning'], Fri: ['Morning'], Sat: ['Morning'], Sun: ['Morning'] } },
-  { id: 'm3', name: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily', quantityRemaining: 18, reorderThreshold: 7, schedule: { Mon: ['Night'], Tue: ['Night'], Wed: ['Night'], Thu: ['Night'], Fri: ['Night'], Sat: ['Night'], Sun: ['Night'] } },
-  { id: 'm4', name: 'Omeprazole', dosage: '20mg', frequency: 'Once daily', quantityRemaining: 5, reorderThreshold: 7, schedule: { Mon: ['Morning'], Tue: ['Morning'], Wed: ['Morning'], Thu: ['Morning'], Fri: ['Morning'], Sat: ['Morning'], Sun: ['Morning'] } },
-  { id: 'm5', name: 'Aspirin', dosage: '75mg', frequency: 'Once daily', quantityRemaining: 30, reorderThreshold: 10, schedule: { Mon: ['Morning'], Tue: ['Morning'], Wed: ['Morning'], Thu: ['Morning'], Fri: ['Morning'], Sat: ['Morning'], Sun: ['Morning'] } },
-  { id: 'm6', name: 'Metoprolol', dosage: '50mg', frequency: 'Twice daily', quantityRemaining: 35, reorderThreshold: 10, schedule: { Mon: ['Morning', 'Evening'], Tue: ['Morning', 'Evening'], Wed: ['Morning', 'Evening'], Thu: ['Morning', 'Evening'], Fri: ['Morning', 'Evening'], Sat: ['Morning', 'Evening'], Sun: ['Morning', 'Evening'] } },
-];
+const INITIAL_MEDICATIONS: Medication[] = [];
 
-const INITIAL_LOGS: DispenseLog[] = [
-  { id: 'l1', date: '2026-08-25', time: '08:00 AM', medication: 'Metformin 500mg', status: 'dispensed' },
-  { id: 'l2', date: '2026-08-25', time: '08:00 AM', medication: 'Amlodipine 5mg', status: 'dispensed' },
-  { id: 'l3', date: '2026-08-25', time: '08:00 AM', medication: 'Aspirin 75mg', status: 'dispensed' },
-  { id: 'l4', date: '2026-08-25', time: '08:00 AM', medication: 'Omeprazole 20mg', status: 'dispensed' },
-  { id: 'l5', date: '2026-08-25', time: '08:00 AM', medication: 'Metoprolol 50mg', status: 'dispensed' },
-  { id: 'l6', date: '2026-08-25', time: '01:00 PM', medication: 'Metformin 500mg', status: 'dispensed' },
-  { id: 'l7', date: '2026-08-25', time: '01:00 PM', medication: 'Metoprolol 50mg', status: 'dispensed' },
-  { id: 'l8', date: '2026-08-24', time: '08:00 PM', medication: 'Atorvastatin 20mg', status: 'missed' },
-  { id: 'l9', date: '2026-08-24', time: '08:00 AM', medication: 'Metformin 500mg', status: 'dispensed' },
-  { id: 'l10', date: '2026-08-24', time: '08:00 AM', medication: 'Amlodipine 5mg', status: 'dispensed' },
-  { id: 'l11', date: '2026-08-24', time: '08:00 AM', medication: 'Aspirin 75mg', status: 'skipped' },
-  { id: 'l12', date: '2026-08-24', time: '01:00 PM', medication: 'Metformin 500mg', status: 'dispensed' },
-  { id: 'l13', date: '2026-08-24', time: '08:00 PM', medication: 'Metoprolol 50mg', status: 'dispensed' },
-];
+const INITIAL_LOGS: DispenseLog[] = [];
 
-const INITIAL_ALERTS: Alert[] = [
-  { id: 'a1', type: 'missed', message: 'Missed dose: Atorvastatin 20mg (Night) — Aug 24', time: '2026-08-24 09:00 PM', read: false },
-  { id: 'a2', type: 'low', message: 'Omeprazole 20mg — only 5 tablets remaining. Reorder recommended.', time: '2026-08-25 08:00 AM', read: false },
-  { id: 'a3', type: 'interaction', message: 'Caution: Aspirin + Omeprazole — monitor for GI effects', time: '2026-08-20 10:00 AM', read: true },
-  { id: 'a4', type: 'missed', message: 'Missed dose: Aspirin 75mg (Morning) — Aug 24', time: '2026-08-24 09:00 AM', read: true },
-];
+const INITIAL_ALERTS: Alert[] = [];
 
 const GlassCard = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-slate-900/70 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl ${className}`}>
@@ -102,13 +76,36 @@ export default function PillDispenserPage() {
   const [dispensing, setDispensing] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 5, minutes: 42, seconds: 18 });
   const [selectedDay, setSelectedDay] = useState('Mon');
+  const [loading, setLoading] = useState(true);
   const [dispenserSlots, setDispenserSlots] = useState(() => {
     return Array.from({ length: 30 }, (_, i) => ({
       id: i,
-      status: i < 24 ? (i < 20 ? 'filled' : i < 22 ? 'dispensed' : 'filled') : 'empty' as 'filled' | 'empty' | 'dispensed' | 'missed',
-      medication: i < 24 ? (INITIAL_MEDICATIONS[i % INITIAL_MEDICATIONS.length]?.name || '') : '',
+      status: 'empty' as 'filled' | 'empty' | 'dispensed' | 'missed',
+      medication: '',
     }));
   });
+
+  const fetchDispenserData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/pill-dispenser?userId=demo-user');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      if (data.medications) setMedications(data.medications);
+      if (data.logs) setLogs(data.logs);
+      if (data.alerts) setAlerts(data.alerts);
+      if (data.device) setDevice(data.device);
+      if (data.dispenserSlots) setDispenserSlots(data.dispenserSlots);
+    } catch {
+      // Use empty defaults on failure
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDispenserData();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -124,13 +121,21 @@ export default function PillDispenserPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const addMedication = () => {
+  const addMedication = async () => {
     if (!newMed.name || !newMed.dosage) return;
     const schedule: Record<string, string[]> = {};
     DAYS.forEach(d => { schedule[d] = newMed.frequency === 'Twice daily' ? ['Morning', 'Evening'] : ['Morning']; });
-    setMedications([...medications, { id: `m_${Date.now()}`, ...newMed, schedule }]);
+    const med: Medication = { id: `m_${Date.now()}`, ...newMed, schedule };
+    setMedications([...medications, med]);
     setNewMed({ name: '', dosage: '', frequency: 'Once daily', quantityRemaining: 30, reorderThreshold: 7 });
     setShowAddMed(false);
+    try {
+      await fetch('/api/pill-dispenser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user', action: 'addMedication', medication: med }),
+      });
+    } catch { /* optimistically added */ }
   };
 
   const removeMedication = (id: string) => setMedications(medications.filter(m => m.id !== id));
@@ -144,17 +149,30 @@ export default function PillDispenserPage() {
     }));
   };
 
-  const handleDispenseNow = useCallback(() => {
+  const handleDispenseNow = useCallback(async () => {
     setDispensing(true);
-    setTimeout(() => {
-      setDispensing(false);
+    try {
+      const res = await fetch('/api/pill-dispenser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user', action: 'dispense' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.log) {
+          setLogs([data.log, ...logs]);
+        }
+      }
+    } catch {
       const newLog: DispenseLog = {
         id: `l_${Date.now()}`, date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         medication: 'Manual Dispense — Metformin 500mg', status: 'dispensed',
       };
       setLogs([newLog, ...logs]);
-    }, 2000);
+    } finally {
+      setDispensing(false);
+    }
   }, [logs]);
 
   const unreadAlerts = alerts.filter(a => !a.read).length;
@@ -234,6 +252,15 @@ export default function PillDispenserPage() {
             </button>
           ))}
         </div>
+
+        {loading && (
+          <div className="text-center py-20">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-rose-400 border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-gray-400">Loading dispenser data...</p>
+          </div>
+        )}
+
+        {!loading && (
 
         <AnimatePresence mode="wait">
           {/* SCHEDULE TAB */}
@@ -474,6 +501,7 @@ export default function PillDispenserPage() {
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </div>
 
       {/* Add Medication Modal */}

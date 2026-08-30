@@ -54,15 +54,17 @@ export async function GET(req: NextRequest) {
           return {
             id: p.id,
             name: p.name,
-            address: p.address,
-            city: p.city,
-            phone: p.phone,
-            location: { lat: p.lat, lng: p.lng },
+            location: `${p.address}${p.city ? ', ' + p.city : ''}`,
             distance: parseFloat(distance.toFixed(1)),
             tests,
             homeCollection: p.homeCollection,
             reportsIn: '24 hours',
             rating: p.rating,
+            price: 499,
+            originalPrice: 799,
+            discount: 38,
+            available: true,
+            duration: p.workingHours || '8:00 AM - 6:00 PM',
           };
         })
         .filter((x): x is NonNullable<typeof x> => x != null)
@@ -91,19 +93,22 @@ export async function GET(req: NextRequest) {
           return {
             id: `op-${el.id || i}`,
             name: el.tags?.name || el.tags?.['name:en'] || 'Diagnostic Lab',
-            address: [
+            location: [
               el.tags?.['addr:houseno'],
               el.tags?.['addr:street'],
               el.tags?.['addr:city'],
             ].filter(Boolean).join(', ') || '',
-            city: el.tags?.['addr:city'] || '',
             phone: el.tags?.phone || el.tags?.['contact:phone'] || '',
-            location: { lat: elLat, lng: elLng },
-            distance,
+            distance: parseFloat(distance.toFixed(1)),
             tests: ['Blood Test', 'Urine Test', 'CBC', 'Lipid Profile'],
             homeCollection: false,
             reportsIn: '24 hours',
-            rating: '4.2',
+            rating: 4.2,
+            price: 499,
+            originalPrice: 799,
+            discount: 38,
+            available: true,
+            duration: '8:00 AM - 6:00 PM',
           };
         })
         .sort((a: any, b: any) => a.distance - b.distance)

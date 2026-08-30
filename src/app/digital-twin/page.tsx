@@ -57,6 +57,23 @@ export default function DigitalTwinPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    fetch('/api/digital-twin')
+      .then(res => {
+        if (!res.ok) throw new Error('Unauthorized');
+        return res.json();
+      })
+      .then(data => {
+        if (data.twin?.healthSummary) {
+          const summary = JSON.parse(data.twin.healthSummary);
+          if (summary.organs) setOrgans(summary.organs);
+          if (summary.habits) setActiveHabits(summary.habits);
+          if (summary.healthScore) setHealthScore(summary.healthScore);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       if (isPlaying) {
         setFutureYear(prev => {
@@ -302,14 +319,14 @@ export default function DigitalTwinPage() {
                   const centerX = rect.width / 2;
                   const centerY = rect.height / 2;
                   
-                  let found = null;
+                  let found: string | null = null;
                   organs.forEach(organ => {
                     const organX = centerX + (organ.position.x - 50) * 3;
                     const organY = centerY + (organ.position.y - 30) * 3.5;
                     const dist = Math.sqrt((x - organX) ** 2 + (y - organY) ** 2);
                     if (dist < 30) found = organ.name;
                   });
-                  setHoveredOrgan(found);
+                  setHoveredOrgan(found as string | null);
                 }}
                 onMouseLeave={() => setHoveredOrgan(null)}
               />

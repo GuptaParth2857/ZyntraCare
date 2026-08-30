@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { FiStar, FiSearch, FiFilter, FiThumbsUp, FiUser, FiCheck, FiArrowLeft, FiArrowRight, FiChevronDown, FiChevronUp, FiMessageSquare, FiEdit3, FiSend, FiX, FiEye, FiAward, FiClock, FiMapPin, FiHeart } from 'react-icons/fi';
@@ -33,45 +33,8 @@ interface Review {
   helpedByMe: boolean;
 }
 
-const DOCTORS: Doctor[] = [
-  { id: 'd1', name: 'Dr. Priya Sharma', specialty: 'Cardiology', hospital: 'AIIMS Delhi', city: 'New Delhi', experience: 22, rating: 4.8, totalReviews: 342, avatar: '👩‍⚕️' },
-  { id: 'd2', name: 'Dr. Rajesh Gupta', specialty: 'Orthopedics', hospital: 'Fortis Hospital', city: 'Mumbai', experience: 18, rating: 4.6, totalReviews: 218, avatar: '👨‍⚕️' },
-  { id: 'd3', name: 'Dr. Anita Desai', specialty: 'Neurology', hospital: 'Max Hospital', city: 'Gurgaon', experience: 15, rating: 4.7, totalReviews: 189, avatar: '👩‍⚕️' },
-  { id: 'd4', name: 'Dr. Suresh Patel', specialty: 'Gastroenterology', hospital: 'Apollo Hospital', city: 'Chennai', experience: 20, rating: 4.5, totalReviews: 276, avatar: '👨‍⚕️' },
-  { id: 'd5', name: 'Dr. Meera Nair', specialty: 'Dermatology', hospital: 'CMC Vellore', city: 'Vellore', experience: 12, rating: 4.9, totalReviews: 156, avatar: '👩‍⚕️' },
-  { id: 'd6', name: 'Dr. Arjun Singh', specialty: 'Pulmonology', hospital: 'Medanta Hospital', city: 'Gurgaon', experience: 17, rating: 4.4, totalReviews: 198, avatar: '👨‍⚕️' },
-  { id: 'd7', name: 'Dr. Kavita Reddy', specialty: 'Oncology', hospital: 'Tata Memorial', city: 'Mumbai', experience: 25, rating: 4.8, totalReviews: 412, avatar: '👩‍⚕️' },
-  { id: 'd8', name: 'Dr. Vikram Joshi', specialty: 'Endocrinology', hospital: 'Manipal Hospital', city: 'Bangalore', experience: 14, rating: 4.3, totalReviews: 167, avatar: '👨‍⚕️' },
-];
-
 const VISIT_TYPES = ['OPD', 'Emergency', 'Surgery', 'Consultation'];
 const SORT_OPTIONS = ['Most Recent', 'Highest Rated', 'Lowest Rated', 'Most Helpful'];
-
-const ALL_REVIEWS: Review[] = [
-  { id: 'r1', doctorId: 'd1', userName: 'Amit Kumar', avatar: 'AK', date: '2026-08-15', rating: 5, title: 'Life-saving cardiac intervention', text: 'Dr. Priya Sharma performed my angioplasty with exceptional skill. She explained every step calmly and the nursing staff at AIIMS was phenomenal. Recovery was smooth within 3 days. Highly recommend for any cardiac issues.', visitType: 'Surgery', wouldRecommend: true, anonymous: false, helpful: 47, helpedByMe: false },
-  { id: 'r2', doctorId: 'd1', userName: 'Anonymous', avatar: 'AN', date: '2026-07-22', rating: 4, title: 'Thorough consultation', text: 'Very thorough in her approach. Took time to review all my reports. Wait time was about 45 minutes which is expected at AIIMS. Prescribed the right medication and follow-up was well managed.', visitType: 'OPD', wouldRecommend: true, anonymous: true, helpful: 23, helpedByMe: false },
-  { id: 'r3', doctorId: 'd1', userName: 'Sunita Mehta', avatar: 'SM', date: '2026-06-10', rating: 5, title: 'Best cardiologist in Delhi NCR', text: 'Diagnosed my arrhythmia that two other doctors missed. The ECG interpretation was spot on. She genuinely cares about patients and follows up personally. The best experience I have had at any hospital.', visitType: 'Consultation', wouldRecommend: true, anonymous: false, helpful: 61, helpedByMe: false },
-  { id: 'r4', doctorId: 'd1', userName: 'Ravi Teja', avatar: 'RT', date: '2026-05-18', rating: 3, title: 'Good but overcrowded', text: 'Medical expertise is top-notch but the OPD is extremely crowded. Had to wait 2 hours for a 10-minute consultation. She is clearly overworked. The treatment itself was effective though.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 15, helpedByMe: false },
-  { id: 'r5', doctorId: 'd2', userName: 'Deepak Verma', avatar: 'DV', date: '2026-08-10', rating: 5, title: 'Knee replacement was seamless', text: 'Dr. Rajesh Gupta did my total knee replacement at Fortis Mumbai. Minimal pain post-surgery, and I was walking with support within 48 hours. His physiotherapy recommendations were excellent.', visitType: 'Surgery', wouldRecommend: true, anonymous: false, helpful: 38, helpedByMe: false },
-  { id: 'r6', doctorId: 'd2', userName: 'Pooja Sharma', avatar: 'PS', date: '2026-07-05', rating: 4, title: 'Excellent spine specialist', text: 'Treatment for my slipped disc was very effective. He explained the MRI clearly and gave both surgical and non-surgical options. Chose conservative treatment first which worked. Fortis facility is world class.', visitType: 'Consultation', wouldRecommend: true, anonymous: false, helpful: 29, helpedByMe: false },
-  { id: 'r7', doctorId: 'd2', userName: 'Anonymous', avatar: 'AN', date: '2026-06-20', rating: 4, title: 'Emergency fracture treatment', text: 'Got my wrist fracture treated in emergency. Doctor was professional and set the bone correctly. Only concern was the billing was quite high for Fortis. Medical care was excellent though.', visitType: 'Emergency', wouldRecommend: true, anonymous: true, helpful: 12, helpedByMe: false },
-  { id: 'd8', doctorId: 'd3', userName: 'Neha Agarwal', avatar: 'NA', date: '2026-08-12', rating: 5, title: 'Miracle worker for migraines', text: 'Suffered from chronic migraines for 8 years. Dr. Desai at Max Hospital put me on a new regimen and within 2 months my migraine frequency dropped from weekly to once a month. She truly changed my life.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 55, helpedByMe: false },
-  { id: 'r9', doctorId: 'd3', userName: 'Vikash Singh', avatar: 'VS', date: '2026-07-28', rating: 4, title: 'Comprehensive epilepsy management', text: 'She manages my epilepsy medication very carefully. Always reviews blood work before adjusting doses. The only reason for 4 stars is the long waiting time at Max. But her medical knowledge is exceptional.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 18, helpedByMe: false },
-  { id: 'r10', doctorId: 'd4', userName: 'Lakshmi Iyer', avatar: 'LI', date: '2026-08-08', rating: 5, title: 'Expert endoscopy specialist', text: 'Dr. Patel performed my endoscopy at Apollo Chennai. Very gentle and professional. He found a gastric ulcer early that could have become serious. His follow-up care was outstanding. Very affordable too.', visitType: 'Surgery', wouldRecommend: true, anonymous: false, helpful: 42, helpedByMe: false },
-  { id: 'r11', doctorId: 'd4', userName: 'Mohammed Ali', avatar: 'MA', date: '2026-06-30', rating: 4, title: 'IBS management was helpful', text: 'Good doctor for digestive issues. He listened to all my symptoms patiently and ordered the right tests. Treatment for IBS has been working well. His diet recommendations were practical and easy to follow.', visitType: 'Consultation', wouldRecommend: true, anonymous: false, helpful: 21, helpedByMe: false },
-  { id: 'r12', doctorId: 'd5', userName: 'Ananya Roy', avatar: 'AR', date: '2026-08-18', rating: 5, title: 'Cleared my persistent skin condition', text: 'Dr. Nair at CMC Vellore is a dermatologist like no other. She identified my psoriasis triggers that others dismissed. Her treatment plan with phototherapy and topical medication cleared 90% of my patches in 3 months.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 67, helpedByMe: false },
-  { id: 'r13', doctorId: 'd5', userName: 'Rohit Menon', avatar: 'RM', date: '2026-07-15', rating: 5, title: 'Best dermatologist in South India', text: 'Travelled from Kerala specifically to see her. Worth every kilometre. She is extremely knowledgeable about the latest dermatological treatments and explains everything in simple language.', visitType: 'Consultation', wouldRecommend: true, anonymous: false, helpful: 34, helpedByMe: false },
-  { id: 'r14', doctorId: 'd6', userName: 'Pradeep Nair', avatar: 'PN', date: '2026-08-01', rating: 4, title: 'Asthma management improved significantly', text: 'Dr. Singh at Medanta helped me get my asthma under control. He adjusted my inhaler regimen and taught me proper technique. My peak flow readings have improved by 40%. Good bedside manner.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 25, helpedByMe: false },
-  { id: 'r15', doctorId: 'd6', userName: 'Anonymous', avatar: 'AN', date: '2026-06-25', rating: 3, title: 'Average experience with COVID follow-up', text: 'Post-COVID lung evaluation was thorough but felt rushed during the consultation. He ordered the right tests but did not explain the long-term implications well. The hospital facilities were excellent though.', visitType: 'Consultation', wouldRecommend: false, anonymous: true, helpful: 9, helpedByMe: false },
-  { id: 'r16', doctorId: 'd7', userName: 'Savithri Menon', avatar: 'SM2', date: '2026-08-20', rating: 5, title: 'Guided me through cancer treatment with compassion', text: 'Dr. Reddy at Tata Memorial is not just an oncologist but a healer. She guided my mother through breast cancer treatment with extraordinary compassion. Her team at Tata Memorial is world-class. The chemotherapy protocol was personalized and effective.', visitType: 'Consultation', wouldRecommend: true, anonymous: false, helpful: 89, helpedByMe: false },
-  { id: 'r17', doctorId: 'd7', userName: 'Rajesh Patel', avatar: 'RP', date: '2026-07-10', rating: 5, title: 'Cancer survivor thanks to her', text: 'Stage 2 lung cancer survivor. Dr. Kavita Reddy planned a combination of surgery and immunotherapy. Two years cancer-free now. She reviews every scan personally. Tata Memorial under her care is world-class.', visitType: 'Surgery', wouldRecommend: true, anonymous: false, helpful: 73, helpedByMe: false },
-  { id: 'r18', doctorId: 'd7', userName: 'Priyanka Das', avatar: 'PD', date: '2026-05-28', rating: 4, title: 'Excellent but Tata Memorial is crowded', text: 'Medical expertise is 5 stars. The wait times at Tata are heartbreaking though. We waited 5 hours for consultation. But once you meet her, you understand why. She takes time with each patient despite the crowd.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 41, helpedByMe: false },
-  { id: 'r19', doctorId: 'd8', userName: 'Kiran Bhat', avatar: 'KB', date: '2026-08-05', rating: 4, title: 'Diabetes management was effective', text: 'Dr. Joshi at Manipal Hospital helped me manage my Type 2 diabetes. He adjusted my Metformin dosage and recommended dietary changes. My HbA1c dropped from 9.2 to 6.8 in 4 months. Very approachable doctor.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 19, helpedByMe: false },
-  { id: 'r20', doctorId: 'd8', userName: 'Anonymous', avatar: 'AN', date: '2026-07-20', rating: 3, title: 'Decent but felt like a conveyor belt', text: 'The consultation felt rushed. He prescribed standard diabetes medication without much personalization. Maybe I was expecting more detailed analysis. The facility at Manipal is top-notch though.', visitType: 'OPD', wouldRecommend: false, anonymous: true, helpful: 11, helpedByMe: false },
-  { id: 'r21', doctorId: 'd1', userName: 'Vikram Chauhan', avatar: 'VC', date: '2026-04-12', rating: 5, title: 'Emergency heart attack response saved my life', text: 'Had a massive heart attack. Dr. Sharma performed emergency PCI at AIIMS within 30 minutes of my arrival. Her quick thinking and expertise saved my life. I cannot recommend her enough.', visitType: 'Emergency', wouldRecommend: true, anonymous: false, helpful: 94, helpedByMe: false },
-  { id: 'r22', doctorId: 'd3', userName: 'Deepika Kumari', avatar: 'DK', date: '2026-05-05', rating: 5, title: 'Bell\'s palsy recovery with her guidance', text: 'Dr. Desai treated my Bell\'s palsy with a combination of steroids and physiotherapy. Full recovery in 6 weeks. She was reassuring throughout and available on WhatsApp for urgent queries. Remarkable doctor.', visitType: 'OPD', wouldRecommend: true, anonymous: false, helpful: 36, helpedByMe: false },
-  { id: 'r23', doctorId: 'd5', userName: 'Anjali Gupta', avatar: 'AG', date: '2026-04-22', rating: 4, title: 'Allergy treatment was effective', text: 'Dr. Nair conducted thorough allergy testing and identified my triggers. Treatment with antihistamines and avoidance protocol worked well. CMC Vellore has a great dermatology department under her.', visitType: 'Consultation', wouldRecommend: true, anonymous: false, helpful: 16, helpedByMe: false },
-];
 
 const GlassCard = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-slate-900/70 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl ${className}`}>
@@ -111,10 +74,48 @@ export default function DoctorReviewsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [filterSpecialty, setFilterSpecialty] = useState('All');
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const specialties = useMemo(() => ['All', ...Array.from(new Set(DOCTORS.map(d => d.specialty)))], []);
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const res = await fetch('/api/doctor-reviews');
+        if (res.ok) {
+          const data = await res.json();
+          setDoctors(data.doctors || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch doctors', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDoctors();
+  }, []);
 
-  const filteredDoctors = DOCTORS.filter(d => {
+  const fetchReviews = useCallback(async (doctorId: string) => {
+    try {
+      const res = await fetch(`/api/doctor-reviews?doctorId=${doctorId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllReviews(data.reviews || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch reviews', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedDoctor) {
+      fetchReviews(selectedDoctor.id);
+    }
+  }, [selectedDoctor, fetchReviews]);
+
+  const specialties = useMemo(() => ['All', ...Array.from(new Set(doctors.map(d => d.specialty)))], [doctors]);
+
+  const filteredDoctors = doctors.filter(d => {
     const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase()) || d.specialty.toLowerCase().includes(searchQuery.toLowerCase()) || d.hospital.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSpecialty = filterSpecialty === 'All' || d.specialty === filterSpecialty;
     return matchesSearch && matchesSpecialty;
@@ -122,7 +123,7 @@ export default function DoctorReviewsPage() {
 
   const doctorReviews = useMemo(() => {
     if (!selectedDoctor) return [];
-    let reviews = ALL_REVIEWS.filter(r => r.doctorId === selectedDoctor.id);
+    let reviews = allReviews.filter(r => r.doctorId === selectedDoctor.id);
     switch (sortBy) {
       case 'Highest Rated': reviews.sort((a, b) => b.rating - a.rating); break;
       case 'Lowest Rated': reviews.sort((a, b) => a.rating - b.rating); break;
@@ -130,52 +131,59 @@ export default function DoctorReviewsPage() {
       default: reviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
     return reviews;
-  }, [selectedDoctor, sortBy]);
+  }, [selectedDoctor, sortBy, allReviews]);
 
   const ratingDistribution = useMemo(() => {
     if (!selectedDoctor) return [0, 0, 0, 0, 0];
     const dist = [0, 0, 0, 0, 0];
-    ALL_REVIEWS.filter(r => r.doctorId === selectedDoctor.id).forEach(r => { dist[r.rating - 1]++; });
+    allReviews.filter(r => r.doctorId === selectedDoctor.id).forEach(r => { dist[r.rating - 1]++; });
     return dist;
-  }, [selectedDoctor]);
+  }, [selectedDoctor, allReviews]);
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (!reviewRating || !newReview.title.trim() || !newReview.text.trim() || !selectedDoctor) return;
     setSubmitting(true);
-    setTimeout(() => {
-      const review: Review = {
-        id: `r_new_${Date.now()}`,
-        doctorId: selectedDoctor.id,
-        userName: newReview.anonymous ? 'Anonymous' : 'You',
-        avatar: newReview.anonymous ? 'AN' : 'YO',
-        date: new Date().toISOString().split('T')[0],
-        rating: reviewRating,
-        title: newReview.title,
-        text: newReview.text,
-        visitType: newReview.visitType,
-        wouldRecommend: newReview.wouldRecommend,
-        anonymous: newReview.anonymous,
-        helpful: 0,
-        helpedByMe: false,
-      };
-      ALL_REVIEWS.unshift(review);
+    try {
+      const res = await fetch('/api/doctor-reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctorId: selectedDoctor.id,
+          userId: 'demo-user',
+          rating: reviewRating,
+          title: newReview.title,
+          text: newReview.text,
+          visitType: newReview.visitType,
+          wouldRecommend: newReview.wouldRecommend,
+          anonymous: newReview.anonymous,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.review) {
+          setAllReviews(prev => [data.review, ...prev]);
+        }
+        setSubmitting(false);
+        setSubmitted(true);
+        setTimeout(() => {
+          setShowReviewForm(false);
+          setSubmitted(false);
+          setReviewRating(0);
+          setNewReview({ title: '', text: '', visitType: 'OPD', wouldRecommend: true, anonymous: false });
+        }, 2000);
+      }
+    } catch (e) {
+      console.error('Failed to submit review', e);
       setSubmitting(false);
-      setSubmitted(true);
-      setTimeout(() => {
-        setShowReviewForm(false);
-        setSubmitted(false);
-        setReviewRating(0);
-        setNewReview({ title: '', text: '', visitType: 'OPD', wouldRecommend: true, anonymous: false });
-      }, 2000);
-    }, 1200);
+    }
   };
 
   const toggleHelpful = (reviewId: string) => {
-    const review = ALL_REVIEWS.find(r => r.id === reviewId);
-    if (review) {
-      review.helpedByMe = !review.helpedByMe;
-      review.helpful += review.helpedByMe ? 1 : -1;
-    }
+    setAllReviews(prev => prev.map(r => {
+      if (r.id !== reviewId) return r;
+      const newHelpedByMe = !r.helpedByMe;
+      return { ...r, helpedByMe: newHelpedByMe, helpful: newHelpedByMe ? r.helpful + 1 : r.helpful - 1 };
+    }));
   };
 
   return (
@@ -320,11 +328,11 @@ export default function DoctorReviewsPage() {
                     <div className="mb-4">
                       <select
                         value={compareDoctor?.id || ''}
-                        onChange={e => setCompareDoctor(DOCTORS.find(d => d.id === e.target.value) || null)}
+                        onChange={e => setCompareDoctor(doctors.find(d => d.id === e.target.value) || null)}
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-violet-500/50 transition appearance-none cursor-pointer"
                       >
                         <option value="" className="bg-slate-900">Select a doctor to compare...</option>
-                        {DOCTORS.filter(d => d.id !== selectedDoctor?.id).map(d => (
+                        {doctors.filter(d => d.id !== selectedDoctor?.id).map(d => (
                           <option key={d.id} value={d.id} className="bg-slate-900">{d.name} — {d.specialty}</option>
                         ))}
                       </select>
@@ -354,7 +362,7 @@ export default function DoctorReviewsPage() {
                   <GlassCard className="p-6">
                     <h3 className="font-bold text-white mb-4">Top Patient Reviews</h3>
                     <div className="space-y-3">
-                      {ALL_REVIEWS.filter(r => r.doctorId === selectedDoctor.id).sort((a, b) => b.helpful - a.helpful).slice(0, 3).map(review => (
+                      {allReviews.filter(r => r.doctorId === selectedDoctor.id).sort((a, b) => b.helpful - a.helpful).slice(0, 3).map(review => (
                         <div key={review.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
                           <div className="flex items-start gap-3">
                             <div className="w-9 h-9 bg-gradient-to-br from-violet-500/30 to-purple-500/30 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">{review.avatar}</div>

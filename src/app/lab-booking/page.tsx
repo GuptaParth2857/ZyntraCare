@@ -68,8 +68,25 @@ export default function LabBookingPage() {
     setShowPayment(true);
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     setBookingId(`LB-${Date.now()}`);
+    try {
+      await fetch('/api/lab-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'demo-user',
+          labName: selectedLab?.name || 'Lab Test',
+          testType: selectedTests.length > 0 ? selectedTests.join(', ') : (selectedLab?.tests?.[0] || 'Lab Test'),
+          date,
+          time,
+          notes: `${selectedTests.length} test(s) · fasting=${form.fasting} · ${form.name} (${form.phone})`,
+          fee: totalPrice || selectedLab?.price || 0,
+        }),
+      });
+    } catch (err) {
+      console.error('Lab booking POST failed:', err);
+    }
     setBookingConfirmed(true);
     setShowPayment(false);
   };

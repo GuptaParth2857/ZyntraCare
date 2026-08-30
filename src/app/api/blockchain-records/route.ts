@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     });
 
     let chainHash = GENESIS_HASH;
-    const chain = [];
+    const chain: any[] = [];
     for (const record of records) {
       const hash = await sha256(`${record.id}-${record.createdAt.getTime()}`);
       chain.push({

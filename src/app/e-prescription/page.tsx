@@ -56,15 +56,7 @@ interface DeliveryForm {
   payment: 'cod' | 'upi' | 'card';
 }
 
-const MOCK_PHARMACIES: Pharmacy[] = [
-  { id: '1', name: 'Apollo Pharmacy', address: 'MG Road, Sector 14, Gurgaon', rating: 4.8, deliveryTime: '25-35 min', deliveryFee: 0, distance: '1.2 km', image: '💊', openNow: true },
-  { id: '2', name: 'MedPlus', address: 'Connaught Place, New Delhi', rating: 4.6, deliveryTime: '30-40 min', deliveryFee: 15, distance: '2.1 km', image: '🏥', openNow: true },
-  { id: '3', name: 'Netmeds Pharmacy', address: 'Sector 62, Noida', rating: 4.5, deliveryTime: '35-45 min', deliveryFee: 20, distance: '3.5 km', image: '💊', openNow: true },
-  { id: '4', name: '1mg Pharmacy', address: 'Cyber Hub, Gurgaon', rating: 4.7, deliveryTime: '20-30 min', deliveryFee: 0, distance: '1.8 km', image: '🧪', openNow: true },
-  { id: '5', name: 'Wellness Forever', address: 'Bandra West, Mumbai', rating: 4.4, deliveryTime: '40-50 min', deliveryFee: 25, distance: '4.2 km', image: '🏥', openNow: false },
-];
-
-const PARSED_MEDICINES: ParsedMedicine[] = [
+const DEFAULT_MEDICINES: ParsedMedicine[] = [
   {
     id: '1', name: 'Amoxicillin 500mg', dosage: '500mg', frequency: 'Three times daily', duration: '7 days',
     quantity: 21, price: 85,
@@ -132,10 +124,21 @@ export default function EPrescriptionPage() {
   const [parsingProgress, setParsingProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [trackingProgress, setTrackingProgress] = useState(0);
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
+  const [loadingPharmacies, setLoadingPharmacies] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('zyntracare_eprescription_orders');
     if (saved) setOrderHistory(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    setLoadingPharmacies(true);
+    fetch('/api/pharmacies')
+      .then(res => res.json())
+      .then(data => setPharmacies(data.pharmacies || data))
+      .catch(() => setPharmacies([]))
+      .finally(() => setLoadingPharmacies(false));
   }, []);
 
   useEffect(() => {
@@ -173,7 +176,7 @@ export default function EPrescriptionPage() {
         if (prev >= 100) {
           clearInterval(interval);
           setParsing(false);
-          setParsedMedicines(PARSED_MEDICINES);
+          setParsedMedicines(DEFAULT_MEDICINES.map(m => ({ ...m, selected: true })));
           setCurrentView('parsed');
           return 100;
         }
@@ -219,6 +222,23 @@ export default function EPrescriptionPage() {
     setOrderHistory(prev => [order, ...prev]);
     setCurrentView('tracking');
     simulateTracking(order);
+
+    fetch('/api/health-timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'demo-user',
+        event: {
+          type: 'prescription',
+          title: `Prescription Order - ${trackingId}`,
+          date: now.toISOString().split('T')[0],
+          hospital: selectedPharmacy.name,
+          doctor: '',
+          summary: `Ordered ${selectedMeds.length} medicines: ${selectedMeds.map(m => m.name).join(', ')}. Total: ₹${total}`,
+          details: `Pharmacy: ${selectedPharmacy.name}, Address: ${order.address}`,
+        },
+      }),
+    }).catch(() => {});
   };
 
   const simulateTracking = (order: Order) => {
@@ -395,7 +415,7 @@ export default function EPrescriptionPage() {
                               if (prev >= 100) {
                                 clearInterval(interval);
                                 setParsing(false);
-                                setParsedMedicines(PARSED_MEDICINES);
+                                setParsedMedicines(DEFAULT_MEDICINES.map(m => ({ ...m, selected: true })));
                                 setCurrentView('parsed');
                                 return 100;
                               }
@@ -530,7 +550,17 @@ export default function EPrescriptionPage() {
                       <FiMapPin className="text-emerald-400" /> Select Nearby Pharmacy
                     </h2>
                     <div className="space-y-4">
-                      {MOCK_PHARMACIES.map((pharmacy) => (
+                      {loadingPharmacies ? (
+                        <div className="text-center py-12">
+                          <div className="w-10 h-10 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                          <p className="text-gray-400">Loading pharmacies...</p>
+                        </div>
+                      ) : pharmacies.length === 0 ? (
+                        <div className="text-center py-12">
+                          <FiMapPin size={48} className="text-gray-600 mx-auto mb-4" />
+                          <p className="text-gray-400">No pharmacies available</p>
+                        </div>
+                      ) : pharmacies.map((pharmacy) => (
                         <button
                           key={pharmacy.id}
                           onClick={() => setSelectedPharmacy(pharmacy)}

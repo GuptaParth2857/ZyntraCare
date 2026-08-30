@@ -46,7 +46,7 @@ function DNAStructure({ bloomIntensity = 2.0 }: { bloomIntensity?: number }) {
   });
 
   const rungs = useMemo(() => {
-    const arr = [];
+    const arr: { i: number; p1: THREE.Vector3; p2: THREE.Vector3; glowColor: string; glowEmissive: string; glowIntensity: number; isBroken: boolean; isGold: boolean; isTeal: boolean }[] = [];
     for (let i = 0; i < PAIRS; i++) {
       const y = (i - PAIRS / 2) * HEIGHT;
       const angle = i * TWIST;

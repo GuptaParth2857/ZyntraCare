@@ -526,7 +526,7 @@ export async function POST(req: NextRequest) {
       const interactions = checkDrugInteractions(potentialMeds);
 
       // Save pill record
-      let pillRecord = null;
+      let pillRecord: { id: string } | null = null;
       try {
         pillRecord = await prisma.pillRecord.create({
           data: {

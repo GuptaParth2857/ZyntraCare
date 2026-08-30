@@ -105,26 +105,7 @@ const GROUNDING_STEPS = [
 ];
 
 function generateMoodHistory(): MoodEntry[] {
-  const entries: MoodEntry[] = [];
-  const now = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dayStr = date.toISOString().split('T')[0];
-    const moods = [3, 4, 2, 4, 5, 3, 4, 2, 3, 5, 4, 3, 4, 5];
-    const mood = moods[13 - i] || 3;
-    const moodOption = MOOD_OPTIONS[mood - 1];
-    entries.push({
-      date: dayStr,
-      mood,
-      label: moodOption.label,
-      energy: Math.floor(Math.random() * 6) + 4,
-      anxiety: Math.floor(Math.random() * 6) + 2,
-      sleep: SLEEP_QUALITIES[Math.floor(Math.random() * 3) + 2],
-      journal: '',
-    });
-  }
-  return entries;
+  return [];
 }
 
 function getSeverity(score: number, max: number, levels: { label: string; color: string }[]): { label: string; color: string } {
@@ -162,6 +143,25 @@ export default function MentalHealthPage() {
 
   // Affirmations
   const [affirmationIndex, setAffirmationIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMoodData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/mental-health?userId=demo-user');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      if (data.moodHistory) setMoodHistory(data.moodHistory);
+    } catch {
+      // Use empty defaults
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMoodData();
+  }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayMood = moodHistory.find(e => e.date === todayStr);
@@ -199,7 +199,7 @@ export default function MentalHealthPage() {
     return lastWeek.length ? lastWeek.reduce((s, e) => s + e.mood, 0) / lastWeek.length : 0;
   }, [moodHistory]);
 
-  const submitMood = () => {
+  const submitMood = async () => {
     if (selectedMood === null) return;
     const moodOption = MOOD_OPTIONS[selectedMood - 1];
     const newEntry: MoodEntry = {
@@ -216,6 +216,13 @@ export default function MentalHealthPage() {
       return [...filtered, newEntry];
     });
     setMoodSubmitted(true);
+    try {
+      await fetch('/api/mental-health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user', action: 'saveMood', entry: newEntry }),
+      });
+    } catch { /* optimistically saved */ }
     setTimeout(() => setMoodSubmitted(false), 3000);
   };
 
@@ -225,7 +232,7 @@ export default function MentalHealthPage() {
     setScreeningResult(null);
   };
 
-  const submitScreening = () => {
+  const submitScreening = async () => {
     if (!activeScreening) return;
     const questions = activeScreening === 'phq9' ? PHQ9_QUESTIONS : activeScreening === 'gad7' ? GAD7_QUESTIONS : STRESS_QUESTIONS;
     const maxScore = questions.length * 3;
@@ -253,6 +260,18 @@ export default function MentalHealthPage() {
     }
 
     setScreeningResult({ score: totalScore, max: maxScore, severity, color, recommendation });
+
+    try {
+      await fetch('/api/mental-health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'demo-user',
+          action: 'saveScreening',
+          screening: { type: activeScreening, score: totalScore, max: maxScore, severity, answers: screeningAnswers },
+        }),
+      });
+    } catch { /* result displayed locally regardless */ }
   };
 
   // Breathing exercise
@@ -380,6 +399,16 @@ export default function MentalHealthPage() {
             </button>
           ))}
         </div>
+
+        {loading && (
+          <div className="text-center py-20">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-white/50">Loading your mental health data...</p>
+          </div>
+        )}
+
+        {!loading && (
+        <>
 
         {/* Mood Check-in Tab */}
         {activeTab === 'mood' && (
@@ -958,6 +987,8 @@ export default function MentalHealthPage() {
               You matter. Your life matters. Help is always available.
             </p>
           </motion.div>
+        )}
+        </>
         )}
       </div>
     </div>

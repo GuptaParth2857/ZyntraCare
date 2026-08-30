@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     const overallRisk = riskPercent >= 60 ? 'very_high' : riskPercent >= 40 ? 'high' : riskPercent >= 20 ? 'medium' : 'low';
 
     // Generate disease probabilities
-    const diseases = [];
+    const diseases: { name: string; probability: number; category: string }[] = [];
     if (bmi >= 25 || bmi >= 30) {
       diseases.push({ name: 'Type 2 Diabetes', probability: Math.min(95, 40 + (bmi - 25) * 5), category: 'Metabolic' });
       diseases.push({ name: 'Hypertension', probability: Math.min(90, 30 + (bmi - 25) * 4), category: 'Cardiovascular' });
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
     diseases.sort((a, b) => b.probability - a.probability);
 
     // Generate recommendations
-    const recommendations = [];
+    const recommendations: string[] = [];
     if (bmi >= 25) recommendations.push('Maintain healthy weight through balanced diet');
     if (bloodPressure >= 140) recommendations.push('Monitor blood pressure regularly, reduce sodium intake');
     if (bloodSugar >= 100) recommendations.push('Limit sugar intake, increase physical activity');

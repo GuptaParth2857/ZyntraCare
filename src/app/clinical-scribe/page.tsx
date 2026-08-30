@@ -32,67 +32,11 @@ interface GeneratedReport {
   followUp: string;
 }
 
-const SAMPLE_CONVERSATION = [
-  { speaker: 'patient', text: "Namaste Doctor, mujhe 3 din se bukhar hai aur fever aata jaata hai.", emotion: 'tired' },
-  { speaker: 'patient', text: "Iske saath hi mujhe sar dard bhi hai aur body mein kamzori feel hoti hai.", emotion: 'worried' },
-  { speaker: 'doctor', text: "Accha, bukhar kitna hai? Dolo 650 liya aapne?", emotion: 'attentive' },
-  { speaker: 'patient', text: "Haan, kal raat liya tha ek tablet. Thoda kam hua, phir se badh gaya.", emotion: 'concerned' },
-  { speaker: 'doctor', text: "Khaansi hai? Khaana khane ka mann karta hai? Pet mein koi dikkat hai?", emotion: 'inquisitive' },
-  { speaker: 'patient', text: "Haan, thodi khaansi hai aur pet mein dard bhi hai ek dam se.", emotion: 'uncomfortable' },
-  { speaker: 'doctor', text: "Thik hai, aapko examine karne dete hain. BP check karte hain.", emotion: 'reassuring' },
-  { speaker: 'ai', text: "[VITALS RECORDED: BP - 120/80, Pulse - 98 bpm, Temperature - 101.2°F, SpO2 - 98%]", emotion: 'neutral' },
-  { speaker: 'doctor', text: "Aapka BP normal hai, lekin fever zyada hai. Lagta hai viral infection hai.", emotion: 'professional' },
-  { speaker: 'doctor', text: "Dolo 650 ek aur denge, aur Calcirol XS syrup 2 chammach raat ko.", emotion: 'decisive' },
-  { speaker: 'doctor', text: "5 din ke liye medicine lein. Agar fever jaldi na utre toh aana.", emotion: 'caring' },
-];
-
-const DETECTED_ENTITIES: MedicalEntity[] = [
-  { type: 'symptom', value: 'Fever (101.2°F)', confidence: 0.98 },
-  { type: 'symptom', value: 'Headache', confidence: 0.92 },
-  { type: 'symptom', value: 'Body weakness', confidence: 0.89 },
-  { type: 'symptom', value: 'Cough', confidence: 0.85 },
-  { type: 'symptom', value: 'Abdominal pain', confidence: 0.78 },
-  { type: 'medication', value: 'Dolo 650', confidence: 0.99 },
-  { type: 'medication', value: 'Calcirol XS Syrup', confidence: 0.95 },
-  { type: 'vital', value: 'BP: 120/80 mmHg', confidence: 1.0 },
-  { type: 'vital', value: 'Pulse: 98 bpm', confidence: 1.0 },
-  { type: 'vital', value: 'SpO2: 98%', confidence: 1.0 },
-  { type: 'diagnosis', value: 'Viral Fever', confidence: 0.91 },
-];
-
-const INITIAL_REPORT: GeneratedReport = {
-  chiefComplaint: "3 days fever with headache, body weakness, cough and mild abdominal pain",
-  historyOfPresentIllness: "Patient experiencing intermittent fever for 3 days. Took Dolo 650 last night which provided temporary relief. Symptoms associated with headache and general fatigue. No significant medical history reported.",
-  physicalExamination: "Vitals: BP 120/80 mmHg, Pulse 98 bpm, Temperature 101.2°F, SpO2 98% on room air. Patient appears tired but responsive. No signs of dehydration.",
-  diagnosis: ["Viral Fever", "Upper Respiratory Tract Infection"],
-  prescriptions: [
-    { medicine: "Dolo 650 (Paracetamol)", dosage: "650mg", frequency: "1 tablet 3 times a day", duration: "5 days" },
-    { medicine: "Calcirol XS Syrup", dosage: "2 teaspoons", frequency: "Once at night", duration: "30 days" },
-    { medicine: "Vitamin C 500mg", dosage: "500mg", frequency: "Once daily", duration: "10 days" },
-  ],
-  advice: [
-    "Take adequate rest and maintain hydration",
-    "Take sponge bath to reduce fever",
-    "Avoid cold drinks and oily food",
-    "Monitor temperature every 6 hours",
-    "Return if fever persists beyond 3 days or worsens",
-  ],
-  followUp: "5 days or earlier if symptoms worsen",
-};
-
 export default function ClinicalScribePage() {
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>(
-    SAMPLE_CONVERSATION.map((c, i) => ({
-      id: i.toString(),
-      speaker: c.speaker as 'doctor' | 'patient' | 'ai',
-      text: c.text,
-      timestamp: new Date().toLocaleTimeString(),
-      emotion: c.emotion,
-    }))
-  );
-  const [detectedEntities, setDetectedEntities] = useState<MedicalEntity[]>(DETECTED_ENTITIES);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+  const [detectedEntities, setDetectedEntities] = useState<MedicalEntity[]>([]);
   const [showReport, setShowReport] = useState(false);
-  const [report, setReport] = useState<GeneratedReport>(INITIAL_REPORT);
+  const [report, setReport] = useState<GeneratedReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [processingState, setProcessingState] = useState<'idle' | 'listening' | 'processing' | 'complete'>('idle');
@@ -134,7 +78,7 @@ export default function ClinicalScribePage() {
     setTranscript([]);
     setDetectedEntities([]);
     setShowReport(false);
-    setReport(INITIAL_REPORT);
+    setReport(null);
 
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.continuous = true;
@@ -258,80 +202,7 @@ export default function ClinicalScribePage() {
   }, [transcript]);
 
   const startRecording = () => {
-    setIsRecording(true);
-    setProcessingState('listening');
-    setElapsedTime(0);
-    setTranscript([]);
-    setDetectedEntities([]);
-    setShowReport(false);
-    setReport(INITIAL_REPORT);
-
-    let conversationIndex = 0;
-    const conversationInterval = setInterval(() => {
-      if (conversationIndex >= SAMPLE_CONVERSATION.length) {
-        clearInterval(conversationInterval);
-        setIsRecording(false);
-        setProcessingState('processing');
-        generateReport();
-        return;
-      }
-
-      const entry = SAMPLE_CONVERSATION[conversationIndex];
-      const newEntry: TranscriptEntry = {
-        id: `entry-${Date.now()}-${conversationIndex}`,
-        speaker: entry.speaker as 'doctor' | 'patient' | 'ai',
-        text: entry.text,
-        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        emotion: entry.emotion
-      };
-
-      setTranscript(prev => [...prev, newEntry]);
-
-      if (entry.speaker === 'doctor') {
-        const newEntity: MedicalEntity | null = extractEntities(entry.text);
-        if (newEntity) {
-          setDetectedEntities(prev => [...prev, newEntity]);
-        }
-      }
-
-      if (entry.speaker === 'ai') {
-        const vitalEntity: MedicalEntity = {
-          type: 'vital',
-          value: entry.text.replace('[VITALS RECORDED: ', '').replace(']', ''),
-          confidence: 1.0
-        };
-        setDetectedEntities(prev => [...prev, vitalEntity]);
-      }
-
-      conversationIndex++;
-    }, 2500);
-  };
-
-  const extractEntities = (text: string): MedicalEntity | null => {
-    const medications = [
-      { name: 'Dolo 650', type: 'medication' as const },
-      { name: 'Calcirol', type: 'medication' as const },
-    ];
-
-    for (const med of medications) {
-      if (text.toLowerCase().includes(med.name.toLowerCase())) {
-        return { type: med.type, value: med.name, confidence: 0.95 };
-      }
-    }
-
-    if (text.toLowerCase().includes('fever') || text.toLowerCase().includes('infection')) {
-      return { type: 'diagnosis', value: text, confidence: 0.85 };
-    }
-
-    return null;
-  };
-
-  const generateReport = () => {
-    setTimeout(() => {
-      setReport(INITIAL_REPORT);
-      setProcessingState('complete');
-      setShowReport(true);
-    }, 3000);
+    startRealRecording();
   };
 
   const formatTime = (seconds: number) => {

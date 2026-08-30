@@ -119,10 +119,10 @@ export default function LiveHealthMap({
         attributionControl: false,
       });
 
-      // Dark Carto tile — premium dark map style
+      // OpenStreetMap tile — free, no API key required
       L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        { subdomains: 'abcd', maxZoom: 20 }
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { maxZoom: 20, attribution: '&copy; OpenStreetMap contributors' }
       ).addTo(map);
 
       // Add zoom controls bottom-right

@@ -3,19 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-
-interface Place {
-  id: string;
-  name: string;
-  type: 'hospital' | 'clinic' | 'pharmacy' | 'lab';
-  lat: number;
-  lng: number;
-  address?: string;
-  phone?: string;
-  distance?: number;
-  rating?: number;
-  workingHours?: string;
-}
+import { Place, PlaceType } from '@/hooks/useNearbyPlaces';
 
 interface NearbyMapProps {
   places: Place[];
@@ -43,7 +31,9 @@ const typeIcons: Record<string, { color: string; label: string }> = {
   lab: { color: '#8b5cf6', label: 'L' },
   pharmacy: { color: '#22c55e', label: 'P' },
   clinic: { color: '#3b82f6', label: 'C' },
-  pet_shop: { color: '#f97316', label: '🐾' },
+  dentist: { color: '#ec4899', label: 'D' },
+  pet_clinic: { color: '#f97316', label: '🐾' },
+  pet_shop: { color: '#f59e0b', label: '🐕' },
   pet_pharmacy: { color: '#22c55e', label: '💊' },
 };
 
@@ -56,6 +46,29 @@ function FitBounds({ places, userLat, userLng }: { places: Place[]; userLat: num
       return;
     }
     import('leaflet').then(L => {
+      const haversine = (a: number, b: number, c: number, d: number) => {
+        const R = 6371;
+        const toRad = (x: number) => (x * Math.PI) / 180;
+        const dLat = toRad(c - a);
+        const dLng = toRad(d - b);
+        const h =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(a)) * Math.cos(toRad(c)) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+      };
+
+      // If any place is very far from the user, don't zoom out to fit it —
+      // keep the map centered on the user so far-away POIs never spread the
+      // view across the whole country.
+      let far = false;
+      for (const p of places) {
+        if (haversine(userLat, userLng, p.lat, p.lng) > 30) { far = true; break; }
+      }
+      if (far) {
+        map.setView([userLat, userLng], 12);
+        return;
+      }
+
       const bounds = L.latLngBounds([
         [userLat, userLng],
         ...places.map(p => [p.lat, p.lng] as [number, number]),
@@ -141,8 +154,8 @@ export default function NearbyMap({
         attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution={compact ? '' : '&copy; OpenStreetMap'}
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={compact ? '' : '&copy; OpenStreetMap contributors'}
           maxZoom={19}
         />
 

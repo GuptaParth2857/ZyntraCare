@@ -25,11 +25,18 @@ export default function HealthWalletPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/health-wallet');
+        const res = await fetch('/api/health-wallet?userId=demo-user');
         if (!res.ok) throw new Error('Failed to fetch wallet data');
         const data = await res.json();
-        setBalance(data.balance || 0);
-        setTransactions(data.transactions || []);
+        setBalance(data.wallet?.balance ?? data.balance ?? 0);
+        const txns = data.transactions || [];
+        setTransactions(txns.map((t: any) => ({
+          id: t.id,
+          type: t.type === 'debit' ? 'debit' : 'credit',
+          desc: t.description || t.category || 'Transaction',
+          amount: t.amount,
+          date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '',
+        })));
       } catch (err) {
         setError('Failed to load wallet data');
         console.error(err);

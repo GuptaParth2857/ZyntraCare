@@ -50,7 +50,18 @@ export default function DroneNetworkPage() {
       .then(res => res.json())
       .then(data => {
         if (data.drones) setLiveDrones(data.drones);
-        if (data.deliveries) setDeliveries(data.deliveries);
+        if (data.missions) {
+          setDeliveries(data.missions.map((m: Record<string, unknown>) => ({
+            id: m.id || `DEL-${Math.random().toString(36).slice(2, 6)}`,
+            item: (m.packageDesc as string) || 'Medical Package',
+            quantity: 1,
+            from: 'Origin',
+            to: (m.recipientName as string) || 'Destination',
+            status: (m.status as string) || 'In Transit',
+            drone: (m.droneId as string) || '',
+            eta: 'Pending',
+          })));
+        }
         setLoading(false);
       }).catch(() => setLoading(false));
   }, []);
@@ -128,7 +139,7 @@ export default function DroneNetworkPage() {
                   <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNDB2NDBIMHoiIGZpbGw9IiMyMDIwMzEiLz48L2c+PC9zdmc+')] opacity-30" />
                 </div>
 
-                {drones.map((drone, idx) => (
+                {liveDrones.map((drone, idx) => (
                   <motion.div
                     key={drone.id}
                     initial={{ scale: 0 }}
@@ -162,7 +173,7 @@ export default function DroneNetworkPage() {
               </div>
 
               <div className="grid grid-cols-4 gap-3">
-                {drones.map((drone) => (
+                {liveDrones.map((drone) => (
                   <button
                     key={drone.id}
                     onClick={() => setSelectedDrone(drone.id)}
@@ -231,7 +242,7 @@ export default function DroneNetworkPage() {
         >
           <h3 className="font-bold text-xl mb-4">Active Deliveries</h3>
           <div className="grid md:grid-cols-3 gap-4">
-            {activeDeliveries.map((delivery) => (
+            {deliveries.map((delivery) => (
               <div key={delivery.id} className="bg-slate-900/80 border border-white/10 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-bold text-white">{delivery.item}</span>

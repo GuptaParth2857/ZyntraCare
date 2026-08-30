@@ -7,6 +7,8 @@ import {
   AD_NETWORK,
   ADSTERRA_SLOTS,
   AD_SIZES,
+  ADSENSE_CONFIG,
+  ADSTERRA_CONFIG,
 } from '@/lib/ads/config';
 import type { AdPlacement, AdSize } from '@/lib/ads/config';
 
@@ -39,6 +41,13 @@ export default function AdSlot({
   label,
 }: AdSlotProps) {
   const pathname = usePathname();
+
+  // No configured/serving ad network -> render nothing (avoids ugly empty
+  // "Advertisement" gaps). Real ads only appear once AdSense/Adsterra is set up.
+  const hasRealAdNetwork = ADSENSE_CONFIG.enabled || ADSTERRA_CONFIG.isProduction;
+  if (!hasRealAdNetwork) {
+    return null;
+  }
 
   const config = ADSTERRA_SLOTS[placement];
   const adSize = size || config?.defaultSize || 'BANNER';

@@ -17,6 +17,12 @@ const STATS = [
   { label: 'Consultations Done', value: '2M+', icon: FiTrendingUp, color: 'text-emerald-400' },
 ];
 
+function formatCount(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1).replace(/\.0$/, '')}M+`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K+`;
+  return `${n}+`;
+}
+
 function AnimatedCounter({ value, duration = 2 }: { value: string; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
@@ -36,6 +42,22 @@ function SpecialistsContent() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
+  const [liveStats, setLiveStats] = useState<typeof STATS>(STATS);
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then((s) => {
+        if (!s || typeof s.doctors !== 'number') return;
+        setLiveStats([
+          { label: 'Trusted Specialists', value: formatCount(s.doctors), icon: FiUsers, color: 'text-blue-400' },
+          { label: 'Years Avg. Experience', value: '18+', icon: FiAward, color: 'text-purple-400' },
+          { label: 'Avg. Rating', value: '4.8★', icon: FiStar, color: 'text-amber-400' },
+          { label: 'Consultations Done', value: `${formatCount(s.appointments + s.emergencies)}`, icon: FiTrendingUp, color: 'text-emerald-400' },
+        ]);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const getUserLocation = () => {
@@ -85,8 +107,8 @@ function SpecialistsContent() {
       const q = searchQuery.toLowerCase();
       result = result.filter(d =>
         d.name.toLowerCase().includes(q) ||
-        d.specialty.toLowerCase().includes(q) ||
-        d.hospitalName.toLowerCase().includes(q)
+        (d.specialty || '').toLowerCase().includes(q) ||
+        (d.hospitalName || '').toLowerCase().includes(q)
       );
     }
 
@@ -96,9 +118,9 @@ function SpecialistsContent() {
     if (selectedLocation) result = result.filter(d => (d.city || '').toLowerCase().includes(selectedLocation.toLowerCase()));
     if (showAvailableOnly) result = result.filter(d => d.available);
 
-    if (sortBy === 'rating') result.sort((a, b) => b.rating - a.rating);
-    else if (sortBy === 'experience') result.sort((a, b) => b.experience - a.experience);
-    else if (sortBy === 'fee') result.sort((a, b) => a.consultationFee - b.consultationFee);
+    if (sortBy === 'rating') result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    else if (sortBy === 'experience') result.sort((a, b) => (b.experience || 0) - (a.experience || 0));
+    else if (sortBy === 'fee') result.sort((a, b) => (a.consultationFee || 0) - (b.consultationFee || 0));
 
     return result;
   }, [selectedSpecialty, activeSpecialtyTab, selectedLocation, showAvailableOnly, sortBy, searchQuery]);
@@ -186,7 +208,7 @@ function SpecialistsContent() {
             transition={{ delay: 0.5 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-8"
           >
-            {STATS.map((stat, i) => (
+            {liveStats.map((stat, i) => (
               <div key={stat.label} className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 text-center">
                 <stat.icon size={18} className={`mx-auto mb-1 ${stat.color}`} aria-hidden="true" />
                 <p className={`text-xl font-black ${stat.color}`}>

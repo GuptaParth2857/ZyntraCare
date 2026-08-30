@@ -47,77 +47,9 @@ interface QueueStats {
   currentAvgWait: number;
 }
 
-const HOSPITALS: Hospital[] = [
-  {
-    id: 'h1', name: 'Apollo Hospitals', city: 'Delhi', type: 'Private',
-    rating: 4.6,
-    departments: [
-      { id: 'opd', name: 'OPD', icon: '🏥', queueLength: 24, avgTimePerPatient: 12, currentAvgWait: '4 hr 48 min', isOpen: true },
-      { id: 'emergency', name: 'Emergency', icon: '🚨', queueLength: 8, avgTimePerPatient: 15, currentAvgWait: '2 hr 0 min', isOpen: true },
-      { id: 'lab', name: 'Laboratory', icon: '🔬', queueLength: 15, avgTimePerPatient: 8, currentAvgWait: '2 hr 0 min', isOpen: true },
-      { id: 'pharmacy', name: 'Pharmacy', icon: '💊', queueLength: 30, avgTimePerPatient: 3, currentAvgWait: '1 hr 30 min', isOpen: true },
-    ]
-  },
-  {
-    id: 'h2', name: 'AIIMS Delhi', city: 'Delhi', type: 'Government',
-    rating: 4.8,
-    departments: [
-      { id: 'opd', name: 'OPD', icon: '🏥', queueLength: 56, avgTimePerPatient: 10, currentAvgWait: '9 hr 20 min', isOpen: true },
-      { id: 'emergency', name: 'Emergency', icon: '🚨', queueLength: 18, avgTimePerPatient: 12, currentAvgWait: '3 hr 36 min', isOpen: true },
-      { id: 'lab', name: 'Laboratory', icon: '🔬', queueLength: 32, avgTimePerPatient: 7, currentAvgWait: '3 hr 44 min', isOpen: true },
-      { id: 'pharmacy', name: 'Pharmacy', icon: '💊', queueLength: 45, avgTimePerPatient: 2, currentAvgWait: '1 hr 30 min', isOpen: true },
-    ]
-  },
-  {
-    id: 'h3', name: 'Fortis Healthcare', city: 'Mumbai', type: 'Private',
-    rating: 4.5,
-    departments: [
-      { id: 'opd', name: 'OPD', icon: '🏥', queueLength: 18, avgTimePerPatient: 14, currentAvgWait: '4 hr 12 min', isOpen: true },
-      { id: 'emergency', name: 'Emergency', icon: '🚨', queueLength: 5, avgTimePerPatient: 15, currentAvgWait: '1 hr 15 min', isOpen: true },
-      { id: 'lab', name: 'Laboratory', icon: '🔬', queueLength: 12, avgTimePerPatient: 10, currentAvgWait: '2 hr 0 min', isOpen: true },
-      { id: 'pharmacy', name: 'Pharmacy', icon: '💊', queueLength: 22, avgTimePerPatient: 3, currentAvgWait: '1 hr 6 min', isOpen: true },
-    ]
-  },
-  {
-    id: 'h4', name: 'Manipal Hospitals', city: 'Bengaluru', type: 'Private',
-    rating: 4.4,
-    departments: [
-      { id: 'opd', name: 'OPD', icon: '🏥', queueLength: 20, avgTimePerPatient: 13, currentAvgWait: '4 hr 20 min', isOpen: true },
-      { id: 'emergency', name: 'Emergency', icon: '🚨', queueLength: 7, avgTimePerPatient: 14, currentAvgWait: '1 hr 38 min', isOpen: true },
-      { id: 'lab', name: 'Laboratory', icon: '🔬', queueLength: 10, avgTimePerPatient: 9, currentAvgWait: '1 hr 30 min', isOpen: true },
-      { id: 'pharmacy', name: 'Pharmacy', icon: '💊', queueLength: 16, avgTimePerPatient: 3, currentAvgWait: '48 min', isOpen: true },
-    ]
-  },
-  {
-    id: 'h5', name: 'Government General Hospital', city: 'Chennai', type: 'Government',
-    rating: 4.2,
-    departments: [
-      { id: 'opd', name: 'OPD', icon: '🏥', queueLength: 42, avgTimePerPatient: 11, currentAvgWait: '7 hr 42 min', isOpen: true },
-      { id: 'emergency', name: 'Emergency', icon: '🚨', queueLength: 12, avgTimePerPatient: 13, currentAvgWait: '2 hr 36 min', isOpen: true },
-      { id: 'lab', name: 'Laboratory', icon: '🔬', queueLength: 28, avgTimePerPatient: 8, currentAvgWait: '3 hr 44 min', isOpen: true },
-      { id: 'pharmacy', name: 'Pharmacy', icon: '💊', queueLength: 35, avgTimePerPatient: 2, currentAvgWait: '1 hr 10 min', isOpen: true },
-    ]
-  },
-  {
-    id: 'h6', name: 'Max Super Speciality Hospital', city: 'Gurugram', type: 'Private',
-    rating: 4.7,
-    departments: [
-      { id: 'opd', name: 'OPD', icon: '🏥', queueLength: 16, avgTimePerPatient: 15, currentAvgWait: '4 hr 0 min', isOpen: true },
-      { id: 'emergency', name: 'Emergency', icon: '🚨', queueLength: 4, avgTimePerPatient: 16, currentAvgWait: '1 hr 4 min', isOpen: true },
-      { id: 'lab', name: 'Laboratory', icon: '🔬', queueLength: 8, avgTimePerPatient: 10, currentAvgWait: '1 hr 20 min', isOpen: true },
-      { id: 'pharmacy', name: 'Pharmacy', icon: '💊', queueLength: 14, avgTimePerPatient: 4, currentAvgWait: '56 min', isOpen: true },
-    ]
-  },
-];
+const HOSPITALS: Hospital[] = [];
 
-const QUEUE_STATS: Record<string, QueueStats> = {
-  h1: { avgWaitToday: '3 hr 42 min', totalServedToday: 312, currentAvgWait: 34, peakHours: [{ hour: '9AM', count: 45 }, { hour: '10AM', count: 62 }, { hour: '11AM', count: 58 }, { hour: '12PM', count: 40 }, { hour: '2PM', count: 55 }, { hour: '3PM', count: 48 }, { hour: '4PM', count: 38 }, { hour: '5PM', count: 30 }] },
-  h2: { avgWaitToday: '5 hr 15 min', totalServedToday: 520, currentAvgWait: 52, peakHours: [{ hour: '9AM', count: 80 }, { hour: '10AM', count: 95 }, { hour: '11AM', count: 88 }, { hour: '12PM', count: 60 }, { hour: '2PM', count: 75 }, { hour: '3PM', count: 70 }, { hour: '4PM', count: 55 }, { hour: '5PM', count: 40 }] },
-  h3: { avgWaitToday: '2 hr 55 min', totalServedToday: 268, currentAvgWait: 28, peakHours: [{ hour: '9AM', count: 35 }, { hour: '10AM', count: 48 }, { hour: '11AM', count: 45 }, { hour: '12PM', count: 30 }, { hour: '2PM', count: 42 }, { hour: '3PM', count: 38 }, { hour: '4PM', count: 28 }, { hour: '5PM', count: 20 }] },
-  h4: { avgWaitToday: '3 hr 20 min', totalServedToday: 290, currentAvgWait: 32, peakHours: [{ hour: '9AM', count: 42 }, { hour: '10AM', count: 55 }, { hour: '11AM', count: 50 }, { hour: '12PM', count: 35 }, { hour: '2PM', count: 48 }, { hour: '3PM', count: 44 }, { hour: '4PM', count: 32 }, { hour: '5PM', count: 24 }] },
-  h5: { avgWaitToday: '4 hr 50 min', totalServedToday: 445, currentAvgWait: 46, peakHours: [{ hour: '9AM', count: 68 }, { hour: '10AM', count: 82 }, { hour: '11AM', count: 76 }, { hour: '12PM', count: 52 }, { hour: '2PM', count: 65 }, { hour: '3PM', count: 60 }, { hour: '4PM', count: 48 }, { hour: '5PM', count: 35 }] },
-  h6: { avgWaitToday: '2 hr 30 min', totalServedToday: 240, currentAvgWait: 24, peakHours: [{ hour: '9AM', count: 30 }, { hour: '10AM', count: 42 }, { hour: '11AM', count: 40 }, { hour: '12PM', count: 25 }, { hour: '2PM', count: 36 }, { hour: '3PM', count: 32 }, { hour: '4PM', count: 24 }, { hour: '5PM', count: 18 }] },
-};
+let QUEUE_STATS: Record<string, QueueStats> = {};
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -151,6 +83,7 @@ function PeakHoursChart({ stats }: { stats: QueueStats }) {
 }
 
 export default function HospitalQueuePage() {
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [selectedHospitalId, setSelectedHospitalId] = useState('');
   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
   const [activeQueue, setActiveQueue] = useState<QueueEntry | null>(null);
@@ -160,8 +93,33 @@ export default function HospitalQueuePage() {
   const [showStats, setShowStats] = useState(false);
   const [joinedDepartment, setJoinedDepartment] = useState('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const selectedHospital = HOSPITALS.find(h => h.id === selectedHospitalId);
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/hospitals')
+      .then(res => res.json())
+      .then(data => {
+        const raw = data.hospitals || data || [];
+        const mapped: Hospital[] = raw.map((h: any) => ({
+          id: h.id,
+          name: h.name,
+          city: h.city || '',
+          type: h.type || (h.emergency ? 'Government' : 'Private'),
+          rating: h.rating || 4.0,
+          departments: [
+            { id: `${h.id}-gen`, name: 'General', icon: '🏥', queueLength: Math.floor(Math.random() * 30), avgTimePerPatient: 8, currentAvgWait: `${Math.floor(Math.random() * 40 + 10)} min`, isOpen: true },
+            { id: `${h.id}-emer`, name: 'Emergency', icon: '🚑', queueLength: Math.floor(Math.random() * 15), avgTimePerPatient: 5, currentAvgWait: `${Math.floor(Math.random() * 20 + 5)} min`, isOpen: true },
+            { id: `${h.id}-spec`, name: 'Specialist', icon: '👨‍⚕️', queueLength: Math.floor(Math.random() * 20), avgTimePerPatient: 12, currentAvgWait: `${Math.floor(Math.random() * 60 + 15)} min`, isOpen: true },
+          ],
+        }));
+        setHospitals(mapped);
+      })
+      .catch(() => setHospitals([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const selectedHospital = hospitals.find(h => h.id === selectedHospitalId);
   const stats = selectedHospitalId ? QUEUE_STATS[selectedHospitalId] : null;
 
   const elapsedTimer = useCallback(() => {
@@ -205,9 +163,26 @@ export default function HospitalQueuePage() {
     setCurrentPosition(pos);
     setElapsedSeconds(0);
     setJoinedDepartment(dept.name);
+
+    fetch('/api/queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hospitalId: selectedHospitalId,
+        departmentId: dept.id,
+        userId: 'demo-user',
+      }),
+    }).catch(() => {});
   };
 
   const leaveQueue = () => {
+    if (activeQueue) {
+      fetch('/api/queue', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queueId: activeQueue.id, action: 'leave' }),
+      }).catch(() => {});
+    }
     setActiveQueue(null);
     setCurrentPosition(0);
     setElapsedSeconds(0);
@@ -401,7 +376,7 @@ export default function HospitalQueuePage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50"
                 >
-                  {HOSPITALS.map(h => (
+                  {hospitals.map(h => (
                     <button
                       key={h.id}
                       onClick={() => { setSelectedHospitalId(h.id); setShowHospitalDropdown(false); }}
@@ -586,8 +561,19 @@ export default function HospitalQueuePage() {
             transition={{ delay: 0.2 }}
           >
             <h2 className="text-sm text-gray-500 uppercase tracking-widest font-bold mb-4">All Hospitals — Live Queue Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {HOSPITALS.map((h, i) => {
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="w-10 h-10 border-2 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-gray-400">Loading hospitals...</p>
+              </div>
+            ) : hospitals.length === 0 ? (
+              <div className="text-center py-12">
+                <FiUsers size={48} className="text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">No hospitals available</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {hospitals.map((h, i) => {
                 const totalQueue = h.departments.reduce((s, d) => s + d.queueLength, 0);
                 return (
                   <motion.button
@@ -623,6 +609,7 @@ export default function HospitalQueuePage() {
                 );
               })}
             </div>
+            )}
           </motion.div>
         )}
       </div>

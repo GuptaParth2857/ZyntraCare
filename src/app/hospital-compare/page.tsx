@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiActivity, FiAlertTriangle, FiCheck, FiClock, FiGrid, FiMapPin, FiPhone, FiPlus, FiSearch, FiStar, FiTrendingUp, FiX, FiShare2, FiBookmark, FiTruck } from 'react-icons/fi';
 
@@ -25,188 +25,7 @@ interface Hospital {
   image: string;
 }
 
-const HOSPITALS: Hospital[] = [
-  {
-    id: 'apollo',
-    name: 'Apollo Hospital',
-    city: 'Delhi',
-    rating: 4.5,
-    reviews: 2840,
-    specialties: ['Cardiology', 'Orthopedics', 'Neurology', 'Oncology', 'Transplant', 'Nephrology'],
-    beds: { general: 250, icu: 60, emergency: 30 },
-    bedAvailability: 'Available',
-    doctors: 180,
-    avgFee: 1200,
-    distance: '3.2 km',
-    waitTime: '15-20 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '10 AM - 8 PM',
-    insurance: ['Star Health', 'HDFC Ergo', 'ICICI Lombard', 'Bajaj Allianz'],
-    established: 1983,
-    image: '🏥',
-  },
-  {
-    id: 'fortis',
-    name: 'Fortis Hospital',
-    city: 'Delhi',
-    rating: 4.3,
-    reviews: 2100,
-    specialties: ['Cardiology', 'Oncology', 'Neurology', 'Gastroenterology', 'Urology'],
-    beds: { general: 200, icu: 45, emergency: 25 },
-    bedAvailability: 'Limited',
-    doctors: 150,
-    avgFee: 1100,
-    distance: '5.1 km',
-    waitTime: '20-30 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '10 AM - 7 PM',
-    insurance: ['Star Health', 'New India Assurance', 'Reliance General'],
-    established: 2001,
-    image: '🏨',
-  },
-  {
-    id: 'max',
-    name: 'Max Super Speciality Hospital',
-    city: 'Delhi',
-    rating: 4.4,
-    reviews: 1950,
-    specialties: ['Cardiology', 'Orthopedics', 'Nephrology', 'Gastroenterology', 'Pulmonology'],
-    beds: { general: 300, icu: 70, emergency: 35 },
-    bedAvailability: 'Available',
-    doctors: 200,
-    avgFee: 1300,
-    distance: '4.8 km',
-    waitTime: '10-15 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '9 AM - 8 PM',
-    insurance: ['Star Health', 'HDFC Ergo', 'Tata AIG', 'Bajaj Allianz'],
-    established: 2002,
-    image: '🏥',
-  },
-  {
-    id: 'aiims',
-    name: 'AIIMS',
-    city: 'Delhi',
-    rating: 4.7,
-    reviews: 5200,
-    specialties: ['All Specialties', 'Cardiology', 'Neurology', 'Oncology', 'Transplant', 'Pediatrics', 'Orthopedics'],
-    beds: { general: 1500, icu: 200, emergency: 100 },
-    bedAvailability: 'Limited',
-    doctors: 500,
-    avgFee: 50,
-    distance: '8.5 km',
-    waitTime: '2-4 hours',
-    emergency: true,
-    parking: true,
-    visitingHours: '8 AM - 1 PM, 4 PM - 7 PM',
-    insurance: ['Government Schemes', 'CGHS', 'ECHS'],
-    established: 1956,
-    image: '🏛️',
-  },
-  {
-    id: 'medanta',
-    name: 'Medanta - The Medicity',
-    city: 'Gurugram',
-    rating: 4.4,
-    reviews: 1800,
-    specialties: ['Cardiology', 'Neurology', 'Oncology', 'Transplant', 'Orthopedics', 'Gastroenterology'],
-    beds: { general: 350, icu: 80, emergency: 40 },
-    bedAvailability: 'Available',
-    doctors: 220,
-    avgFee: 1400,
-    distance: '12.3 km',
-    waitTime: '15-25 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '10 AM - 8 PM',
-    insurance: ['Star Health', 'HDFC Ergo', 'ICICI Lombard', 'New India Assurance', 'Bajaj Allianz'],
-    established: 2009,
-    image: '🏥',
-  },
-  {
-    id: 'narayana',
-    name: 'Narayana Health',
-    city: 'Bengaluru',
-    rating: 4.6,
-    reviews: 3100,
-    specialties: ['Cardiology', 'Oncology', 'Neurology', 'Transplant', 'Pediatrics', 'Orthopedics', 'Nephrology'],
-    beds: { general: 500, icu: 100, emergency: 50 },
-    bedAvailability: 'Available',
-    doctors: 280,
-    avgFee: 900,
-    distance: '2.1 km',
-    waitTime: '10-20 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '9 AM - 8 PM',
-    insurance: ['Star Health', 'HDFC Ergo', 'ICICI Lombard', 'National Insurance'],
-    established: 2000,
-    image: '🏥',
-  },
-  {
-    id: 'manipal',
-    name: 'Manipal Hospital',
-    city: 'Bengaluru',
-    rating: 4.3,
-    reviews: 1600,
-    specialties: ['Cardiology', 'Orthopedics', 'Gastroenterology', 'Urology', 'ENT'],
-    beds: { general: 280, icu: 55, emergency: 28 },
-    bedAvailability: 'Limited',
-    doctors: 160,
-    avgFee: 1000,
-    distance: '6.7 km',
-    waitTime: '20-30 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '10 AM - 7 PM',
-    insurance: ['Star Health', 'HDFC Ergo', 'Bajaj Allianz'],
-    established: 1991,
-    image: '🏨',
-  },
-  {
-    id: 'kokilaben',
-    name: 'Kokilaben Dhirubhai Ambani Hospital',
-    city: 'Mumbai',
-    rating: 4.5,
-    reviews: 2500,
-    specialties: ['Cardiology', 'Neurology', 'Oncology', 'Transplant', 'Gastroenterology', 'Orthopedics'],
-    beds: { general: 340, icu: 75, emergency: 35 },
-    bedAvailability: 'Available',
-    doctors: 190,
-    avgFee: 1500,
-    distance: '4.3 km',
-    waitTime: '15-25 min',
-    emergency: true,
-    parking: true,
-    visitingHours: '10 AM - 8 PM',
-    insurance: ['Star Health', 'HDFC Ergo', 'ICICI Lombard', 'Tata AIG', 'Bajaj Allianz'],
-    established: 2009,
-    image: '🏥',
-  },
-  {
-    id: 'cmc',
-    name: 'Christian Medical College',
-    city: 'Vellore',
-    rating: 4.6,
-    reviews: 2900,
-    specialties: ['All Specialties', 'Cardiology', 'Oncology', 'Neurology', 'Transplant', 'Pediatrics'],
-    beds: { general: 800, icu: 120, emergency: 60 },
-    bedAvailability: 'Limited',
-    doctors: 350,
-    avgFee: 200,
-    distance: '45 km',
-    waitTime: '1-2 hours',
-    emergency: true,
-    parking: true,
-    visitingHours: '8 AM - 12 PM, 3 PM - 6 PM',
-    insurance: ['CGHS', 'Government Schemes', 'Star Health'],
-    established: 1900,
-    image: '🏛️',
-  },
-];
+const HOSPITALS: Hospital[] = [];
 
 const CATEGORIES = [
   'Overall Rating',
@@ -243,25 +62,51 @@ function getAvailabilityColor(status: string) {
 }
 
 export default function HospitalComparePage() {
-  const [selectedIds, setSelectedIds] = useState<string[]>(['apollo', 'aiims', 'narayana']);
+  const [allHospitals, setAllHospitals] = useState<Hospital[]>(HOSPITALS);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSelector, setShowSelector] = useState(false);
   const [savedComparisons, setSavedComparisons] = useState<string[][]>([]);
   const [showMap, setShowMap] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHospitals = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/hospitals');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      const hospitals = data.hospitals || data;
+      setAllHospitals(hospitals);
+      if (hospitals.length >= 3) {
+        setSelectedIds([hospitals[0].id, hospitals[1].id, hospitals[2].id]);
+      } else if (hospitals.length >= 2) {
+        setSelectedIds([hospitals[0].id, hospitals[1].id]);
+      }
+    } catch {
+      // Use empty defaults
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHospitals();
+  }, []);
 
   const selectedHospitals = useMemo(
-    () => HOSPITALS.filter(h => selectedIds.includes(h.id)),
-    [selectedIds]
+    () => allHospitals.filter(h => selectedIds.includes(h.id)),
+    [allHospitals, selectedIds]
   );
 
   const filteredHospitals = useMemo(() => {
-    if (!searchQuery) return HOSPITALS;
-    return HOSPITALS.filter(h =>
+    if (!searchQuery) return allHospitals;
+    return allHospitals.filter(h =>
       h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       h.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
       h.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-  }, [searchQuery]);
+  }, [allHospitals, searchQuery]);
 
   const bestFor = useMemo(() => getBestFor(selectedHospitals), [selectedHospitals]);
 
@@ -325,6 +170,16 @@ export default function HospitalComparePage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 -mt-4 space-y-4 pb-8">
+        {loading && (
+          <div className="text-center py-20">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-white/50">Loading hospitals...</p>
+          </div>
+        )}
+
+        {!loading && (
+        <>
+
         {/* Hospital Selector */}
         <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
@@ -772,7 +627,7 @@ export default function HospitalComparePage() {
                   {savedComparisons.map((comp, i) => (
                     <div key={i} className="flex items-center justify-between p-2 bg-white/5 rounded-xl">
                       <span className="text-xs text-white/50">
-                        {comp.map(id => HOSPITALS.find(h => h.id === id)?.name.split(' ')[0]).join(' vs ')}
+                        {comp.map(id => allHospitals.find(h => h.id === id)?.name.split(' ')[0]).join(' vs ')}
                       </span>
                       <button
                         onClick={() => setSelectedIds(comp)}
@@ -795,7 +650,7 @@ export default function HospitalComparePage() {
             <h3 className="text-lg font-bold text-white/60 mb-2">Select 2-3 Hospitals to Compare</h3>
             <p className="text-sm text-white/30 mb-4">Choose hospitals from the selector above to see a detailed side-by-side comparison</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {HOSPITALS.slice(0, 6).map(h => (
+              {allHospitals.slice(0, 6).map(h => (
                 <button
                   key={h.id}
                   onClick={() => toggleHospital(h.id)}
@@ -808,6 +663,8 @@ export default function HospitalComparePage() {
               ))}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

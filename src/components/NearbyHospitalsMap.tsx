@@ -323,7 +323,7 @@ export default function NearbyHospitalsMap({
     // Use offline-friendly tile layer
     const tileUrl = useOfflineTiles 
       ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
     
     const tileLayer = L.tileLayer(tileUrl, {
       attribution: useOfflineTiles 

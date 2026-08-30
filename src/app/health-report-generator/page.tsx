@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUploadCloud, FiFileText, FiCheckCircle, FiAlertTriangle, FiTrendingUp, FiDownload, FiShare2, FiActivity, FiHeart, FiZap, FiClock, FiBarChart2, FiBook, FiSearch, FiX, FiInfo, FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
@@ -38,190 +38,6 @@ interface TrendData {
   parameters: { name: string; value: number }[];
 }
 
-const MOCK_REPORTS: Record<string, HealthReport> = {
-  'Blood Test': {
-    reportType: 'Complete Blood Count (CBC) + Lipid Profile',
-    labName: 'Thyrocare Technologies Ltd.',
-    reportDate: '2026-08-18',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    healthScore: 72,
-    overallSummary: 'Your blood work shows mostly normal values with mildly elevated cholesterol and slightly low Vitamin D. Liver and kidney functions are within normal range. No signs of infection or anemia.',
-    parameters: [
-      { name: 'Hemoglobin', value: '13.8', unit: 'g/dL', referenceRange: '13.0 - 17.0', status: 'normal', explanation: 'Your hemoglobin is well within normal range, indicating good oxygen-carrying capacity. No signs of anemia.' },
-      { name: 'Total WBC Count', value: '7200', unit: '/cmm', referenceRange: '4000 - 11000', status: 'normal', explanation: 'White blood cell count is normal. Your immune system appears healthy with no signs of active infection.' },
-      { name: 'Platelet Count', value: '245000', unit: '/cmm', referenceRange: '150000 - 400000', status: 'normal', explanation: 'Platelet count is normal, meaning your blood clotting mechanism is functioning properly.' },
-      { name: 'Total Cholesterol', value: '238', unit: 'mg/dL', referenceRange: '< 200', status: 'high', explanation: 'Your total cholesterol is above the desirable limit. This increases risk of heart disease. Diet modification and exercise recommended.' },
-      { name: 'LDL Cholesterol', value: '156', unit: 'mg/dL', referenceRange: '< 100', status: 'high', explanation: 'LDL ("bad cholesterol") is significantly elevated. This contributes to plaque buildup in arteries. Statins or lifestyle changes may be needed.' },
-      { name: 'HDL Cholesterol', value: '42', unit: 'mg/dL', referenceRange: '> 40', status: 'normal', explanation: 'HDL ("good cholesterol") is at the lower end of normal. Regular exercise can help raise this level.' },
-      { name: 'Triglycerides', value: '185', unit: 'mg/dL', referenceRange: '< 150', status: 'high', explanation: 'Triglycerides are elevated. This is often linked to high carbohydrate intake, sugar, or alcohol. Reduce refined carbs.' },
-      { name: 'Fasting Blood Sugar', value: '98', unit: 'mg/dL', referenceRange: '70 - 100', status: 'normal', explanation: 'Your fasting glucose is normal. No signs of diabetes or pre-diabetes at this time.' },
-      { name: 'HbA1c', value: '5.6', unit: '%', referenceRange: '< 5.7', status: 'normal', explanation: 'HbA1c indicates average blood sugar over 3 months. Your value is normal, below the pre-diabetes threshold.' },
-      { name: 'Vitamin D', value: '18', unit: 'ng/mL', referenceRange: '30 - 100', status: 'low', explanation: 'Vitamin D is deficient. This can cause bone pain, fatigue, and weakened immunity. Supplementation of 60,000 IU/week recommended.' },
-      { name: 'Serum Creatinine', value: '0.9', unit: 'mg/dL', referenceRange: '0.6 - 1.2', status: 'normal', explanation: 'Kidney function is normal. Creatinine level indicates healthy filtration rate.' },
-      { name: 'SGPT (ALT)', value: '32', unit: 'U/L', referenceRange: '5 - 40', status: 'normal', explanation: 'Liver enzyme is within normal limits. No signs of liver damage or hepatitis.' },
-    ],
-    riskFlags: [
-      { name: 'High Cholesterol', severity: 'moderate', description: 'Total cholesterol 238 mg/dL with LDL at 156 mg/dL increases cardiovascular risk.', action: 'Consider low-fat diet, 30 min daily exercise, and consult cardiologist if levels persist above 240.' },
-      { name: 'Vitamin D Deficiency', severity: 'moderate', description: 'Level at 18 ng/mL is below the optimal 30 ng/mL threshold.', action: 'Start Vitamin D3 supplementation (60,000 IU weekly for 8 weeks). Re-test after 3 months.' },
-      { name: 'Elevated Triglycerides', severity: 'low', description: 'Triglycerides at 185 mg/dL suggest dietary adjustments needed.', action: 'Reduce sugar and refined carbohydrate intake. Increase omega-3 fatty acids (fish, walnuts).' },
-    ],
-    recommendations: [
-      'Start a heart-healthy diet: reduce saturated fats, increase fiber intake (oats, fruits, vegetables)',
-      'Exercise for at least 30 minutes daily — brisk walking, cycling, or swimming',
-      'Take Vitamin D3 supplement: 60,000 IU once weekly for 8 weeks, then maintenance dose',
-      'Reduce refined sugar and processed food intake',
-      'Re-test lipid profile after 3 months of lifestyle changes',
-      'Consult a cardiologist if LDL remains above 160 mg/dL',
-      'Include fatty fish (salmon, mackerel) twice a week for omega-3',
-    ],
-  },
-  'Urine': {
-    reportType: 'Routine Urinalysis',
-    labName: 'Dr. Lal PathLabs Pvt. Ltd.',
-    reportDate: '2026-08-15',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    healthScore: 88,
-    overallSummary: 'Your urine report is largely normal with trace ketones which may indicate fasting or low-carb diet. No infection, no sugar, no protein in urine. Kidney function indicators are healthy.',
-    parameters: [
-      { name: 'Color', value: 'Pale Yellow', unit: '', referenceRange: 'Pale to Deep Yellow', status: 'normal', explanation: 'Normal color indicates adequate hydration. Darker color would suggest dehydration.' },
-      { name: 'Appearance', value: 'Clear', unit: '', referenceRange: 'Clear', status: 'normal', explanation: 'Clear urine indicates no turbidity or suspended particles. No signs of infection.' },
-      { name: 'pH', value: '6.0', unit: '', referenceRange: '4.5 - 8.0', status: 'normal', explanation: 'Slightly acidic pH is normal for an average Indian diet. No concern.' },
-      { name: 'Specific Gravity', value: '1.018', unit: '', referenceRange: '1.005 - 1.030', status: 'normal', explanation: 'Kidney concentration ability is normal. Good hydration level.' },
-      { name: 'Glucose', value: 'Absent', unit: '', referenceRange: 'Absent', status: 'normal', explanation: 'No glucose in urine — consistent with normal blood sugar levels. No diabetes indicators.' },
-      { name: 'Protein', value: 'Absent', unit: '', referenceRange: 'Absent', status: 'normal', explanation: 'No protein detected. Kidney filtration is functioning properly.' },
-      { name: 'Ketones', value: 'Trace', unit: '', referenceRange: 'Absent', status: 'low', explanation: 'Trace ketones may indicate fasting, low-carb diet, or prolonged exercise. Usually not concerning if trace.' },
-      { name: 'Blood', value: 'Absent', unit: '', referenceRange: 'Absent', status: 'normal', explanation: 'No blood in urine. No signs of kidney stones, UTI, or bladder issues.' },
-      { name: 'Urobilinogen', value: '0.2', unit: 'mg/dL', referenceRange: '0.1 - 1.0', status: 'normal', explanation: 'Normal liver function indicator. No signs of liver disease or hemolysis.' },
-    ],
-    riskFlags: [
-      { name: 'Trace Ketones', severity: 'low', description: 'Small amount of ketones detected, possibly from fasting or low-carb diet.', action: 'Ensure regular meals with adequate carbohydrates. If persistent, check blood sugar levels.' },
-    ],
-    recommendations: [
-      'Maintain adequate hydration — drink at least 2.5 liters of water daily',
-      'Ensure regular meals to avoid ketone buildup from fasting',
-      'No medical treatment required based on this report',
-      'Annual urinalysis recommended for routine health monitoring',
-    ],
-  },
-  'X-Ray': {
-    reportType: 'Chest X-Ray (PA View)',
-    labName: 'Fortis Memorial Research Institute',
-    reportDate: '2026-08-12',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    healthScore: 82,
-    overallSummary: 'Chest X-ray shows clear lung fields with no active pathology. Mild cardiomegaly noted which may be positional. No pleural effusion, consolidation, or pneumothorax. Bony thorax is intact.',
-    parameters: [
-      { name: 'Lung Fields', value: 'Clear bilaterally', unit: '', referenceRange: 'Clear', status: 'normal', explanation: 'Both lung fields are well-expanded and clear. No signs of pneumonia, tuberculosis, or lung disease.' },
-      { name: 'Heart Size', value: 'Mildly enlarged', unit: '', referenceRange: 'Normal', status: 'low', explanation: 'Cardiothoracic ratio appears mildly increased. May be positional or indicate early cardiomegaly. Correlation with echocardiogram recommended.' },
-      { name: 'Mediastinum', value: 'Normal', unit: '', referenceRange: 'Normal', status: 'normal', explanation: 'Mediastinal contours are normal. No widened mediastinum or lymphadenopathy.' },
-      { name: 'Trachea', value: 'Central', unit: '', referenceRange: 'Central', status: 'normal', explanation: 'Trachea is centrally located. No deviation suggesting mass or collapse.' },
-      { name: 'Diaphragm', value: 'Normal bilaterally', unit: '', referenceRange: 'Normal', status: 'normal', explanation: 'Both domes of diaphragm are well-defined and at normal position. Costophrenic angles are clear.' },
-      { name: 'Bony Thorax', value: 'Intact', unit: '', referenceRange: 'Intact', status: 'normal', explanation: 'No fractures, lesions, or bony abnormalities detected in ribs, clavicle, or spine.' },
-    ],
-    riskFlags: [
-      { name: 'Mild Cardiomegaly', severity: 'moderate', description: 'Heart shadow appears mildly enlarged on X-ray.', action: 'Get an echocardiogram to assess actual heart size and function. Monitor blood pressure regularly.' },
-    ],
-    recommendations: [
-      'Get an echocardiogram (2D Echo) to evaluate heart size and function',
-      'Monitor blood pressure weekly — maintain below 130/80 mmHg',
-      'Regular cardiovascular exercise (walking 30 min/day)',
-      'Follow up with cardiologist if symptoms like breathlessness or chest pain occur',
-      'Annual chest X-ray for routine monitoring',
-    ],
-  },
-  'ECG': {
-    reportType: '12-Lead Electrocardiogram (ECG)',
-    labName: 'Apollo Hospitals, Chennai',
-    reportDate: '2026-08-10',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    healthScore: 76,
-    overallSummary: 'ECG shows normal sinus rhythm with rate of 78 bpm. No ST-T changes, no arrhythmia. PR interval and QRS duration are within normal limits. Mild left axis deviation noted.',
-    parameters: [
-      { name: 'Heart Rate', value: '78', unit: 'bpm', referenceRange: '60 - 100', status: 'normal', explanation: 'Resting heart rate is normal. Good cardiovascular fitness indicator.' },
-      { name: 'Rhythm', value: 'Normal Sinus', unit: '', referenceRange: 'Normal Sinus', status: 'normal', explanation: 'Heart beat originates from SA node normally. No arrhythmia detected.' },
-      { name: 'PR Interval', value: '0.16', unit: 'sec', referenceRange: '0.12 - 0.20', status: 'normal', explanation: 'AV conduction time is normal. No heart block present.' },
-      { name: 'QRS Duration', value: '0.08', unit: 'sec', referenceRange: '0.06 - 0.10', status: 'normal', explanation: 'Ventricular depolarization is within normal time. No bundle branch block.' },
-      { name: 'QT Interval', value: '0.38', unit: 'sec', referenceRange: '0.36 - 0.44', status: 'normal', explanation: 'QT interval is normal. No risk of dangerous arrhythmias (Torsades de Pointes).' },
-      { name: 'Axis', value: 'Left Axis Deviation', unit: '', referenceRange: '-30° to +90°', status: 'low', explanation: 'Left axis deviation may indicate left ventricular hypertrophy or conduction abnormality. Usually benign in isolation but warrants echocardiogram.' },
-      { name: 'ST Segments', value: 'No elevation/depression', unit: '', referenceRange: 'Isoelectric', status: 'normal', explanation: 'No ST changes — no evidence of acute myocardial ischemia or infarction.' },
-    ],
-    riskFlags: [
-      { name: 'Left Axis Deviation', severity: 'low', description: 'ECG axis is shifted leftward, possibly indicating left ventricular changes.', action: 'Get echocardiogram to rule out LVH. Usually benign in healthy individuals.' },
-    ],
-    recommendations: [
-      'Echocardiogram recommended to evaluate left ventricular function',
-      'Maintain regular cardiovascular exercise',
-      'Annual ECG for routine cardiac screening',
-      'No immediate treatment required — follow up in 6 months',
-    ],
-  },
-  'MRI': {
-    reportType: 'MRI Brain with Contrast',
-    labName: 'Narayana Health, Bangalore',
-    reportDate: '2026-08-05',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    healthScore: 91,
-    overallSummary: 'MRI brain with contrast shows normal brain parenchyma. No evidence of infarction, hemorrhage, mass lesion, or demyelination. Ventricles are normal in size. Pituitary gland is normal. Sinuses are clear.',
-    parameters: [
-      { name: 'Brain Parenchyma', value: 'Normal', unit: '', referenceRange: 'Normal signal intensity', status: 'normal', explanation: 'Brain tissue appears normal with no abnormal signal changes. No tumors, strokes, or lesions.' },
-      { name: 'Ventricles', value: 'Normal size', unit: '', referenceRange: 'Normal', status: 'normal', explanation: 'Lateral and third ventricles are normal in size and shape. No hydrocephalus.' },
-      { name: 'Cerebellum', value: 'Normal', unit: '', referenceRange: 'Normal', status: 'normal', explanation: 'Cerebellum shows normal signal. No atrophy or lesions. Balance and coordination centers intact.' },
-      { name: 'Brainstem', value: 'Normal', unit: '', referenceRange: 'Normal', status: 'normal', explanation: 'Midbrain, pons, and medulla are normal. No compression or signal abnormality.' },
-      { name: 'Pituitary Gland', value: 'Normal', unit: '', referenceRange: 'Normal size', status: 'normal', explanation: 'Pituitary is normal in size with no adenoma. Hormone production centers are intact.' },
-      { name: 'Sinuses', value: 'Clear', unit: '', referenceRange: 'Clear/Pneumatized', status: 'normal', explanation: 'All paranasal sinuses are well-pneumatized. No sinusitis or mucosal thickening.' },
-    ],
-    riskFlags: [],
-    recommendations: [
-      'No abnormal findings — routine brain health is excellent',
-      'Continue regular exercise and cognitive activities',
-      'No follow-up imaging needed unless symptoms develop',
-      'Annual health checkup recommended',
-    ],
-  },
-  'General Checkup': {
-    reportType: 'Annual Health Checkup Package',
-    labName: 'Manipal Hospital, Bangalore',
-    reportDate: '2026-07-28',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    healthScore: 68,
-    overallSummary: 'General health checkup reveals elevated BMI (28.3), pre-hypertensive blood pressure, mildly elevated liver enzymes, and vitamin D deficiency. Blood sugar is borderline. Needs lifestyle modification.',
-    parameters: [
-      { name: 'BMI', value: '28.3', unit: 'kg/m²', referenceRange: '18.5 - 24.9', status: 'high', explanation: 'BMI indicates overweight status. Increases risk of diabetes, heart disease, and joint problems. Weight loss of 5-7 kg recommended.' },
-      { name: 'Blood Pressure', value: '138/88', unit: 'mmHg', referenceRange: '< 120/80', status: 'high', explanation: 'Blood pressure is in pre-hypertension range. Stage 1 hypertension territory. Dietary changes and exercise essential.' },
-      { name: 'Random Blood Sugar', value: '142', unit: 'mg/dL', referenceRange: '< 140', status: 'high', explanation: 'Borderline elevated. May indicate pre-diabetes. Fasting and HbA1c tests recommended for confirmation.' },
-      { name: 'Waist Circumference', value: '38', unit: 'inches', referenceRange: '< 35', status: 'high', explanation: 'Abdominal obesity increases metabolic syndrome risk. Target waist circumference should be below 35 inches.' },
-      { name: 'Resting Heart Rate', value: '82', unit: 'bpm', referenceRange: '60 - 80', status: 'low', explanation: 'Slightly elevated resting heart rate. Improve cardiovascular fitness with regular aerobic exercise.' },
-      { name: 'Body Fat %', value: '28', unit: '%', referenceRange: '15 - 25', status: 'high', explanation: 'Body fat percentage is above optimal range. Resistance training and dietary changes recommended.' },
-    ],
-    riskFlags: [
-      { name: 'Overweight/Obesity', severity: 'moderate', description: 'BMI 28.3 with elevated body fat percentage and waist circumference.', action: 'Aim for 5-7 kg weight loss over 3-6 months through diet and exercise. Target BMI below 25.' },
-      { name: 'Pre-Hypertension', severity: 'moderate', description: 'Blood pressure 138/88 mmHg is above normal range.', action: 'Reduce salt intake to < 5g/day. Exercise regularly. Monitor BP weekly. Consider medication if persists.' },
-      { name: 'Borderline Blood Sugar', severity: 'moderate', description: 'Random blood sugar at 142 mg/dL is borderline elevated.', action: 'Get fasting glucose and HbA1c tests. Reduce sugar and refined carb intake. Exercise regularly.' },
-    ],
-    recommendations: [
-      'Lose 5-7 kg weight over 3-6 months through calorie deficit and exercise',
-      'Reduce salt intake to less than 5 grams per day (Indian cooking uses more salt)',
-      'Exercise 30 minutes daily — brisk walking is most effective for BP reduction',
-      'Get fasting blood sugar and HbA1c tested for diabetes screening',
-      'Follow DASH diet: rich in fruits, vegetables, whole grains, low-fat dairy',
-      'Limit alcohol intake and avoid smoking',
-      'Re-test blood pressure and blood sugar after 3 months of lifestyle changes',
-    ],
-  },
-};
-
-const TREND_DATA: TrendData[] = [
-  { month: 'Mar 2026', parameters: [{ name: 'Cholesterol', value: 220 }, { name: 'BMI', value: 29.1 }, { name: 'BP Systolic', value: 142 }] },
-  { month: 'May 2026', parameters: [{ name: 'Cholesterol', value: 230 }, { name: 'BMI', value: 28.7 }, { name: 'BP Systolic', value: 140 }] },
-  { month: 'Aug 2026', parameters: [{ name: 'Cholesterol', value: 238 }, { name: 'BMI', value: 28.3 }, { name: 'BP Systolic', value: 138 }] },
-];
-
 const GLOSSARY: { term: string; definition: string }[] = [
   { term: 'CBC', definition: 'Complete Blood Count — measures red cells, white cells, hemoglobin, platelets to screen for infection, anemia, and blood disorders.' },
   { term: 'LDL', definition: 'Low-Density Lipoprotein — "bad cholesterol" that builds up in artery walls. High levels increase heart attack risk.' },
@@ -249,6 +65,25 @@ export default function HealthReportGeneratorPage() {
   const [showShared, setShowShared] = useState(false);
   const [expandedParam, setExpandedParam] = useState<number | null>(null);
   const [showGlossaryTerm, setShowGlossaryTerm] = useState<number | null>(null);
+  const [trendData, setTrendData] = useState<TrendData[]>([]);
+
+  useEffect(() => {
+    const fetchHealthData = async () => {
+      try {
+        const [timelineRes, mentalRes] = await Promise.all([
+          fetch('/api/health-timeline?userId=demo-user'),
+          fetch('/api/mental-health?userId=demo-user'),
+        ]);
+        if (timelineRes.ok) {
+          const data = await timelineRes.json();
+          if (data.trends) setTrendData(data.trends);
+        }
+      } catch (e) {
+        console.error('Failed to fetch health data', e);
+      }
+    };
+    fetchHealthData();
+  }, []);
 
   const reportTypes = [
     { id: 'Blood Test', label: 'Blood Test', icon: '🩸', description: 'CBC, Lipid, Sugar, Thyroid' },
@@ -274,14 +109,23 @@ export default function HealthReportGeneratorPage() {
     simulateAnalysis();
   }, [selectedReportType]);
 
-  const simulateAnalysis = () => {
+  const simulateAnalysis = async () => {
     setUploadedFile(`${selectedReportType.toLowerCase().replace(' ', '_')}_report.pdf`);
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setReport(MOCK_REPORTS[selectedReportType]);
+    try {
+      const res = await fetch('/api/health-timeline?userId=demo-user');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.report) {
+          setReport(data.report);
+          setActiveTab('report');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to analyze report', e);
+    } finally {
       setIsAnalyzing(false);
-      setActiveTab('report');
-    }, 3000);
+    }
   };
 
   const downloadReport = () => {
@@ -712,7 +556,7 @@ export default function HealthReportGeneratorPage() {
                   <FiTrendingUp className="text-cyan-400" /> Trend Comparison (Last 3 Reports)
                 </h3>
                 {['Cholesterol', 'BMI', 'BP Systolic'].map((paramName, pIdx) => {
-                  const values = TREND_DATA.map(t => t.parameters.find(p => p.name === paramName)?.value || 0);
+                  const values = trendData.map(t => t.parameters.find(p => p.name === paramName)?.value || 0);
                   const maxVal = Math.max(...values) * 1.2;
                   const minVal = Math.min(...values) * 0.8;
                   const range = maxVal - minVal;
@@ -720,7 +564,7 @@ export default function HealthReportGeneratorPage() {
                     <div key={paramName} className="mb-8 last:mb-0">
                       <p className="text-sm font-bold text-white mb-3">{paramName}</p>
                       <div className="flex items-end gap-4 h-32">
-                        {TREND_DATA.map((trend, tIdx) => {
+                        {trendData.map((trend, tIdx) => {
                           const val = values[tIdx];
                           const height = ((val - minVal) / range) * 100;
                           const isHigh = paramName === 'Cholesterol' ? val > 200 : paramName === 'BMI' ? val > 25 : val > 130;

@@ -10,13 +10,6 @@ function getAuthHeader(): string {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-      return NextResponse.json(
-        { error: 'Razorpay credentials not configured' },
-        { status: 500 }
-      );
-    }
-
     const body = await req.json();
     const { amount, currency, receipt } = body;
 
@@ -25,6 +18,20 @@ export async function POST(req: NextRequest) {
         { error: 'Missing required fields: amount, currency, receipt' },
         { status: 400 }
       );
+    }
+
+    // Demo mode: when Razorpay keys aren't configured, return a synthetic order
+    // so the live checkout flow never breaks. Flagged clearly as demo.
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+      const demoId = 'order_demo_' + Date.now().toString(36);
+      return NextResponse.json({
+        orderId: demoId,
+        amount: Math.round(amount * 100),
+        currency: currency.toUpperCase(),
+        receipt,
+        status: 'created',
+        demo: true,
+      });
     }
 
     const orderPayload = {
@@ -58,6 +65,7 @@ export async function POST(req: NextRequest) {
       currency: data.currency,
       receipt: data.receipt,
       status: data.status,
+      demo: false,
     });
   } catch (error) {
     return NextResponse.json(

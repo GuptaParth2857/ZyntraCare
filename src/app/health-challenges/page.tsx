@@ -64,56 +64,6 @@ interface ChallengeTemplate {
   color: string;
 }
 
-const ACTIVE_CHALLENGES: Challenge[] = [
-  { id: '1', name: '10K Step Challenge', description: 'Walk 10,000 steps every day for 7 days', type: 'steps', icon: '👟', duration: 7, daysRemaining: 3, totalDays: 7, dailyGoal: '10,000 steps', participants: 2341, progress: 57, completedDays: 4, dailyPoints: 100, color: 'from-blue-500 to-cyan-400', active: true },
-  { id: '2', name: 'Hydration Hero', description: 'Drink 8 glasses of water daily for 7 days', type: 'hydration', icon: '💧', duration: 7, daysRemaining: 5, totalDays: 7, dailyGoal: '8 glasses', participants: 3120, progress: 29, completedDays: 2, dailyPoints: 50, color: 'from-cyan-500 to-teal-400', active: true },
-  { id: '3', name: 'Sleep Champion', description: 'Get 8 hours of sleep for 5 nights', type: 'sleep', icon: '😴', duration: 5, daysRemaining: 2, totalDays: 5, dailyGoal: '8 hours sleep', participants: 1856, progress: 60, completedDays: 3, dailyPoints: 75, color: 'from-purple-500 to-indigo-400', active: true },
-  { id: '4', name: 'Mindful Minutes', description: 'Meditate for 10 minutes daily for 7 days', type: 'meditation', icon: '🧘', duration: 7, daysRemaining: 1, totalDays: 7, dailyGoal: '10 min meditation', participants: 1542, progress: 86, completedDays: 6, dailyPoints: 60, color: 'from-amber-500 to-orange-400', active: true },
-];
-
-const LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: 'Priya Malhotra', points: 15420, level: 'Diamond', avatar: 'P', streak: 28, challengesCompleted: 42 },
-  { rank: 2, name: 'Rahul Verma', points: 14850, level: 'Diamond', avatar: 'R', streak: 25, challengesCompleted: 38 },
-  { rank: 3, name: 'Ananya Singh', points: 12200, level: 'Platinum', avatar: 'A', streak: 21, challengesCompleted: 35 },
-  { rank: 4, name: 'You', points: 8750, level: 'Gold', avatar: 'Y', streak: 14, challengesCompleted: 28, isUser: true },
-  { rank: 5, name: 'Vikram Desai', points: 7320, level: 'Gold', avatar: 'V', streak: 12, challengesCompleted: 24 },
-  { rank: 6, name: 'Sneha Patel', points: 6890, level: 'Gold', avatar: 'S', streak: 10, challengesCompleted: 22 },
-  { rank: 7, name: 'Arjun Reddy', points: 5450, level: 'Silver', avatar: 'A', streak: 8, challengesCompleted: 18 },
-  { rank: 8, name: 'Kavya Nair', points: 4200, level: 'Silver', avatar: 'K', streak: 6, challengesCompleted: 15 },
-];
-
-const CHALLENGE_HISTORY: ChallengeHistory[] = [
-  { id: '1', name: '30-Day Yoga Challenge', completedDate: '2026-08-01', result: 'won', pointsEarned: 1500, participants: 4520, rank: 127 },
-  { id: '2', name: '10K Step Challenge', completedDate: '2026-07-15', result: 'won', pointsEarned: 700, participants: 2100, rank: 89 },
-  { id: '3', name: 'Hydration Hero', completedDate: '2026-07-01', result: 'won', pointsEarned: 350, participants: 1800, rank: 342 },
-  { id: '4', name: 'Workout Warrior', completedDate: '2026-06-20', result: 'partially', pointsEarned: 200, participants: 1500, rank: 645 },
-  { id: '5', name: 'Digital Detox', completedDate: '2026-06-01', result: 'missed', pointsEarned: 0, participants: 980, rank: 801 },
-];
-
-const ACHIEVEMENTS: Achievement[] = [
-  { id: '1', name: 'First Steps', description: 'Complete your first challenge', icon: '👟', unlocked: true, rarity: 'common' },
-  { id: '2', name: 'Hydration Hero', description: 'Complete 5 hydration challenges', icon: '💧', unlocked: true, rarity: 'rare' },
-  { id: '3', name: 'Sleep Master', description: '14-day sleep streak', icon: '😴', unlocked: true, rarity: 'rare' },
-  { id: '4', name: 'Zen Master', description: '30-day meditation streak', icon: '🧘', unlocked: false, rarity: 'epic' },
-  { id: '5', name: 'Step King', description: 'Walk 100,000 steps in challenges', icon: '👑', unlocked: true, rarity: 'epic' },
-  { id: '6', name: 'Iron Will', description: 'Complete 10 challenges in a row', icon: '💪', unlocked: false, rarity: 'epic' },
-  { id: '7', name: 'Unstoppable', description: '30-day active streak', icon: '🔥', unlocked: false, rarity: 'legendary' },
-  { id: '8', name: 'Community Star', description: 'Invite 20 friends to challenges', icon: '⭐', unlocked: false, rarity: 'legendary' },
-  { id: '9', name: 'Wellness Warrior', description: 'Complete all challenge types', icon: '🛡️', unlocked: true, rarity: 'rare' },
-  { id: '10', name: 'Health Champion', description: 'Reach Diamond level', icon: '🏆', unlocked: false, rarity: 'legendary' },
-  { id: '11', name: 'Early Bird', description: 'Complete a challenge before everyone else', icon: '🐦', unlocked: true, rarity: 'common' },
-  { id: '12', name: 'Team Player', description: 'Join 5 group challenges', icon: '🤝', unlocked: false, rarity: 'common' },
-];
-
-const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
-  { id: '1', name: 'Step Challenge', type: 'steps', icon: '👟', description: 'Walk a target number of steps daily', defaultDuration: 7, dailyPoints: 100, color: 'from-blue-500 to-cyan-400' },
-  { id: '2', name: 'Hydration Challenge', type: 'hydration', icon: '💧', description: 'Drink 8+ glasses of water daily', defaultDuration: 7, dailyPoints: 50, color: 'from-cyan-500 to-teal-400' },
-  { id: '3', name: 'Sleep Challenge', type: 'sleep', icon: '😴', description: 'Get 8 hours of sleep every night', defaultDuration: 7, dailyPoints: 75, color: 'from-purple-500 to-indigo-400' },
-  { id: '4', name: 'Meditation Challenge', type: 'meditation', icon: '🧘', description: 'Meditate for 10+ minutes daily', defaultDuration: 7, dailyPoints: 60, color: 'from-amber-500 to-orange-400' },
-  { id: '5', name: 'Workout Challenge', type: 'workout', icon: '💪', description: 'Exercise for 30+ minutes daily', defaultDuration: 14, dailyPoints: 120, color: 'from-red-500 to-pink-400' },
-  { id: '6', name: 'Nutrition Challenge', type: 'nutrition', icon: '🥗', description: 'Eat 5+ fruits/vegetables daily', defaultDuration: 14, dailyPoints: 80, color: 'from-green-500 to-emerald-400' },
-];
-
 const LEVELS = [
   { name: 'Bronze', minPoints: 0, color: 'from-amber-700 to-amber-600', icon: '🥉' },
   { name: 'Silver', minPoints: 3000, color: 'from-gray-400 to-gray-300', icon: '🥈' },
@@ -122,22 +72,46 @@ const LEVELS = [
   { name: 'Diamond', minPoints: 20000, color: 'from-cyan-400 to-blue-500', icon: '💠' },
 ];
 
-const FRIEND_COMPARISONS = [
-  { name: 'Priya M.', steps: 9200, water: 7, sleep: 8.5, meditation: 15, stepsGoal: 10000, waterGoal: 8, sleepGoal: 8, meditationGoal: 10 },
-  { name: 'Rahul V.', steps: 11200, water: 9, sleep: 7.5, meditation: 0, stepsGoal: 10000, waterGoal: 8, sleepGoal: 8, meditationGoal: 10 },
-];
-
 export default function HealthChallengesPage() {
   const [activeTab, setActiveTab] = useState<'challenges' | 'leaderboard' | 'history' | 'badges' | 'create'>('challenges');
-  const [challenges, setChallenges] = useState<Challenge[]>(ACTIVE_CHALLENGES);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [challengeHistory, setChallengeHistory] = useState<ChallengeHistory[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [challengeTemplates, setChallengeTemplates] = useState<ChallengeTemplate[]>([]);
   const [selectedDuration, setSelectedDuration] = useState<7 | 14 | 30>(7);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinChallengeId, setJoinChallengeId] = useState<string | null>(null);
   const [showCreated, setShowCreated] = useState(false);
-  const [userPoints] = useState(8750);
-  const [totalChallengesCompleted] = useState(28);
-  const [currentStreak] = useState(14);
+  const [userPoints, setUserPoints] = useState(0);
+  const [totalChallengesCompleted, setTotalChallengesCompleted] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchChallenges = async () => {
+      try {
+        const res = await fetch('/api/health-challenges');
+        if (res.ok) {
+          const data = await res.json();
+          setChallenges(data.challenges || []);
+          setLeaderboard(data.leaderboard || []);
+          setChallengeHistory(data.history || []);
+          setAchievements(data.achievements || []);
+          setChallengeTemplates(data.templates || []);
+          setUserPoints(data.userPoints || 0);
+          setTotalChallengesCompleted(data.totalCompleted || 0);
+          setCurrentStreak(data.streak || 0);
+        }
+      } catch (e) {
+        console.error('Failed to fetch challenges', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchChallenges();
+  }, []);
 
   const getCurrentLevel = () => {
     for (let i = LEVELS.length - 1; i >= 0; i--) {
@@ -158,13 +132,33 @@ export default function HealthChallengesPage() {
     setShowJoinModal(true);
   };
 
-  const confirmJoin = () => {
+  const confirmJoin = async () => {
+    if (joinChallengeId) {
+      try {
+        await fetch('/api/health-challenges', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: 'demo-user', challengeId: joinChallengeId }),
+        });
+      } catch (e) {
+        console.error('Failed to join challenge', e);
+      }
+    }
     setShowJoinModal(false);
     setJoinChallengeId(null);
   };
 
-  const handleCreateChallenge = () => {
+  const handleCreateChallenge = async () => {
     if (!selectedTemplate) return;
+    try {
+      await fetch('/api/health-challenges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user', templateId: selectedTemplate, duration: selectedDuration }),
+      });
+    } catch (e) {
+      console.error('Failed to create challenge', e);
+    }
     setShowCreated(true);
     setTimeout(() => setShowCreated(false), 3000);
     setSelectedTemplate(null);
@@ -432,43 +426,25 @@ export default function HealthChallengesPage() {
                       <tr className="border-b border-white/10">
                         <th className="text-left text-xs text-gray-400 pb-3 font-medium">Metric</th>
                         <th className="text-center text-xs text-amber-400 pb-3 font-bold">You</th>
-                        {FRIEND_COMPARISONS.map((f, i) => (
-                          <th key={i} className="text-center text-xs text-gray-400 pb-3 font-medium">{f.name}</th>
-                        ))}
                       </tr>
                     </thead>
                     <tbody className="text-sm">
                       {[
-                        { label: 'Steps', key: 'steps' as const, goal: 'stepsGoal' as const, unit: '' },
-                        { label: 'Water', key: 'water' as const, goal: 'waterGoal' as const, unit: ' glasses' },
-                        { label: 'Sleep', key: 'sleep' as const, goal: 'sleepGoal' as const, unit: ' hrs' },
-                        { label: 'Meditation', key: 'meditation' as const, goal: 'meditationGoal' as const, unit: ' min' },
-                      ].map((metric, idx) => {
-                        const userVal = [8542, 6, 7.5, 12][idx];
-                        const userGoal = [10000, 8, 8, 10][idx];
-                        return (
-                          <tr key={metric.key} className="border-b border-white/5">
-                            <td className="py-3 text-gray-300 font-medium">{metric.label}</td>
-                            <td className="py-3 text-center">
-                              <span className={`font-bold ${userVal >= userGoal ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                {userVal.toLocaleString()}{metric.unit}
-                              </span>
-                              <span className="text-gray-600 text-xs">/{userGoal.toLocaleString()}{metric.unit}</span>
-                            </td>
-                            {FRIEND_COMPARISONS.map((friend, fIdx) => {
-                              const val = friend[metric.key];
-                              const goal = friend[metric.goal];
-                              return (
-                                <td key={fIdx} className="py-3 text-center">
-                                  <span className={`font-bold ${val >= goal ? 'text-emerald-400' : 'text-gray-400'}`}>
-                                    {val.toLocaleString()}{metric.unit}
-                                  </span>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
+                        { label: 'Steps', value: 8542, goal: 10000, unit: '' },
+                        { label: 'Water', value: 6, goal: 8, unit: ' glasses' },
+                        { label: 'Sleep', value: 7.5, goal: 8, unit: ' hrs' },
+                        { label: 'Meditation', value: 12, goal: 10, unit: ' min' },
+                      ].map((metric) => (
+                        <tr key={metric.label} className="border-b border-white/5">
+                          <td className="py-3 text-gray-300 font-medium">{metric.label}</td>
+                          <td className="py-3 text-center">
+                            <span className={`font-bold ${metric.value >= metric.goal ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {metric.value.toLocaleString()}{metric.unit}
+                            </span>
+                            <span className="text-gray-600 text-xs">/{metric.goal.toLocaleString()}{metric.unit}</span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -487,7 +463,7 @@ export default function HealthChallengesPage() {
             >
               {/* Top 3 Podium */}
               <div className="flex items-end justify-center gap-4 mb-8">
-                {[LEADERBOARD[1], LEADERBOARD[0], LEADERBOARD[2]].map((entry, idx) => {
+                {[leaderboard[1], leaderboard[0], leaderboard[2]].filter(Boolean).map((entry, idx) => {
                   const heights = ['h-24', 'h-32', 'h-20'];
                   const medals = ['🥈', '🥇', '🥉'];
                   return (
@@ -512,7 +488,7 @@ export default function HealthChallengesPage() {
               {/* Full Leaderboard */}
               <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
                 <div className="space-y-2">
-                  {LEADERBOARD.map((entry, idx) => (
+                  {leaderboard.map((entry, idx) => (
                     <motion.div
                       key={entry.rank}
                       initial={{ opacity: 0, x: -10 }}
@@ -572,7 +548,7 @@ export default function HealthChallengesPage() {
                   <FiClock className="text-amber-400" /> Challenge History
                 </h3>
                 <div className="space-y-4">
-                  {CHALLENGE_HISTORY.map((item, idx) => (
+                  {challengeHistory.map((item, idx) => (
                     <motion.div
                       key={item.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -625,7 +601,7 @@ export default function HealthChallengesPage() {
               className="max-w-4xl mx-auto"
             >
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {ACHIEVEMENTS.map((badge, idx) => (
+                {achievements.map((badge, idx) => (
                   <motion.div
                     key={badge.id}
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -670,7 +646,7 @@ export default function HealthChallengesPage() {
                 <p className="text-sm text-gray-400 mb-6">Choose a template, set duration, and invite friends.</p>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                  {CHALLENGE_TEMPLATES.map(template => (
+                  {challengeTemplates.map(template => (
                     <button
                       key={template.id}
                       onClick={() => setSelectedTemplate(template.id)}

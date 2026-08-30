@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiMessageCircle, FiSend, FiActivity, FiHeart, FiZap, FiAlertTriangle, FiCheckCircle, FiClock, FiUser } from 'react-icons/fi';
+import { processAIRequest } from '@/lib/aiEngine';
 
 interface ChatMessage {
   id: string;
@@ -18,22 +19,7 @@ interface HealthMetric {
   icon: string;
 }
 
-const HEALTH_METRICS: HealthMetric[] = [
-  { label: 'Heart Rate', value: '72 bpm', status: 'normal', icon: '❤️' },
-  { label: 'Blood Pressure', value: '120/80', status: 'normal', icon: '🩺' },
-  { label: 'Blood Sugar', value: '95 mg/dL', status: 'normal', icon: '🩸' },
-  { label: 'Sleep', value: '7.5 hrs', status: 'normal', icon: '😴' },
-  { label: 'Steps', value: '8,432', status: 'normal', icon: '👟' },
-];
-
-const SUGGESTIONS = [
-  { keyword: 'heart', response: 'Your heart rate isnormal (72 bpm). For a healthy heart, aim for 150 minutes of moderate exercise per week. Would you like me to create an exercise plan?' },
-  { keyword: 'sleep', response: 'You slept 7.5 hours last night - great! Aim to maintain 7-9 hours of sleep for optimal recovery. Avoid screens 1 hour before bed.' },
-  { keyword: 'stress', response: 'I notice your stress indicators are slightly elevated. Consider a 5-minute breathing exercise: Inhale for 4 seconds, hold for 4, exhale for 4. Want me to guide you through it?' },
-  { keyword: 'exercise', response: 'Great question! For your age group, I recommend: 30 min brisk walk, 3x/week. Start slow and gradually increase intensity. Want me to set reminders?' },
-  { keyword: 'diet', response: 'Based on your health data, focus on: more protein, less sugar, stay hydrated (8 glasses/day). Want meal suggestions?' },
-  { keyword: 'default', response: "I'm here to help! Ask me about your health metrics, get exercise tips, or advice on diet and lifestyle. You can also say 'Let's talk' to chat naturally." },
-];
+const HEALTH_METRICS: HealthMetric[] = [];
 
 export default function AIHealthCoachPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -41,9 +27,22 @@ export default function AIHealthCoachPage() {
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
-  const [metrics] = useState<HealthMetric[]>(HEALTH_METRICS);
+  const [metrics, setMetrics] = useState<HealthMetric[]>(HEALTH_METRICS);
 
-  const sendMessage = (overrideInput?: string) => {
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const res = await fetch('/api/ai-health-coach?userId=demo-user');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.metrics) setMetrics(data.metrics);
+        }
+      } catch { /* use empty metrics */ }
+    };
+    fetchMetrics();
+  }, []);
+
+  const sendMessage = async (overrideInput?: string) => {
     const text = overrideInput || input;
     if (!text.trim()) return;
 
@@ -57,18 +56,26 @@ export default function AIHealthCoachPage() {
     setInput('');
     setTyping(true);
 
-    setTimeout(() => {
-      const keyword = text.toLowerCase();
-      const match = SUGGESTIONS.find(s => keyword.includes(s.keyword));
+    try {
+      const result = await processAIRequest({ query: text });
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        message: match?.response || SUGGESTIONS[SUGGESTIONS.length - 1].response,
+        message: result.response,
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages(prev => [...prev, aiMsg]);
+    } catch {
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        message: "I'm having trouble processing that right now. Please try again or consult a healthcare professional for medical advice.",
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } finally {
       setTyping(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -145,7 +152,7 @@ export default function AIHealthCoachPage() {
           {['Heart health', 'Sleep tips', 'Reduce stress', 'Exercise plan', 'Diet advice'].map(action => (
             <button
               key={action}
-              onClick={() => sendMessage(action)}
+              onClick={() => { sendMessage(action); }}
               className="flex-shrink-0 px-3 py-1.5 bg-white/10 rounded-full text-xs font-medium"
             >
               {action}
@@ -160,12 +167,12 @@ export default function AIHealthCoachPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }}
               placeholder="Ask anything about your health..."
               className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400"
             />
             <button
-              onClick={sendMessage}
+              onClick={() => { sendMessage(); }}
               disabled={!input.trim()}
               className="p-3 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl disabled:opacity-50"
             >

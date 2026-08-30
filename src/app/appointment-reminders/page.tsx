@@ -35,23 +35,7 @@ interface Notification {
   type: 'reminder' | 'update' | 'cancelled';
 }
 
-const MOCK_APPOINTMENTS: Appointment[] = [
-  { id: 'apt-1', hospital: 'Apollo Hospitals, Delhi', hospitalShort: 'Apollo Delhi', doctor: 'Dr. Priya Sharma', specialty: 'Cardiology', date: '2026-08-28', time: '10:30 AM', type: 'In-Person', status: 'upcoming', reminderEnabled: true, reminderTimings: ['24hr', '1hr'], reminderMethods: ['In-app', 'SMS'] },
-  { id: 'apt-2', hospital: 'AIIMS Delhi', hospitalShort: 'AIIMS Delhi', doctor: 'Dr. Rajesh Gupta', specialty: 'Orthopedics', date: '2026-08-30', time: '02:00 PM', type: 'In-Person', status: 'upcoming', reminderEnabled: true, reminderTimings: ['24hr', '1hr', '30min'], reminderMethods: ['In-app', 'Email'] },
-  { id: 'apt-3', hospital: 'Fortis Healthcare, Mumbai', hospitalShort: 'Fortis Mumbai', doctor: 'Dr. Ananya Mehta', specialty: 'Dermatology', date: '2026-09-02', time: '11:00 AM', type: 'Video', status: 'upcoming', reminderEnabled: false, reminderTimings: [], reminderMethods: [] },
-  { id: 'apt-4', hospital: 'Max Super Speciality, Gurugram', hospitalShort: 'Max Gurugram', doctor: 'Dr. Vikram Singh', specialty: 'Neurology', date: '2026-09-05', time: '03:30 PM', type: 'In-Person', status: 'upcoming', reminderEnabled: true, reminderTimings: ['24hr'], reminderMethods: ['In-app'] },
-  { id: 'apt-5', hospital: 'Manipal Hospitals, Bengaluru', hospitalShort: 'Manipal Blr', doctor: 'Dr. Kavitha Reddy', specialty: 'Pediatrics', date: '2026-09-08', time: '09:00 AM', type: 'Home Visit', status: 'upcoming', reminderEnabled: true, reminderTimings: ['24hr', '1hr', '30min'], reminderMethods: ['In-app', 'SMS', 'Email'] },
-  { id: 'apt-6', hospital: 'Apollo Hospitals, Delhi', hospitalShort: 'Apollo Delhi', doctor: 'Dr. Suresh Patel', specialty: 'Gastroenterology', date: '2026-08-18', time: '10:00 AM', type: 'In-Person', status: 'completed', reminderEnabled: true, reminderTimings: ['24hr'], reminderMethods: ['In-app'] },
-  { id: 'apt-7', hospital: 'AIIMS Delhi', hospitalShort: 'AIIMS Delhi', doctor: 'Dr. Meera Joshi', specialty: 'ENT', date: '2026-08-15', time: '02:30 PM', type: 'In-Person', status: 'completed', reminderEnabled: true, reminderTimings: ['24hr', '1hr'], reminderMethods: ['In-app', 'SMS'] },
-  { id: 'apt-8', hospital: 'Fortis Healthcare, Mumbai', hospitalShort: 'Fortis Mumbai', doctor: 'Dr. Arjun Kapoor', specialty: 'Urology', date: '2026-08-12', time: '11:30 AM', type: 'In-Person', status: 'cancelled', reminderEnabled: false, reminderTimings: [], reminderMethods: [] },
-];
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: 'n1', appointmentId: 'apt-1', title: 'Upcoming Appointment', message: 'Your cardiology appointment at Apollo is in 3 days', time: '2 hours ago', read: false, type: 'reminder' },
-  { id: 'n2', appointmentId: 'apt-6', title: 'Appointment Completed', message: 'Your gastroenterology visit has been marked as completed', time: '1 week ago', read: true, type: 'update' },
-  { id: 'n3', appointmentId: 'apt-8', title: 'Appointment Cancelled', message: 'Your urology appointment at Fortis has been cancelled', time: '2 weeks ago', read: true, type: 'cancelled' },
-  { id: 'n4', appointmentId: 'apt-2', title: 'Reminder Set', message: '24hr, 1hr, and 30min reminders enabled for your orthopedics visit', time: '3 days ago', read: true, type: 'reminder' },
-];
 
 const TIMING_OPTIONS = ['24hr', '1hr', '30min'];
 const METHOD_OPTIONS = ['In-app', 'SMS', 'Email'];
@@ -82,7 +66,7 @@ function CalendarView({ appointments }: { appointments: Appointment[] }) {
     .filter(a => a.status === 'upcoming')
     .reduce((acc, a) => { acc[a.date] = a; return acc; }, {} as Record<string, Appointment>);
 
-  const days = [];
+  const days: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) days.push(null);
   for (let d = 1; d <= daysInMonth; d++) days.push(d);
 
@@ -126,23 +110,44 @@ function CalendarView({ appointments }: { appointments: Appointment[] }) {
 }
 
 export default function AppointmentRemindersPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'calendar'>('upcoming');
   const [filterStatus, setFilterStatus] = useState('');
   const [showPopup, setShowPopup] = useState<Notification | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  const fetchReminders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/appointment-reminders?userId=demo-user');
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(data.appointments || []);
+        setNotifications(data.notifications || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch reminders', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
+    fetchReminders();
+  }, [fetchReminders]);
+
+  useEffect(() => {
+    if (loading) return;
     const timer = setTimeout(() => {
       const unread = notifications.find(n => !n.read);
       if (unread && !showPopup) setShowPopup(unread);
     }, 3000);
     return () => clearTimeout(timer);
-  }, [notifications, showPopup]);
+  }, [notifications, showPopup, loading]);
 
   const toggleReminder = (aptId: string) => {
     setAppointments(prev => prev.map(a =>
@@ -422,7 +427,12 @@ export default function AppointmentRemindersPage() {
         {/* Upcoming Appointments */}
         {activeTab === 'upcoming' && (
           <div className="space-y-4">
-            {filteredUpcoming.length === 0 && (
+            {loading ? (
+              <div className="text-center py-16 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
+                <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-400 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400 text-lg">Loading appointments...</p>
+              </div>
+            ) : filteredUpcoming.length === 0 && (
               <div className="text-center py-16 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
                 <FiCalendar size={48} className="mx-auto text-gray-600 mb-4" />
                 <p className="text-gray-400 text-lg">No upcoming appointments</p>
@@ -544,7 +554,12 @@ export default function AppointmentRemindersPage() {
         {/* Past Appointments */}
         {activeTab === 'past' && (
           <div className="space-y-4">
-            {pastAppointments.length === 0 && (
+            {loading ? (
+              <div className="text-center py-16 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
+                <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-400 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400 text-lg">Loading appointments...</p>
+              </div>
+            ) : pastAppointments.length === 0 && (
               <div className="text-center py-16 bg-slate-900/30 backdrop-blur-md rounded-3xl border border-white/5">
                 <FiCalendar size={48} className="mx-auto text-gray-600 mb-4" />
                 <p className="text-gray-400 text-lg">No past appointments</p>

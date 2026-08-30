@@ -29,29 +29,15 @@ interface Employee extends CorporateMember {
 const DEPARTMENTS = ['Engineering', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations', 'Design', 'Support'];
 const SERVICES = ['Health Screening', 'Mental Wellness', 'Fitness Programs', 'Nutrition Counseling', 'Telehealth', 'Stress Management', 'Yoga & Meditation', 'Health Checkup Camps'];
 
-function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
-  return (Math.abs(h) % 10000) / 10000;
-}
-
 function enrichMember(m: CorporateMember): Employee {
-  const s = m.id || m.email;
-  const r = hashSeed(s);
-  const score = Math.round(40 + r * 55);
-  const d = new Date(); d.setDate(d.getDate() - Math.floor(r * 30));
   return {
     ...m,
-    department: m.department || DEPARTMENTS[Math.floor(hashSeed(s + 'd') * DEPARTMENTS.length)],
-    healthScore: score,
-    riskLevel: score >= 70 ? 'low' : score >= 50 ? 'medium' : 'high',
-    lastCheckup: d.toISOString().split('T')[0],
-    vitals: {
-      heartRate: Math.round(60 + hashSeed(s + 'h') * 40),
-      bp: `${Math.round(110 + hashSeed(s + 'y') * 35)}/${Math.round(70 + hashSeed(s + 'z') * 25)}`,
-      sugar: Math.round(80 + hashSeed(s + 'g') * 80),
-    },
-    goals: { completed: Math.floor(hashSeed(s + 'c') * 10), total: 10 },
+    department: m.department || '',
+    healthScore: 0,
+    riskLevel: 'low' as const,
+    lastCheckup: '',
+    vitals: { heartRate: 0, bp: '', sugar: 0 },
+    goals: { completed: 0, total: 0 },
   };
 }
 
@@ -147,7 +133,7 @@ export default function CorporateWellnessPage() {
   const cm = new Date().getMonth();
   const trend = [2,1,0].map(i => {
     const m = (cm - i + 12) % 12;
-    return { month: months[m], score: Math.round(70 + hashSeed('t'+m) * 15) };
+    return { month: months[m], score: avgScore };
   }).reverse();
 
   if (loading) return (

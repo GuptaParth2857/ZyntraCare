@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toArray } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -15,10 +16,22 @@ import { FaAmbulance } from 'react-icons/fa';
 
 const AnimatedBackground = dynamic(() => import('@/components/AnimatedBackground'), { ssr: false });
 
-const CITIES = ['Delhi', 'Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Chandigarh', 'Noida', 'Gurugram'];
-const SPECIALTIES = ['Cardiology', 'Orthopedics', 'Oncology', 'Neurology', 'Pediatrics', 'Gynecology', 'Gastroenterology', 'Nephrology', 'Dermatology', 'Ophthalmology', 'ENT', 'Psychiatry', 'Urology', 'Endocrinology', 'Pulmonology'];
 const APPOINTMENT_TYPES = ['In-Person Consultation', 'Video Consultation', 'Home Visit', 'Emergency'];
-const TIME_SLOTS = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM'];
+
+function generateTimeSlots(): string[] {
+  const slots: string[] = [];
+  for (let h = 9; h <= 17; h++) {
+    for (const m of [0, 30]) {
+      if (h === 17 && m === 30) continue;
+      const hour12 = h % 12 === 0 ? 12 : h % 12;
+      const period = h < 12 ? 'AM' : 'PM';
+      slots.push(`${hour12}:${m === 0 ? '00' : '30'} ${period}`);
+    }
+  }
+  return slots;
+}
+
+const TIME_SLOTS = generateTimeSlots();
 
 interface Hospital {
   id: string; name: string; city: string; type: string; rating: number;
@@ -174,7 +187,9 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [specialty, setSpecialty] = useState('');
-  const [city, setCity] = useState('Delhi');
+  const [city, setCity] = useState('');
+  const [cities, setCities] = useState<string[]>([]);
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [appointmentType, setAppointmentType] = useState('In-Person Consultation');
   const [selectedDate, setSelectedDate] = useState('');
@@ -187,6 +202,31 @@ export default function BookingPage() {
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [booked, setBooked] = useState(false);
   const [bookingId, setBookingId] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const searchParams = useSearchParams();
+
+  // Load a pre-selected real doctor when arriving from /doctors?book=...
+  useEffect(() => {
+    const doctorId = searchParams.get('doctor');
+    if (!doctorId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/doctors?id=${encodeURIComponent(doctorId)}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const doc = data?.doctors?.[0];
+        if (doc) {
+          setSelectedDoctor(doc);
+          setSpecialty(doc.specialty);
+          if (doc.city) setCity(doc.city);
+        }
+      } catch {
+        if (cancelled) return;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams]);
 
   // Get available dates (next 14 days)
   const dates = Array.from({ length: 14 }, (_, i) => {
@@ -213,6 +253,26 @@ export default function BookingPage() {
 
   useEffect(() => { fetchHospitals(); }, [city, specialty]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/hospitals?limit=100`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.cities?.length) setCities(data.cities);
+        const specs = data.hospitals
+          ?.flatMap((h: any) => toArray(h.specialties))
+          .filter(Boolean) as string[];
+        if (specs?.length) setSpecialties([...new Set(specs)].sort());
+        if (data.cities?.length && !city) setCity(data.cities[0]);
+      } catch {
+        if (cancelled) return;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const handleBook = async () => {
     if (!phoneVerified) { setShowOTP(true); return; }
     try {
@@ -221,7 +281,8 @@ export default function BookingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           hospitalId: selectedHospital?.id,
-          doctorName: patientName,
+          doctorId: selectedDoctor?.id || null,
+          doctorName: selectedDoctor?.name || patientName,
           specialty: specialty || 'General',
           date: selectedDate,
           time: selectedSlot,
@@ -273,6 +334,7 @@ export default function BookingPage() {
           <p className="text-white font-bold text-lg mb-4">{selectedHospital?.name}</p>
           <div className="bg-black/30 rounded-2xl p-5 mb-6 text-left space-y-2 border border-white/5">
             <div className="flex justify-between"><span className="text-gray-500">Booking ID</span><span className="text-blue-400 font-bold">{bookingId}</span></div>
+            {selectedDoctor && <div className="flex justify-between"><span className="text-gray-500">Doctor</span><span className="text-white font-semibold">{selectedDoctor.name}</span></div>}
             <div className="flex justify-between"><span className="text-gray-500">Date</span><span className="text-white font-semibold">{selectedDate}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Time</span><span className="text-white font-semibold">{selectedSlot}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Type</span><span className="text-white font-semibold">{appointmentType}</span></div>
@@ -329,7 +391,7 @@ export default function BookingPage() {
                   <div>
                     <label className="text-gray-400 text-sm font-medium mb-2 flex items-center gap-1"><FiMapPin size={12} /> City</label>
                     <select value={city} onChange={e => setCity(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 transition appearance-none">
-                      {CITIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                      {cities.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
                     </select>
                   </div>
                   {/* Specialty */}
@@ -337,7 +399,7 @@ export default function BookingPage() {
                     <label className="text-gray-400 text-sm font-medium mb-2 flex items-center gap-1"><FiActivity size={12} /> Specialty</label>
                     <select value={specialty} onChange={e => setSpecialty(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 transition appearance-none">
                       <option value="" className="bg-slate-900">All Specialties</option>
-                      {SPECIALTIES.map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
+                      {specialties.map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
                     </select>
                   </div>
                   {/* Search */}
@@ -383,6 +445,18 @@ export default function BookingPage() {
               <button onClick={() => setStep(1)} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition"><FiArrowLeft /> Back</button>
               <h1 className="text-3xl font-black text-white mb-2">Select Date & Time</h1>
               <p className="text-blue-400 font-semibold mb-6">{selectedHospital?.name}</p>
+
+              {selectedDoctor && (
+                <div className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-6">
+                  <img src={selectedDoctor.image} alt={selectedDoctor.name} className="w-14 h-14 rounded-xl object-cover" />
+                  <div className="flex-1">
+                    <div className="text-emerald-400 text-xs font-bold uppercase tracking-wide mb-0.5">Appointing with</div>
+                    <div className="font-bold text-white">{selectedDoctor.name}</div>
+                    <div className="text-sm text-gray-400">{selectedDoctor.specialty} • {selectedDoctor.experience} yrs exp • <span className="text-yellow-400">★ {selectedDoctor.rating}</span></div>
+                  </div>
+                  <Link href="/doctors" className="text-xs text-blue-400 hover:text-blue-300 font-semibold">Change</Link>
+                </div>
+              )}
 
               {/* Appointment Type */}
               <div className="mb-6">
@@ -454,6 +528,7 @@ export default function BookingPage() {
                 <h3 className="font-bold text-blue-400 mb-3 text-sm uppercase tracking-wide">Booking Summary</h3>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
                   <span className="text-gray-500">Hospital</span><span className="text-white font-semibold">{selectedHospital?.name.slice(0, 35)}{(selectedHospital?.name?.length || 0) > 35 ? '...' : ''}</span>
+                  {selectedDoctor && <><span className="text-gray-500">Doctor</span><span className="text-white font-semibold">{selectedDoctor.name}</span></>}
                   <span className="text-gray-500">Date</span><span className="text-white font-semibold">{selectedDate}</span>
                   <span className="text-gray-500">Time</span><span className="text-white font-semibold">{selectedSlot}</span>
                   <span className="text-gray-500">Type</span><span className="text-white font-semibold">{appointmentType}</span>

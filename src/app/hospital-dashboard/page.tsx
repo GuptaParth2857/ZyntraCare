@@ -12,24 +12,16 @@ import {
 import { MdLocalHospital, MdEmergency } from 'react-icons/md';
 import AIHealthScribe from '@/components/AIHealthScribe';
 
-/* ── Mock hospital data ────────────────────────────────── */
+/* ── Landing context ───────────────────────────────────── */
 const HOSPITAL_ID = 'HOSP_001';
 const HOSPITAL_NAME = 'ZyntraCare Medical Center';
 
-const INITIAL_BED_DATA = {
-  general: { total: 200, occupied: 142, available: 58 },
-  icu: { total: 40, occupied: 31, available: 9 },
-  emergency: { total: 30, occupied: 22, available: 8 },
-  pediatric: { total: 50, occupied: 38, available: 12 },
+const EMPTY_BEDS = {
+  general: { total: 0, occupied: 0, available: 0 },
+  icu: { total: 0, occupied: 0, available: 0 },
+  emergency: { total: 0, occupied: 0, available: 0 },
+  pediatric: { total: 0, occupied: 0, available: 0 },
 };
-
-const INITIAL_ambulances = [
-  { id: 'AMB-01', driver: 'Ramesh Kumar', plate: 'DL-4C-AB-1234', status: 'available', location: 'Sector 21, Noida', lastUpdated: '2 min ago' },
-  { id: 'AMB-02', driver: 'Suresh Verma', plate: 'DL-4C-CD-5678', status: 'en-route', location: 'Karol Bagh → AIIMS', lastUpdated: '1 min ago' },
-  { id: 'AMB-03', driver: 'Mahesh Singh', plate: 'DL-4C-EF-9012', status: 'at-hospital', location: 'Hospital Bay 3', lastUpdated: '5 min ago' },
-  { id: 'AMB-04', driver: 'Dinesh Yadav', plate: 'DL-4C-GH-3456', status: 'available', location: 'Dwarka Sector 8', lastUpdated: '3 min ago' },
-  { id: 'AMB-05', driver: 'Rajesh Gupta', plate: 'DL-4C-IJ-7890', status: 'maintenance', location: 'Garage', lastUpdated: '1 hr ago' },
-];
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: <FiHome /> },
@@ -103,19 +95,42 @@ export default function HospitalDashboardPage() {
   const [pulse, setPulse] = useState(true);
   const [notifCount, setNotifCount] = useState(3);
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [beds, setBeds] = useState(INITIAL_BED_DATA);
+  const [beds, setBeds] = useState(EMPTY_BEDS);
   const [emergencyCases, setEmergencyCases] = useState([
     { id: 'EM-1049', type: 'Cardiac Arrest', patient: 'Male, ~55 yrs', priority: 'Critical', eta: '4 min', location: 'Connaught Place', unit: 'AMB-02', timestamp: new Date().toISOString() },
     { id: 'EM-1048', type: 'Road Accident', patient: 'Female, ~28 yrs', priority: 'High', eta: '12 min', location: 'Ring Road, Lajpat', unit: 'AMB-01', timestamp: new Date().toISOString() },
     { id: 'EM-1047', type: 'Stroke', patient: 'Male, ~68 yrs', priority: 'Critical', eta: '8 min', location: 'Defence Colony', unit: 'AMB-04', timestamp: new Date().toISOString() },
     { id: 'EM-1046', type: 'Fracture', patient: 'Child, ~10 yrs', priority: 'Medium', eta: '18 min', location: 'Saket', unit: 'AMB-03', timestamp: new Date().toISOString() },
   ]);
-  const [ambulances, setAmbulances] = useState(INITIAL_ambulances);
+  const [ambulances, setAmbulances] = useState<any[]>([]);
 
   // Pulse animation
   useEffect(() => {
     const iv = setInterval(() => setPulse(p => !p), 1500);
     return () => clearInterval(iv);
+  }, []);
+
+  // Fetch real bed availability from API on mount
+  useEffect(() => {
+    const fetchBeds = async () => {
+      try {
+        const res = await fetch('/api/beds');
+        const data = await res.json();
+        const list = data.hospitals || [];
+        const h = list.find((x: any) => x.id === HOSPITAL_ID) || list[0];
+        if (h?.beds) {
+          const b = h.beds;
+          setBeds({
+            general: { total: b.total || 0, occupied: b.occupied || 0, available: b.available || 0 },
+            icu: { total: b.icu?.total || 0, occupied: b.icu?.occupied || 0, available: b.icu?.available || 0 },
+            emergency: { total: 0, occupied: 0, available: 0 },
+            pediatric: { total: 0, occupied: 0, available: 0 },
+          });
+          setLastRefresh(new Date());
+        }
+      } catch {}
+    };
+    fetchBeds();
   }, []);
 
   // Simulate real-time bed updates

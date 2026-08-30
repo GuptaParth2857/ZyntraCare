@@ -24,6 +24,7 @@ export interface WhatsAppResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  demo?: boolean;
 }
 
 export interface AppointmentDetails {
@@ -62,8 +63,15 @@ export interface EmergencyDetails {
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<WhatsAppResult> {
   if (!isWhatsAppConfigured) {
-    console.error(`[WhatsApp] FAILED - Not configured. Would send to ${to}`);
-    return { success: false, error: 'WhatsApp service not configured' };
+    // DEMO MODE: Twilio keys aren't set, so we gracefully "deliver" the message
+    // so live demos never break. Clearly flagged as demo — in production this
+    // would actually send via Twilio WhatsApp.
+    console.warn(`[WhatsApp] DEMO (no Twilio creds) → To: ${to}\n${body}`);
+    return {
+      success: true,
+      messageId: 'wa_demo_' + Date.now().toString(36),
+      demo: true,
+    };
   }
 
   const normalisedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;

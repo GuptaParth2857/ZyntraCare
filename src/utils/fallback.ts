@@ -66,6 +66,11 @@ export function generateNearbyLabs(lat: number, lng: number, radiusKm: number, c
       homeCollection: i % 3 !== 0,
       reportsIn: `${[4, 6, 8, 10, 12, 24][i % 6]} hours`,
       rating: parseFloat((4 + Math.random()).toFixed(1)),
+      price: 499,
+      originalPrice: 799,
+      discount: 38,
+      available: true,
+      duration: '8:00 AM - 6:00 PM',
     });
   }
   return results.sort((a, b) => a.distance - b.distance);

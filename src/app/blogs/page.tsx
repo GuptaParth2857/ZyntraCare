@@ -1,113 +1,49 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiArrowLeft, FiClock, FiSearch, FiArrowRight, FiHeart, FiTrendingUp } from 'react-icons/fi';
 import { AnimatedGradientText, MorphingBlob } from '@/components/PremiumAnimations';
 
-const BLOG_POSTS = [
-  {
-    id: 1,
-    title: '10 Superfoods to Boost Your Immune System',
-    category: 'Nutrition',
-    date: 'March 28, 2026',
-    readTime: '5 min read',
-    excerpt: 'Discover the top 10 nutrient-dense foods that naturally enhance your immunity and protect against seasonal illnesses.',
-    img: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&q=80&w=800',
-    color: 'emerald',
-    tag: 'Trending',
-  },
-  {
-    id: 2,
-    title: 'Understanding Anxiety vs. Daily Stress',
-    category: 'Mental Health',
-    date: 'March 25, 2026',
-    readTime: '8 min read',
-    excerpt: 'Learn exactly how to differentiate between normal daily stressors and clinical anxiety, and when to seek professional help.',
-    img: 'https://images.unsplash.com/photo-1555627725-edffec728fd0?auto=format&fit=crop&q=80&w=800',
-    color: 'purple',
-    tag: 'Must Read',
-  },
-  {
-    id: 3,
-    title: 'The Ultimate Guide to Better Sleep Hygiene',
-    category: 'Wellness',
-    date: 'March 20, 2026',
-    readTime: '6 min read',
-    excerpt: 'Struggling to sleep? Follow this science-backed routine to reset your circadian rhythm and wake up energized.',
-    img: 'https://images.unsplash.com/photo-1541781774459-bb2af28c5c00?auto=format&fit=crop&q=80&w=800',
-    color: 'blue',
-    tag: 'Trending',
-  },
-  {
-    id: 4,
-    title: 'Managing High Blood Pressure Naturally',
-    category: 'Cardiology',
-    date: 'March 15, 2026',
-    readTime: '10 min read',
-    excerpt: 'Effective lifestyle changes and dietary habits that can significantly lower your blood pressure readings.',
-    img: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?auto=format&fit=crop&q=80&w=800',
-    color: 'rose',
-    tag: 'In-Depth',
-  },
-  {
-    id: 5,
-    title: 'Digital Eye Strain in the Remote Work Era',
-    category: 'Eye Care',
-    date: 'March 10, 2026',
-    readTime: '4 min read',
-    excerpt: 'How to protect your vision using the 20-20-20 rule and optimize your screen settings for reduced fatigue.',
-    img: 'https://images.unsplash.com/photo-1620803738555-502a06148386?auto=format&fit=crop&q=80&w=800',
-    color: 'amber',
-    tag: 'Awareness',
-  },
-  {
-    id: 6,
-    title: 'Post-Workout Recovery Myths Debunked',
-    category: 'Fitness',
-    date: 'March 5, 2026',
-    readTime: '7 min read',
-    excerpt: 'Ice baths vs. active recovery? We asked top sports medicine doctors to separate fact from fiction.',
-    img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&q=80&w=800',
-    color: 'indigo',
-    tag: 'Behind The Scenes',
-  },
-  {
-    id: 7,
-    title: 'Heart-Healthy Habits for Busy Professionals',
-    category: 'Cardiology',
-    date: 'Feb 28, 2026',
-    readTime: '6 min read',
-    excerpt: 'Quick and effective strategies to maintain cardiovascular health despite a demanding work schedule.',
-    img: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?auto=format&fit=crop&q=80&w=800',
-    color: 'rose',
-    tag: 'Trending',
-  },
-  {
-    id: 8,
-    title: 'The Science Behind Meditation and Stress Relief',
-    category: 'Mental Health',
-    date: 'Feb 22, 2026',
-    readTime: '9 min read',
-    excerpt: 'Explore the neurological mechanisms that make meditation an effective tool for stress management.',
-    img: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&q=80&w=800',
-    color: 'purple',
-    tag: 'Must Read',
-  },
-  {
-    id: 9,
-    title: 'Preventive Healthcare: Why Regular Check-ups Matter',
-    category: 'Public Health',
-    date: 'Feb 15, 2026',
-    readTime: '5 min read',
-    excerpt: 'Understanding the importance of routine medical examinations in preventing serious health conditions.',
-    img: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800',
-    color: 'emerald',
-    tag: 'Awareness',
-  },
-];
+interface BlogPost {
+  id: string | number;
+  title: string;
+  category: string;
+  date: string;
+  readTime: string;
+  excerpt: string;
+  img: string;
+  color: string;
+  tag: string;
+  slug?: string;
+}
+
+const CATEGORY_COLOR_MAP: Record<string, string> = {
+  Nutrition: 'emerald',
+  'Mental Health': 'purple',
+  Wellness: 'blue',
+  Cardiology: 'rose',
+  'Eye Care': 'amber',
+  Fitness: 'indigo',
+  'Public Health': 'teal',
+};
+
+function mapBlog(raw: Record<string, unknown>): BlogPost {
+  return {
+    id: raw.id as string | number,
+    title: raw.title as string,
+    category: (raw.category as string) || 'General',
+    date: raw.createdAt ? new Date(raw.createdAt as string).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : (raw.date as string) || '',
+    readTime: typeof raw.readTime === 'number' ? `${raw.readTime} min read` : (raw.readTime as string) || '5 min read',
+    excerpt: (raw.excerpt as string) || '',
+    img: (raw.image as string) || 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800',
+    color: CATEGORY_COLOR_MAP[raw.category as string] || 'emerald',
+    tag: raw.featured ? 'Must Read' : (raw.tags ? (() => { try { return JSON.parse(raw.tags as string)[0]; } catch { return 'Trending'; } })() : 'Trending'),
+    slug: raw.slug as string,
+  };
+}
 
 const tagColors: Record<string, string> = {
   'Must Read': 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -130,23 +66,42 @@ const categoryColors: Record<string, string> = {
 export default function BlogsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [visibleCount, setVisibleCount] = useState(6);
+  const [page, setPage] = useState(1);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   const CATEGORIES = ['All', 'Nutrition', 'Mental Health', 'Wellness', 'Fitness', 'Cardiology', 'Eye Care'];
 
-  const filteredPosts = useMemo(() => {
-    return BLOG_POSTS.filter(post => {
-      const matchesSearch = !searchQuery || 
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.category.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || post.category === activeCategory;
-      return matchesSearch && matchesCategory;
-    });
+  const fetchBlogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '12' });
+      if (searchQuery) params.set('search', searchQuery);
+      if (activeCategory !== 'All') params.set('category', activeCategory);
+      const res = await fetch(`/api/blogs?${params}`);
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      const mapped = (data.blogs || []).map(mapBlog);
+      setPosts(mapped);
+      setTotalPages(data.pagination?.pages || 1);
+    } catch {
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchQuery, activeCategory]);
+
+  useEffect(() => {
+    fetchBlogs();
+  }, [fetchBlogs]);
+
+  useEffect(() => {
+    setPage(1);
   }, [searchQuery, activeCategory]);
 
-  const visiblePosts = filteredPosts.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredPosts.length;
+  const visiblePosts = posts;
+  const hasMore = page < totalPages;
 
   const getCardColor = (color: string) => {
     switch (color) {
@@ -451,7 +406,7 @@ export default function BlogsPage() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setVisibleCount(prev => prev + 6)}
+                onClick={() => setPage(prev => prev + 1)}
                 className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/10 text-white px-10 py-4 rounded-2xl font-bold transition-all shadow-xl shadow-black/20"
               >
                 Load More Articles

@@ -22,39 +22,41 @@ interface HealthAlert {
   time: string;
 }
 
-const WEARABLE_DEVICES = [
-  { id: 'apple', name: 'Apple Health', icon: '🍎', connected: true },
-  { id: 'fitbit', name: 'Fitbit', icon: '⌚', connected: false },
-  { id: 'garmin', name: 'Garmin', icon: '🏃', connected: false },
-  { id: 'google', name: 'Google Fit', icon: '📱', connected: true },
-  { id: 'samsung', name: 'Samsung Health', icon: '📲', connected: false },
-  { id: 'amazfit', name: 'Amazfit', icon: '⌚', connected: false },
-];
+const EMPTY_VITALS: Vitals = {
+  heartRate: 0,
+  bloodOxygen: 0,
+  respiratoryRate: 0,
+  bodyTemperature: 0,
+  sleepHours: 0,
+  steps: 0,
+  calories: 0,
+  stressLevel: 0,
+};
 
 export default function WearableSyncPage() {
-  const [vitals, setVitals] = useState<Vitals>({
-    heartRate: 72,
-    bloodOxygen: 98,
-    respiratoryRate: 16,
-    bodyTemperature: 98.4,
-    sleepHours: 7.2,
-    steps: 8432,
-    calories: 1850,
-    stressLevel: 35,
-  });
+  const [vitals, setVitals] = useState<Vitals>(EMPTY_VITALS);
   const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState('2 minutes ago');
+  const [lastSync, setLastSync] = useState('');
   const [alerts, setAlerts] = useState<HealthAlert[]>([]);
-  const [devices, setDevices] = useState(WEARABLE_DEVICES);
+  const [devices, setDevices] = useState<{ id: string; name: string; icon: string; connected: boolean }[]>([]);
 
   useEffect(() => {
     fetch('/api/wearables')
       .then(res => res.json())
       .then(data => {
-        if (data.vitals) setVitals(data.vitals);
-        if (data.alerts) setAlerts(data.alerts);
-        if (data.devices) setDevices(data.devices);
-        if (data.lastSync) setLastSync(data.lastSync);
+        if (data.success && Array.isArray(data.data) && data.data.length) {
+          const r = data.data[0];
+          setVitals({
+            heartRate: r.heartRate ?? 0,
+            bloodOxygen: r.oxygenLevel ?? 0,
+            respiratoryRate: 0,
+            bodyTemperature: r.temperature ?? 0,
+            sleepHours: r.sleepHours ?? 0,
+            steps: r.steps ?? 0,
+            calories: r.calories ?? 0,
+            stressLevel: 0,
+          });
+        }
       }).catch(() => {});
   }, []);
   const [selectedDevice, setSelectedDevice] = useState('apple');
@@ -62,24 +64,28 @@ export default function WearableSyncPage() {
   const syncData = async () => {
     setSyncing(true);
     try {
-      const res = await fetch('/api/wearables', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const res = await fetch('/api/wearables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vitals),
+      });
       const data = await res.json();
-      if (data.vitals) setVitals(data.vitals);
-      if (data.alerts) setAlerts(data.alerts);
-      setLastSync('Just now');
-    } catch { /* fallback */ }
+      if (data.success && data.data) {
+        const r = data.data;
+        setVitals({
+          heartRate: r.heartRate ?? vitals.heartRate,
+          bloodOxygen: r.oxygenLevel ?? vitals.bloodOxygen,
+          respiratoryRate: 0,
+          bodyTemperature: r.temperature ?? vitals.bodyTemperature,
+          sleepHours: r.sleepHours ?? vitals.sleepHours,
+          steps: r.steps ?? vitals.steps,
+          calories: r.calories ?? vitals.calories,
+          stressLevel: 0,
+        });
+      }
+    } catch {}
     setSyncing(false);
   };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVitals(prev => ({
-        ...prev,
-        heartRate: prev.heartRate + (Math.random() > 0.5 ? 1 : -1),
-      }));
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const getHeartRateStatus = () => {
     if (vitals.heartRate < 60) return { label: 'Low', color: 'text-blue-500', bg: 'bg-blue-100' };
@@ -129,7 +135,7 @@ export default function WearableSyncPage() {
               <FiWatch /> Connected Devices
             </h3>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {WEARABLE_DEVICES.map(device => (
+              {devices.map(device => (
                 <button
                   key={device.id}
                   onClick={() => setSelectedDevice(device.id)}

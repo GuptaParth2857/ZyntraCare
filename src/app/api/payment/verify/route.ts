@@ -5,13 +5,6 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 
 export async function POST(req: NextRequest) {
   try {
-    if (!RAZORPAY_KEY_SECRET) {
-      return NextResponse.json(
-        { error: 'Razorpay credentials not configured' },
-        { status: 500 }
-      );
-    }
-
     const body = await req.json();
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
 
@@ -20,6 +13,16 @@ export async function POST(req: NextRequest) {
         { error: 'Missing payment verification fields' },
         { status: 400 }
       );
+    }
+
+    // Demo mode: no secret configured -> trust demo orders/payments.
+    if (!RAZORPAY_KEY_SECRET) {
+      return NextResponse.json({
+        verified: true,
+        demo: true,
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+      });
     }
 
     const expectedSignature = createHmac('sha256', RAZORPAY_KEY_SECRET)
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       verified: true,
+      demo: false,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
     });

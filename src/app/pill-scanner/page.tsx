@@ -20,37 +20,6 @@ interface MedicineResult {
   barcode: string;
 }
 
-const mockResults: Record<string, MedicineResult> = {
-  'paracetamol': {
-    name: 'Crocin 650',
-    genericName: 'Paracetamol 650mg',
-    manufacturer: 'GSK Pharmaceuticals',
-    composition: 'Paracetamol 650mg',
-    uses: ['Fever', 'Headache', 'Body pain', 'Cold & Flu'],
-    sideEffects: ['Nausea', 'Stomach pain', 'Loss of appetite'],
-    warnings: ['Do not exceed 4g in 24 hours', 'Avoid alcohol'],
-    pregnancySafe: true,
-    expiryDate: 'Dec 2027',
-    price: '₹30 for 15 tablets',
-    verified: true,
-    barcode: '8901234567890',
-  },
-  'amoxicillin': {
-    name: 'Novamox 500',
-    genericName: 'Amoxicillin 500mg',
-    manufacturer: 'Sun Pharmaceutical',
-    composition: 'Amoxicillin Trihydrate 500mg',
-    uses: ['Bacterial infections', 'Ear infection', 'Throat infection', 'UTI'],
-    sideEffects: ['Nausea', 'Diarrhea', 'Rash'],
-    warnings: ['Complete full course', 'Do not use if allergic to penicillin'],
-    pregnancySafe: true,
-    expiryDate: 'Aug 2026',
-    price: '₹120 for 10 capsules',
-    verified: true,
-    barcode: '8901234567891',
-  },
-};
-
 export default function PillScannerPage() {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<MedicineResult | null>(null);
@@ -71,7 +40,8 @@ export default function PillScannerPage() {
         formData.append('image', file);
         const res = await fetch('/api/pill-scanner', { method: 'POST', body: formData });
         const data = await res.json();
-        if (data.medicine) setResult(data.medicine);
+        if (data.bestMatch) setResult(data.bestMatch as MedicineResult);
+        else if (Array.isArray(data.medicines) && data.medicines.length) setResult(data.medicines[0] as MedicineResult);
       } catch { /* fallback */ }
       setScanning(false);
     }
@@ -82,7 +52,7 @@ export default function PillScannerPage() {
     try {
       const res = await fetch('/api/pill-scanner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'search', query: searchQuery }) });
       const data = await res.json();
-      if (data.medicine) setResult(data.medicine);
+      if (Array.isArray(data.medicines) && data.medicines.length) setResult(data.medicines[0] as MedicineResult);
     } catch { /* fallback */ }
     setScanning(false);
   };

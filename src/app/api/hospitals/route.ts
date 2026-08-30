@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDistanceKm } from '@/utils/distance';
+import prisma from '@/lib/prisma';
 
 const HOSPITAL_IMAGES = [
   'https://images.unsplash.com/photo-1764885449332-7eb941d53b7e?auto=format&fit=crop&q=80&w=800',
@@ -32,40 +33,7 @@ const FALLBACK_HOSPITALS = [
   { id: 'fb-10', name: 'LNJP Hospital', city: 'Delhi', type: 'Government', rating: 3.9, beds: { total: 800, available: 150, icu: 40, icuAvailable: 5 }, specialties: ['General Medicine', 'Emergency', 'Pediatrics'], phone: '+91-1123456798', emergency: true, ambulance: true, verified: true, waitTime: '20-40 min', location: { lat: 28.7039, lng: 77.2990 }, image: getHospitalImage('LNJP Hospital'), workingHours: '24/7', distance: 10.5 },
 ];
 
-async function fetchFromOverpass(lat: number, lng: number, radiusM: number) {
-  const radius = Math.min(radiusM, 50000);
-  const query = `[out:json][timeout:25];(
-    node(around:${radius},${lat},${lng})[amenity=hospital];
-    way(around:${radius},${lat},${lng})[amenity=hospital];
-    relation(around:${radius},${lat},${lng})[amenity=hospital];
-  );out center 30;`;
-
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: `data=${encodeURIComponent(query)}`,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'ZyntraCare/1.0' },
-    signal: AbortSignal.timeout(25000),
-  });
-  if (!res.ok) throw new Error(`Overpass ${res.status}`);
-  const data = await res.json();
-  return data.elements || [];
-}
-
 const SPECIALTIES_LIST = ['Cardiology','Neurology','Orthopedics','Pediatrics','Gynecology','Dermatology','Ophthalmology','Psychiatry','General Medicine','ENT','Dentistry','Urology','Oncology','Gastroenterology','Pulmonology'];
-
-function getHospitalSpecialties(tags: any): string[] {
-  const t = tags?.healthcare || tags?.medical || '';
-  if (!t) return ['General Medicine'];
-  const map: Record<string, string> = {
-    hospital: 'General Medicine', clinic: 'General Medicine',
-    cardiology: 'Cardiology', neurology: 'Neurology', orthopedics: 'Orthopedics',
-    pediatrics: 'Pediatrics', gynecology: 'Gynecology', dermatology: 'Dermatology',
-    ophthalmology: 'Ophthalmology', psychiatry: 'Psychiatry', ENT: 'ENT',
-    dentistry: 'Dentistry', urology: 'Urology', oncology: 'Oncology',
-  };
-  const found = Object.entries(map).find(([k]) => t.includes(k));
-  return found ? [found[1]] : ['General Medicine'];
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -75,84 +43,188 @@ export async function GET(req: NextRequest) {
   const specialty = searchParams.get('specialty') || '';
   const radius = parseInt(searchParams.get('radius') || '15000');
   const limit = parseInt(searchParams.get('limit') || '0');
+  const top = searchParams.get('top') === 'true';
 
   try {
-    let overpassResults: any[] = [];
-    try {
-      const elements = await fetchFromOverpass(lat, lng, Math.max(radius, 5000));
-      if (elements.length > 0) {
-        overpassResults = elements
-          .filter((el: any) => {
-            const elLat = el.lat ?? el.center?.lat;
-            const elLng = el.lon ?? el.center?.lon;
-            return elLat && elLng;
-          })
-          .map((el: any, i: number) => {
-            const elLat = el.lat ?? el.center?.lat;
-            const elLng = el.lon ?? el.center?.lon;
-            const distance = getDistanceKm(lat, lng, elLat, elLng);
-            const name = el.tags?.name || el.tags?.['name:en'] || 'Hospital';
-            return {
-              id: `osm-${el.id || i}`,
-              name,
-              address: [el.tags?.['addr:houseno'], el.tags?.['addr:street'], el.tags?.['addr:city']].filter(Boolean).join(', ') || '',
-              city: el.tags?.['addr:city'] || '',
-              state: el.tags?.['addr:state'] || '',
-              phone: el.tags?.phone || el.tags?.['contact:phone'] || '',
-              location: { lat: elLat, lng: elLng },
-              rating: el.tags?.rating ? parseFloat(el.tags.rating) : 4.0 + Math.random() * 0.8,
-              beds: { total: 0, available: 0, icu: 0, icuAvailable: 0 },
-              specialties: getHospitalSpecialties(el.tags || {}),
-              emergency: el.tags?.emergency === 'yes',
-              verified: true,
-              doctors: 0,
-              image: getHospitalImage(name),
-              workingHours: el.tags?.['opening_hours'] || '24/7',
-              distance: parseFloat(distance.toFixed(2)),
-              source: 'overpass',
-            };
-          })
-          .sort((a: any, b: any) => a.distance - b.distance);
-      }
-    } catch (err) {
-      console.warn('Overpass hospitals failed:', (err as Error).message);
-    }
+    const radiusKm = Math.max(1, radius / 1000);
 
-    let filtered = overpassResults;
-    if (search) {
+    // Bounding box for an index-friendly prefilter on Overture NearbyPlace rows
+    const dLat = radiusKm / 110.574;
+    const dLng = radiusKm / (111.320 * Math.cos((lat * Math.PI) / 180));
+
+    const [adminHospitals, nearbyPlaces] = await Promise.all([
+      prisma.hospital.findMany(),
+      prisma.nearbyPlace.findMany({
+        where: {
+          type: 'hospital',
+          lat: { gte: lat - dLat, lte: lat + dLat },
+          lng: { gte: lng - dLng, lte: lng + dLng },
+        },
+      }),
+    ]);
+
+    const results: any[] = [];
+
+    // 1) Admin-seeded/verified hospitals (always shown first, keep their ids so
+    //    the detail page resolves them).
+    adminHospitals.forEach((h: any) => {
+      let beds = { total: 0, available: 0, icu: 0, icuAvailable: 0 };
+      try { beds = JSON.parse(h.beds || '{}'); } catch {}
+      let specialties: string[] = [];
+      try { specialties = JSON.parse(h.specialties || '[]'); } catch {}
+      const distance = getDistanceKm(lat, lng, h.lat, h.lng);
+      results.push({
+        id: h.id,
+        name: h.name,
+        address: h.address || '',
+        city: h.city || '',
+        state: h.state || '',
+        phone: h.phone || '',
+        website: h.website || '',
+        location: { lat: h.lat, lng: h.lng },
+        rating: h.rating || 4.0,
+        beds,
+        specialties,
+        emergency: h.emergency,
+        verified: h.verified !== false,
+        doctors: h.doctors || 0,
+        image: h.image || getHospitalImage(h.name),
+        workingHours: h.workingHours || '24/7',
+        distance: parseFloat(distance.toFixed(2)),
+        source: h.source || 'database',
+      });
+    });
+
+    // 2) Real Overture hospitals within the radius (same NearByPlace ids so the
+    //    detail page lookups resolve), nearest first.
+    nearbyPlaces.forEach((p) => {
+      const distance = getDistanceKm(lat, lng, p.lat, p.lng);
+      if (distance > radiusKm) return;
+      results.push({
+        id: p.id,
+        name: p.name,
+        address: p.address || '',
+        city: p.city || '',
+        state: p.state || '',
+        phone: p.phone || '',
+        website: '',
+        location: { lat: p.lat, lng: p.lng },
+        rating: 4.0,
+        beds: { total: 0, available: 0, icu: 0, icuAvailable: 0 },
+        specialties: specialtyFromName(p.name),
+        emergency: p.name.toLowerCase().includes('emergency'),
+        verified: false,
+        doctors: 0,
+        image: getHospitalImage(p.name),
+        workingHours: '24/7',
+        distance: parseFloat(distance.toFixed(2)),
+        source: p.source || 'overture',
+      });
+    });
+
+    // De-duplicate by name + rounded coords (admin vs Overture overlaps)
+    const seen = new Set();
+    const deduped = results.filter((h: any) => {
+      const key = `${h.name.trim().toLowerCase()}|${h.location.lat.toFixed(3)}|${h.location.lng.toFixed(3)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Sort by distance (nearest first), admin records first on ties
+    deduped.sort((a: any, b: any) => a.distance - b.distance);
+
+    let filtered = deduped.slice(0, 500);
+
+    // "Top rated" mode: showcase India's best hospitals across all cities,
+    // highest rating first with variety of cities (not just nearest to user).
+    if (top) {
+      // Rank by genuine quality. Real sources (wibest / overture / osm) carry
+      // authentic ratings & NABH accreditation; legacy "manual" rows are old
+      // synthetic placeholders with random ratings, so they rank below real
+      // data even if their numeric rating happens to be higher.
+      const sourceRank: Record<string, number> = { wibest: 0, overture: 1, osm: 1, database: 1, manual: 2 };
+      const admins = results
+        .slice()
+        .sort((a: any, b: any) => {
+          const ra = sourceRank[a.source] ?? 1;
+          const rb = sourceRank[b.source] ?? 1;
+          if (ra !== rb) return ra - rb;
+          return (b.rating || 0) - (a.rating || 0);
+        });
+      const wanted = (limit > 0 ? limit : 6);
+      const chosen: any[] = [];
+      const citySeen = new Set<string>();
+      for (const h of admins) {
+        if (chosen.length >= wanted) break;
+        const city = (h.city || '').trim().toLowerCase();
+        if (city && citySeen.has(city)) continue;
+        if (city) citySeen.add(city);
+        chosen.push(h);
+      }
+      // Fill remaining slots with next best if diversity wasn't enough
+      for (const h of admins) {
+        if (chosen.length >= wanted) break;
+        if (chosen.some(c => c.id === h.id)) continue;
+        chosen.push(h);
+      }
+      filtered = chosen;
+    } else if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter((h: any) =>
-        h.name.toLowerCase().includes(q) || h.city.toLowerCase().includes(q) || h.address.toLowerCase().includes(q)
+        (h.name || '').toLowerCase().includes(q) || (h.city || '').toLowerCase().includes(q) || (h.address || '').toLowerCase().includes(q)
       );
     }
-    if (specialty) {
+    if (!top && specialty) {
       filtered = filtered.filter((h: any) =>
-        h.specialties.some((s: string) => s.toLowerCase().includes(specialty.toLowerCase()))
+        h.specialties.some((s: string) => s && s.toLowerCase().includes(specialty.toLowerCase()))
       );
     }
 
-    const cities = [...new Set(overpassResults.map((h: any) => h.city).filter(Boolean))].sort() as string[];
+    const cities = [...new Set(deduped.map((h: any) => h.city).filter(Boolean))].sort() as string[];
 
     if (filtered.length === 0) {
       filtered = FALLBACK_HOSPITALS;
     }
 
-    if (limit > 0) {
+    if (limit > 0 && !top) {
       filtered = filtered.slice(0, limit);
     }
 
     return NextResponse.json({
       hospitals: filtered,
-      total: filtered.length,
+      total: deduped.length,
       page: 1,
       pages: 1,
       cities: cities.length > 0 ? cities : ['Delhi'],
-      source: overpassResults.length > 0 ? 'overpass' : 'fallback',
+      source: nearbyPlaces.length > 0 || adminHospitals.length > 0 ? 'database+overture' : 'fallback',
     });
   } catch (error) {
     console.error('Hospitals API error:', error);
     return NextResponse.json({ hospitals: [], total: 0, page: 1, pages: 0, cities: [], source: 'error' }, { status: 500 });
   }
+}
+
+// Infer a plausible specialty list from Overture place names (they don't carry one).
+function specialtyFromName(name: string): string[] {
+  const n = name.toLowerCase();
+  const base = ['General Medicine'];
+  if (/\b(child|pedia|neo)\b|pediatric|children/.test(n)) base.push('Pediatrics');
+  if (/\b(cardio|heart)\b/.test(n)) base.push('Cardiology');
+  if (/\bneuro\b/.test(n)) base.push('Neurology');
+  if (/\bonco|cancer/.test(n)) base.push('Oncology');
+  if (/\bortho\b|bone|joint/.test(n)) base.push('Orthopedics');
+  if (/\bgyn|women|maternity|maternal|fertility/.test(n)) base.push('Gynecology');
+  if (/\beye|vision|ophthalm/.test(n)) base.push('Ophthalmology');
+  if (/\bderma|skin/.test(n)) base.push('Dermatology');
+  if (/\bdental|dentist|tooth/.test(n)) base.push('Dentistry');
+  if (/\burolo|kidney|renal/.test(n)) base.push('Urology');
+  if (/\bgastro|digest|stomach/.test(n)) base.push('Gastroenterology');
+  if (/\bpulmo|lung|respiratory/.test(n)) base.push('Pulmonology');
+  if (/\bent|ear|throat/.test(n)) base.push('ENT');
+  if (/\bpsych|mental|psychiatr/.test(n)) base.push('Psychiatry');
+  if (/emergency|trauma/.test(n)) base.push('Emergency');
+  return base;
 }
 
 export async function POST(req: NextRequest) {

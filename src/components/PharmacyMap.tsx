@@ -44,9 +44,9 @@ export default function PharmacyMap({ userLocation, pharmacies }: PharmacyMapPro
           zoomControl: false,
         });
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          subdomains: 'abcd',
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 20,
+          attribution: '&copy; OpenStreetMap contributors',
         }).addTo(map);
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);

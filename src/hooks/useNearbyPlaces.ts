@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDistanceKm, sortByDistance } from '@/utils/distance';
 
-export type PlaceType = 'hospital' | 'clinic' | 'pharmacy';
+export type PlaceType = 'hospital' | 'clinic' | 'pharmacy' | 'lab' | 'dentist' | 'pet_clinic' | 'pet_shop' | 'pet_pharmacy';
 
 export interface Place {
   id: string;
@@ -16,6 +16,9 @@ export interface Place {
   phone?: string;
   website?: string;
   openingHours?: string;
+  workingHours?: string;
+  rating?: number;
+  totalBeds?: number;
   distance?: number;
 }
 

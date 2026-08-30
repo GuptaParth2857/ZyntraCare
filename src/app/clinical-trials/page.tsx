@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { FiSearch, FiFilter, FiMapPin, FiClock, FiCheck, FiArrowLeft, FiChevronDown, FiChevronUp, FiHeart, FiUser, FiCalendar, FiAlertCircle, FiPhone, FiMail, FiExternalLink, FiBookmark, FiBookmark as FiBookmarkFill, FiActivity, FiShield, FiInfo, FiX, FiSend } from 'react-icons/fi';
@@ -41,118 +41,7 @@ const COMMON_CONDITIONS = ['Diabetes Type 2', 'Hypertension', 'Asthma', 'COPD', 
 
 const COMMON_MEDICATIONS = ['Metformin', 'Amlodipine', 'Atorvastatin', 'Omeprazole', 'Levothyroxine', 'Metoprolol', 'Losartan', 'Aspirin', 'Paracetamol', 'Ibuprofen', 'Insulin', 'Salbutamol', 'Pantoprazole', 'Azithromycin', 'Dolo 650'];
 
-const ALL_TRIALS: Trial[] = [
-  {
-    id: 't1', name: 'DIASTUDY-2026: Novel SGLT2 Inhibitor for Type 2 Diabetes', phase: 'Phase 3', status: 'Recruiting',
-    condition: 'Diabetes Type 2', sponsor: 'Sun Pharmaceutical Industries', location: 'AIIMS New Delhi', distance: '3.2 km',
-    spotsAvailable: 45, totalSpots: 200, matchPercentage: 92,
-    eligibilityCriteria: ['Age 30-65', 'HbA1c between 7.5%-10%', 'BMI 25-40', 'On Metformin for at least 3 months', 'No history of DKA in last 6 months', 'eGFR > 45 ml/min'],
-    whatInvolved: ['Monthly hospital visits for 12 months', 'Blood sugar monitoring (CGM provided)', 'Blood tests every 4 weeks', 'Weekly teleconsultation', 'Medication provided free of cost'],
-    risksBenefits: ['Potential risk of genital infections', 'Risk of hypoglycemia (rare with this class)', 'Free medication & monitoring worth ₹2 lakhs', 'Contribution to diabetes research', 'Access to cutting-edge treatment'],
-    timeline: '12 months total: 2-month screening + 10-month treatment phase',
-    contactName: 'Dr. Priya Sharma (PI)', contactPhone: '+91-11-2658-8500', contactEmail: 'diastudy@aiims.ac.in',
-    nearbyLocations: ['AIIMS New Delhi', 'Safdarjung Hospital', 'Ram Manohar Lohia Hospital'], saved: false, applied: false,
-  },
-  {
-    id: 't2', name: 'CARDIO-RESIST: Hypertension Management in South Asians', phase: 'Phase 2', status: 'Recruiting',
-    condition: 'Hypertension', sponsor: 'Cipla Ltd.', location: 'Fortis Escorts Heart Institute', distance: '8.5 km',
-    spotsAvailable: 28, totalSpots: 150, matchPercentage: 78,
-    eligibilityCriteria: ['Age 25-70', 'Systolic BP > 140 or Diastolic BP > 90', 'On at least 2 antihypertensives', 'No secondary hypertension', 'No prior MI or stroke in 6 months'],
-    whatInvolved: ['24-hour ambulatory BP monitoring', 'Monthly visits for 8 months', 'Blood work every 2 months', 'ECG at each visit', 'Free medication supply'],
-    risksBenefits: ['Potential drop in BP requiring dose adjustment', 'Free comprehensive cardiac monitoring', 'Access to new combination therapy', 'Contributing to India-specific hypertension data'],
-    timeline: '8 months: 1-month screening + 7-month treatment',
-    contactName: 'Dr. Rajesh Gupta', contactPhone: '+91-11-4713-5000', contactEmail: 'cardioresist@fortis.in',
-    nearbyLocations: ['Fortis Escorts Heart Institute', 'Medanta Medicity', 'Apollo Hospital Delhi'], saved: false, applied: false,
-  },
-  {
-    id: 't3', name: 'BREATHE-EASY: Biologics for Severe Asthma in Indians', phase: 'Phase 3', status: 'Recruiting',
-    condition: 'Asthma', sponsor: 'Lupin Pharmaceuticals', location: 'CMC Vellore', distance: '142 km',
-    spotsAvailable: 15, totalSpots: 100, matchPercentage: 65,
-    eligibilityCriteria: ['Age 18-60', 'Severe persistent asthma > 2 years', 'On high-dose ICS + LABA', 'FEV1 < 80% predicted', '≥2 exacerbations in past year'],
-    whatInvolved: ['Subcutaneous injection every 4 weeks', 'Lung function tests monthly', 'Asthma control questionnaires', 'Eosinophil count monitoring', '24-week treatment period'],
-    risksBenefits: ['Risk of injection site reactions', 'Risk of rare anaphylaxis', 'Potential reduction in exacerbations', 'Free biologic treatment worth ₹4+ lakhs'],
-    timeline: '6 months: screening + 24-week active treatment',
-    contactName: 'Dr. Arjun Singh', contactPhone: '+91-416-228-1000', contactEmail: 'breatheeasy@cmcvellore.ac.in',
-    nearbyLocations: ['CMC Vellore', 'Apollo Hospital Chennai', 'Sri Ramachandra Hospital Chennai'], saved: false, applied: false,
-  },
-  {
-    id: 't4', name: 'NEUROSHIELD: Early Alzheimer\'s Intervention Study', phase: 'Phase 1', status: 'Recruiting',
-    condition: 'Alzheimer\'s', sponsor: 'Dr. Reddy\'s Laboratories', location: 'NIMHANS Bangalore', distance: '210 km',
-    spotsAvailable: 8, totalSpots: 50, matchPercentage: 42,
-    eligibilityCriteria: ['Age 55-80', 'Mild cognitive impairment or early AD', 'MMSE score 20-26', 'Positive amyloid PET scan', 'Stable medications for 3 months'],
-    whatInvolved: ['Monthly MRI scans', 'Neurocognitive assessments every 2 weeks', 'Oral medication daily', 'PET scans at baseline and 6 months', 'CSF analysis (optional)'],
-    risksBenefits: ['Risk of headaches and nausea', 'Experimental drug with unknown long-term effects', 'Cutting-edge early detection', 'Free comprehensive neurological care'],
-    timeline: '18 months: intensive monitoring phase',
-    contactName: 'Dr. Anita Desai', contactPhone: '+91-80-2699-5000', contactEmail: 'neuroshield@nimhans.ac.in',
-    nearbyLocations: ['NIMHANS Bangalore', 'Manipal Hospital Bangalore', 'Apollo Hospital Bangalore'], saved: false, applied: false,
-  },
-  {
-    id: 't5', name: 'ONCOCARE-BR: Immunotherapy in HER2+ Breast Cancer', phase: 'Phase 2', status: 'Active',
-    condition: 'Breast Cancer', sponsor: 'Biocon Ltd.', location: 'Tata Memorial Hospital Mumbai', distance: '340 km',
-    spotsAvailable: 22, totalSpots: 120, matchPercentage: 55,
-    eligibilityCriteria: ['Age 30-70', 'Stage II-III HER2+ breast cancer', 'Post neoadjuvant chemotherapy', 'ECOG performance status 0-1', 'Adequate organ function'],
-    whatInvolved: ['IV infusion every 3 weeks', 'Tumor biopsies at weeks 0, 6, 12', 'CT scans every 9 weeks', 'Quality of life assessments', '18-month follow-up'],
-    risksBenefits: ['Risk of immune-related adverse events', 'Risk of infusion reactions', 'Potential improved pathological complete response', 'Free immunotherapy worth ₹15+ lakhs', 'World-class oncology care'],
-    timeline: '18 months: treatment + follow-up',
-    contactName: 'Dr. Kavita Reddy', contactPhone: '+91-22-2417-7000', contactEmail: 'oncocabr@tmc.gov.in',
-    nearbyLocations: ['Tata Memorial Hospital Mumbai', 'Fortis Hospital Mumbai', 'Kokilaben Hospital Mumbai'], saved: false, applied: false,
-  },
-  {
-    id: 't6', name: 'SKIN-GENESIS: JAK Inhibitor for Refractory Psoriasis', phase: 'Phase 2', status: 'Recruiting',
-    condition: 'Psoriasis', sponsor: 'Zydus Cadila', location: 'AIIMS New Delhi', distance: '3.2 km',
-    spotsAvailable: 35, totalSpots: 80, matchPercentage: 88,
-    eligibilityCriteria: ['Age 18-55', 'Chronic plaque psoriasis > 6 months', 'PASI score > 12', 'Failed ≥1 systemic therapy', 'BSA > 10%'],
-    whatInvolved: ['Oral medication daily for 16 weeks', 'Dermatology assessments biweekly', 'Skin biopsies at weeks 0, 8, 16', 'Photography documentation', 'Quality of life questionnaires'],
-    risksBenefits: ['Risk of infections', 'Potential liver enzyme elevation', 'Significant PASI improvement expected', 'Free treatment worth ₹80,000+'],
-    timeline: '20 weeks: 4-week screening + 16-week treatment',
-    contactName: 'Dr. Meera Nair', contactPhone: '+91-11-2658-8500', contactEmail: 'skingenesis@aiims.ac.in',
-    nearbyLocations: ['AIIMS New Delhi', 'Safdarjung Hospital', 'Max Hospital Saket'], saved: false, applied: false,
-  },
-  {
-    id: 't7', name: 'KIDNEY-CARE: SGLT2 Inhibitor in CKD Stage 3-4', phase: 'Phase 3', status: 'Recruiting',
-    condition: 'Chronic Kidney Disease', sponsor: 'Torrent Pharmaceuticals', location: 'Apollo Hospital Chennai', distance: '45 km',
-    spotsAvailable: 50, totalSpots: 300, matchPercentage: 71,
-    eligibilityCriteria: ['Age 30-75', 'CKD Stage 3b or 4 (eGFR 15-44)', 'On stable RAAS blockade', 'UACR > 300 mg/g', 'No dialysis'],
-    whatInvolved: ['Daily oral medication', 'eGFR monitoring monthly', 'Urine albumin tests every 4 weeks', 'Cardiac monitoring', '36-month study duration'],
-    risksBenefits: ['Risk of volume depletion', 'Potential DKA (rare)', 'Free comprehensive kidney monitoring', 'Potential to slow CKD progression', 'Contribution to kidney research'],
-    timeline: '36 months: screening + long-term treatment',
-    contactName: 'Dr. Suresh Patel', contactPhone: '+91-44-2829-3333', contactEmail: 'kidneycare@apollo.in',
-    nearbyLocations: ['Apollo Hospital Chennai', 'MIOT Hospital Chennai', 'Sri Ramachandra Hospital'], saved: false, applied: false,
-  },
-  {
-    id: 't8', name: 'MENTAL-EASE: Digital CBT for Treatment-Resistant Depression', phase: 'Phase 4', status: 'Active',
-    condition: 'Depression', sponsor: 'Abbott Healthcare', location: 'NIMHANS Bangalore', distance: '210 km',
-    spotsAvailable: 60, totalSpots: 200, matchPercentage: 58,
-    eligibilityCriteria: ['Age 25-60', 'Major depressive disorder ≥ 2 years', 'Failed ≥1 adequate antidepressant trial', 'PHQ-9 score ≥ 15', 'Smartphone access'],
-    whatInvolved: ['AI-powered CBT app (12-week program)', 'Weekly psychiatrist video calls', 'Mood tracking daily', 'PHQ-9 assessments biweekly', 'Blood cortisol levels at 0, 6, 12 weeks'],
-    risksBenefits: ['Risk of increased anxiety during initial CBT', 'No pharmacological risk', 'Free digital therapy program', 'Access to personalized AI therapy', 'Potential to avoid adding medications'],
-    timeline: '12 weeks active + 12-week follow-up',
-    contactName: 'Dr. Vikram Joshi', contactPhone: '+91-80-2699-5000', contactEmail: 'mentalease@nimhans.ac.in',
-    nearbyLocations: ['NIMHANS Bangalore', 'Narayana Health Bangalore', 'Manipal Hospital Bangalore'], saved: false, applied: false,
-  },
-  {
-    id: 't9', name: 'GI-HEAL: FMT for Ulcerative Colitis', phase: 'Phase 2', status: 'Recruiting',
-    condition: 'IBD', sponsor: 'CureFunc Therapeutics', location: 'AIIMS New Delhi', distance: '3.2 km',
-    spotsAvailable: 18, totalSpots: 60, matchPercentage: 74,
-    eligibilityCriteria: ['Age 20-50', 'Moderate UC (partial Mayo 5-9)', 'Failed ≥1 biologic', 'No C. difficile infection', 'Colonoscopy within 3 months'],
-    whatInvolved: ['Fecal Microbiota Transplant (capsule form)', 'Colonoscopy at weeks 0, 12', 'Stool sample collection weekly', 'Inflammatory markers every 2 weeks', 'GI symptom diary'],
-    risksBenefits: ['Risk of bloating, transient fever', 'Rare risk of infection', 'Potential to achieve drug-free remission', 'Novel microbiome-based therapy', 'Free treatment'],
-    timeline: '24 weeks: treatment + assessment',
-    contactName: 'Dr. Suresh Patel', contactPhone: '+91-11-2658-8500', contactEmail: 'giheal@aiims.ac.in',
-    nearbyLocations: ['AIIMS New Delhi', 'Gangaram Hospital', 'Apollo Hospital Delhi'], saved: false, applied: false,
-  },
-  {
-    id: 't10', name: 'THYROID-BALANCE: Levothyroxine + Selenium in Hypothyroidism', phase: 'Phase 4', status: 'Recruiting',
-    condition: 'Hypothyroidism', sponsor: 'Abbott India', location: 'Fortis Hospital Mumbai', distance: '18 km',
-    spotsAvailable: 80, totalSpots: 250, matchPercentage: 83,
-    eligibilityCriteria: ['Age 20-55', 'Hashimoto\'s thyroiditis', 'On stable levothyroxine dose > 3 months', 'TSH 5-15 mIU/L', 'No pregnancy planned'],
-    whatInvolved: ['Daily supplementation', 'TSH/T3/T4 testing every 6 weeks', 'Anti-TPO antibody levels', 'Quality of life surveys', '6-month duration'],
-    risksBenefits: ['Risk of selenium excess (rare)', 'Free supplements and monitoring', 'Potential improvement in TSH levels', 'Evidence-based nutritional approach'],
-    timeline: '6 months',
-    contactName: 'Dr. Vikram Joshi', contactPhone: '+91-22-4014-0000', contactEmail: 'thyroidbalance@fortis.in',
-    nearbyLocations: ['Fortis Hospital Mumbai', 'Breach Candy Hospital', 'Hinduja Hospital Mumbai'], saved: false, applied: false,
-  },
-];
+const ALL_TRIALS: Trial[] = [];
 
 const GlassCard = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-slate-900/70 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl ${className}`}>
@@ -186,6 +75,31 @@ export default function ClinicalTrialsPage() {
   const [applyingTrial, setApplyingTrial] = useState<string | null>(null);
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
   const [trials, setTrials] = useState<Trial[]>(ALL_TRIALS);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchTrials = async (condition?: string, phase?: string, status?: string) => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const params = new URLSearchParams();
+      if (condition) params.set('condition', condition);
+      if (phase) params.set('phase', phase);
+      if (status) params.set('status', status);
+      const res = await fetch(`/api/clinical-trials?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch trials');
+      const data = await res.json();
+      setTrials(Array.isArray(data) ? data : (data.trials || []));
+    } catch (err) {
+      setFetchError('Unable to load clinical trials. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrials();
+  }, []);
 
   const filteredConditions = COMMON_CONDITIONS.filter(c => c.toLowerCase().includes(conditionInput.toLowerCase()) && !profile.conditions.includes(c));
   const filteredMeds = COMMON_MEDICATIONS.filter(m => m.toLowerCase().includes(medInput.toLowerCase()) && !profile.medications.includes(m));
@@ -206,20 +120,31 @@ export default function ClinicalTrialsPage() {
   const handleFindTrials = () => {
     if (!profile.age || !profile.gender || profile.conditions.length === 0 || !profile.location) return;
     setStep('results');
+    fetchTrials(profile.conditions[0], filterPhase !== 'All' ? filterPhase : undefined, filterStatus !== 'All' ? filterStatus : undefined);
   };
 
   const toggleSave = (trialId: string) => {
     setTrials(trials.map(t => t.id === trialId ? { ...t, saved: !t.saved } : t));
   };
 
-  const handleApply = (trialId: string) => {
+  const handleApply = async (trialId: string) => {
     setApplyingTrial(trialId);
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/clinical-trials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user', trialId, action: 'apply' }),
+      });
+      if (res.ok) {
+        setTrials(trials.map(t => t.id === trialId ? { ...t, applied: true } : t));
+      }
+    } catch {
       setTrials(trials.map(t => t.id === trialId ? { ...t, applied: true } : t));
+    } finally {
       setApplyingTrial(null);
       setAppliedSuccess(trialId);
       setTimeout(() => setAppliedSuccess(null), 3000);
-    }, 1500);
+    }
   };
 
   const uniqueConditions = Array.from(new Set(trials.map(t => t.condition)));
@@ -387,7 +312,20 @@ export default function ClinicalTrialsPage() {
 
               {/* Trial List */}
               <div className="space-y-4">
-                {matchingTrials.map((trial, i) => {
+                {loading && (
+                  <div className="text-center py-16">
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full mx-auto mb-4" />
+                    <p className="text-gray-400">Loading clinical trials...</p>
+                  </div>
+                )}
+                {!loading && fetchError && (
+                  <div className="text-center py-16 text-red-400">
+                    <FiAlertCircle size={48} className="mx-auto mb-4 opacity-30" />
+                    <p className="text-lg">{fetchError}</p>
+                    <button onClick={() => fetchTrials()} className="mt-3 px-4 py-2 bg-white/10 rounded-xl text-sm text-white/60 hover:bg-white/20 transition">Retry</button>
+                  </div>
+                )}
+                {!loading && !fetchError && matchingTrials.map((trial, i) => {
                   const isExpanded = expandedTrial === trial.id;
                   return (
                     <motion.div key={trial.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 * i }}>

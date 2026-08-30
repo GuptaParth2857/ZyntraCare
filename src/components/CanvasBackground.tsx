@@ -33,6 +33,22 @@ export default function CanvasBackground() {
   const lastTimeRef = useRef<number>(0);
   const pathname = usePathname() || '';
 
+  // Stop the whole RAF loop for users who prefer reduced motion
+  // (accessibility + saves main-thread/GPU on every page).
+  const reducedMotionRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => { reducedMotionRef.current = mq.matches; };
+    reducedMotionRef.current = mq.matches;
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else (mq as any).addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange);
+      else (mq as any).removeListener(onChange);
+    };
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -181,7 +197,7 @@ export default function CanvasBackground() {
     const startTime = performance.now();
 
     const draw = (now: number) => {
-      if (pausedRef.current) {
+      if (pausedRef.current || reducedMotionRef.current) {
         animRef.current = requestAnimationFrame(draw);
         return;
       }

@@ -1,16 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiHeart, FiShield, FiUsers, FiGlobe, FiAward, FiTrendingUp, FiCheck } from 'react-icons/fi';
-
-const stats = [
-  { value: '50K+', label: 'Active Users' },
-  { value: '500+', label: 'Partner Hospitals' },
-  { value: '1000+', label: 'Verified Doctors' },
-  { value: '99.9%', label: 'Uptime' },
-  { value: '24/7', label: 'Emergency Support' },
-  { value: '15+', label: 'Cities Covered' },
-];
 
 const values = [
   { icon: FiHeart, title: 'Patient First', desc: 'Every feature we build starts with a simple question: how does this help the patient?' },
@@ -25,7 +17,66 @@ const team = [
   { name: 'Parth Gupta', role: 'Founder & CEO', bio: 'Building India\'s most accessible healthcare platform.' },
 ];
 
+interface LiveStats {
+  users: number;
+  hospitals: number;
+  doctors: number;
+  healthRecords: number;
+  appointments: number;
+  emergencies: number;
+  cities: number;
+  responseTime: number;
+  uptime: number;
+}
+
+const fallbackStats: LiveStats = {
+  users: 50000,
+  hospitals: 500,
+  doctors: 1000,
+  healthRecords: 0,
+  appointments: 0,
+  emergencies: 0,
+  cities: 15,
+  responseTime: 4.2,
+  uptime: 99.97,
+};
+
+function format(value: number, suffix: string): string {
+  if (value >= 1000) return `${Math.round(value / 1000)}K+`;
+  return `${value}+`;
+}
+
 export default function AboutPage() {
+  const [stats, setStats] = useState<LiveStats>(fallbackStats);
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('failed'))))
+      .then((data) => {
+        setStats({
+          users: data.users ?? fallbackStats.users,
+          hospitals: data.hospitals ?? fallbackStats.hospitals,
+          doctors: data.doctors ?? fallbackStats.doctors,
+          healthRecords: data.healthRecords ?? 0,
+          appointments: data.appointments ?? 0,
+          emergencies: data.emergencies ?? 0,
+          cities: data.cities ?? fallbackStats.cities,
+          responseTime: data.responseTime ?? fallbackStats.responseTime,
+          uptime: data.uptime ?? fallbackStats.uptime,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const liveStats = [
+    { value: format(stats.users, 'K+'), label: 'Active Users' },
+    { value: format(stats.hospitals, '+'), label: 'Partner Hospitals' },
+    { value: format(stats.doctors, '+'), label: 'Verified Doctors' },
+    { value: `${stats.uptime}%`, label: 'Uptime' },
+    { value: '24/7', label: 'Emergency Support' },
+    { value: `${stats.cities}+`, label: 'Cities Covered' },
+  ];
+
   return (
     <div className="min-h-screen bg-transparent text-white pb-24">
       <div className="max-w-5xl mx-auto px-4 pt-28">
@@ -60,7 +111,7 @@ export default function AboutPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-16"
         >
-          {stats.map((stat, i) => (
+          {liveStats.map((stat, i) => (
             <div key={stat.label} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 text-center">
               <div className="text-2xl font-black text-emerald-400">{stat.value}</div>
               <div className="text-xs text-gray-500 mt-1">{stat.label}</div>

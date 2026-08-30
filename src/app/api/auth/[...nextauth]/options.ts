@@ -172,8 +172,6 @@ export const authOptions: NextAuthConfig = {
 
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
 
-  secret: process.env.NEXTAUTH_SECRET,
-
   callbacks: {
     async jwt({ token, user, trigger, session }: { token: JWT; user?: User; trigger?: string; session?: any }) {
       if (user) {

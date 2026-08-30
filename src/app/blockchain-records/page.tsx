@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiLock, FiFileText, FiShield, FiCheckCircle, FiLink, FiClock, FiUser, FiActivity } from 'react-icons/fi';
 
@@ -14,16 +14,29 @@ interface RecordBlock {
   verified: boolean;
 }
 
-const MOCK_BLOCKCHAIN: RecordBlock[] = [
-  { id: '1', type: 'Checkup', date: '2024-03-20', hospital: 'Apollo Hospital', hash: '0x7f3a...9c2d', previousHash: '0x8b2a...1f4e', verified: true },
-  { id: '2', type: 'Blood Test', date: '2024-03-15', hospital: 'Dr. Lal PathLabs', hash: '0x8b2a...1f4e', previousHash: '0x9c3b...2g5f', verified: true },
-  { id: '3', type: 'MRI Scan', date: '2024-03-10', hospital: 'Scan Center', hash: '0x9c3b...2g5f', previousHash: '0x7f3a...9c2d', verified: true },
-  { id: '4', type: 'Prescription', date: '2024-03-05', hospital: 'Clinic', hash: '0x7f3a...9c2d', previousHash: '0000...0000', verified: true },
-];
-
 export default function BlockchainRecordsPage() {
-  const [records] = useState<RecordBlock[]>(MOCK_BLOCKCHAIN);
+  const [records, setRecords] = useState<RecordBlock[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<RecordBlock | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/blockchain-records')
+      .then(res => res.json())
+      .then(data => {
+        const chain = (data.records || []).map((r: any) => ({
+          id: r.id,
+          type: r.type || r.title || 'Record',
+          date: r.date || new Date(r.timestamp).toISOString().split('T')[0],
+          hospital: r.hospital || 'Unknown',
+          hash: r.hash ? `0x${r.hash.slice(0, 4)}...${r.hash.slice(-4)}` : '0x0000...0000',
+          previousHash: r.previousHash ? `0x${r.previousHash.slice(0, 4)}...${r.previousHash.slice(-4)}` : '0000...0000',
+          verified: true,
+        }));
+        setRecords(chain);
+      })
+      .catch(() => setRecords([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-transparent text-white">
@@ -56,7 +69,18 @@ export default function BlockchainRecordsPage() {
             {/* Chain Line */}
             <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-indigo-500/30" />
 
-            {records.map((record, index) => (
+            {loading ? (
+              <div className="text-center py-16">
+                <div className="w-10 h-10 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400 text-sm">Loading blockchain records...</p>
+              </div>
+            ) : records.length === 0 ? (
+              <div className="text-center py-16">
+                <FiLock size={48} className="text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">No blockchain records found</p>
+                <p className="text-gray-500 text-sm mt-1">Records will appear here after medical events are logged</p>
+              </div>
+            ) : records.map((record, index) => (
               <motion.div
                 key={record.id}
                 initial={{ opacity: 0, x: -20 }}

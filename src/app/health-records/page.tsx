@@ -19,13 +19,13 @@ export default function HealthRecordsPage() {
   const [records, setRecords] = useState(MOCK_RECORDS);
 
   useEffect(() => {
-    fetch('/api/patient-records')
+    fetch('/api/health-records?userId=demo-user')
       .then(r => r.json())
       .then(data => {
         if (data.records?.length) {
           setRecords(data.records.map((r: any) => ({
             id: r.id,
-            title: r.title || r.type || 'Medical Record',
+            title: r.title || r.recordType || 'Medical Record',
             type: r.recordType === 'report' ? 'Lab Report' : r.recordType === 'prescription' ? 'Prescription' : r.recordType === 'scan' ? 'Imaging' : 'Immunization',
             date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
             hospital: r.hospitalName || '',

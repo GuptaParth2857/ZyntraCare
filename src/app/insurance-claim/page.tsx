@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUploadCloud, FiFileText, FiCheckCircle, FiClock, FiXCircle, FiAlertTriangle, FiSearch, FiChevronDown, FiChevronUp, FiSend, FiDownload, FiShield, FiUser, FiHome, FiCalendar, FiHeart, FiActivity, FiFile, FiClipboard, FiTrendingUp, FiDollarSign, FiPrinter } from 'react-icons/fi';
 import Link from 'next/link';
@@ -61,69 +61,6 @@ interface DocumentChecklist {
   icon: string;
 }
 
-const MOCK_BILLS: ParsedBill[] = [
-  {
-    hospitalName: 'Apollo Hospitals',
-    hospitalCity: 'Chennai, Tamil Nadu',
-    billDate: '2026-08-10',
-    patientName: 'Rajesh Kumar Sharma',
-    patientAge: 42,
-    admissionDate: '2026-08-05',
-    dischargeDate: '2026-08-10',
-    diagnosis: 'Acute Myocardial Infarction (Heart Attack)',
-    treatmentType: 'Cardiac Surgery - Angioplasty with Stent Placement',
-    items: [
-      { name: 'Dr. Anand Mehta - Cardiologist Consultation', category: 'consultation', amount: 2500 },
-      { name: 'Dr. Priya Nair - Cardiothoracic Surgeon', category: 'consultation', amount: 5000 },
-      { name: 'ECG + Echocardiogram', category: 'lab', amount: 3500 },
-      { name: 'Cardiac Catheterization Lab', category: 'lab', amount: 8000 },
-      { name: 'Troponin T / BNP Blood Panel', category: 'lab', amount: 4200 },
-      { name: 'Coronary Stent (Drug-Eluting)', category: 'surgery', amount: 65000 },
-      { name: 'Cath Lab Procedure + Doctor Fee', category: 'surgery', amount: 35000 },
-      { name: 'ICU Room (5 nights @ ₹3,500)', category: 'room', amount: 17500 },
-      { name: 'Post-Op Medicines & Injections', category: 'medicine', amount: 12800 },
-      { name: 'X-Ray Chest', category: 'lab', amount: 1200 },
-      { name: 'Physiotherapy Sessions (3)', category: 'other', amount: 3000 },
-      { name: 'Nursing & Monitoring Charges', category: 'other', amount: 6000 },
-    ],
-    totalAmount: 163700,
-    taxAmount: 0,
-    discountAmount: 0,
-  },
-  {
-    hospitalName: 'Fortis Memorial Research Institute',
-    hospitalCity: 'Gurugram, Haryana',
-    billDate: '2026-07-22',
-    patientName: 'Sunita Agarwal',
-    patientAge: 35,
-    admissionDate: '2026-07-18',
-    dischargeDate: '2026-07-22',
-    diagnosis: 'Laparoscopic Cholecystectomy (Gallbladder Removal)',
-    treatmentType: 'Laparoscopic Surgery',
-    items: [
-      { name: 'Dr. Vikram Choudhary - Surgeon', category: 'consultation', amount: 8000 },
-      { name: 'Anesthesiologist Fee', category: 'consultation', amount: 5000 },
-      { name: 'Ultrasound Abdomen', category: 'lab', amount: 2000 },
-      { name: 'MRCP (Magnetic Resonance Cholangiography)', category: 'lab', amount: 12000 },
-      { name: 'Laparoscopic Surgery Suite', category: 'surgery', amount: 45000 },
-      { name: 'Semi-Private Room (4 nights @ ₹2,000)', category: 'room', amount: 8000 },
-      { name: 'Medications & IV Fluids', category: 'medicine', amount: 6500 },
-      { name: 'Pathology & Biopsy', category: 'lab', amount: 3500 },
-      { name: 'Post-Op Dressing & Follow-up', category: 'other', amount: 2000 },
-    ],
-    totalAmount: 92000,
-    taxAmount: 0,
-    discountAmount: 0,
-  },
-];
-
-const CLAIM_HISTORY: ClaimHistory[] = [
-  { id: '1', claimNumber: 'ZC-CLM-2026-0041', hospitalName: 'Max Hospital, Saket', date: '2026-03-15', amount: 45000, status: 'approved', statusLabel: 'Approved' },
-  { id: '2', claimNumber: 'ZC-CLM-2026-0038', hospitalName: 'AIIMS, New Delhi', date: '2026-01-20', amount: 28500, status: 'approved', statusLabel: 'Approved' },
-  { id: '3', claimNumber: 'ZC-CLM-2025-0192', hospitalName: 'Manipal Hospital, Bangalore', date: '2025-11-08', amount: 125000, status: 'rejected', statusLabel: 'Rejected' },
-  { id: '4', claimNumber: 'ZC-CLM-2025-0187', hospitalName: 'Narayana Health, Bangalore', date: '2025-09-22', amount: 32000, status: 'approved', statusLabel: 'Approved' },
-];
-
 const INSURANCE_TERMS = {
   coPayPercent: 10,
   roomLimitPercent: 2,
@@ -143,6 +80,8 @@ export default function InsuranceClaimPage() {
   const [showEstimate, setShowEstimate] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedBillIndex, setSelectedBillIndex] = useState(0);
+  const [claimHistory, setClaimHistory] = useState<ClaimHistory[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [claimForm, setClaimForm] = useState<ClaimForm>({
     policyNumber: 'ZYNTRA-HEALTH-2026-4891',
@@ -172,6 +111,23 @@ export default function InsuranceClaimPage() {
     { name: 'Cashless Authorization (if applicable)', required: false, uploaded: false, icon: '✅' },
   ]);
 
+  useEffect(() => {
+    const fetchClaims = async () => {
+      try {
+        const res = await fetch('/api/insurance-claims?userId=demo-user');
+        if (res.ok) {
+          const data = await res.json();
+          setClaimHistory(data.claims || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch claims', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClaims();
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -191,24 +147,8 @@ export default function InsuranceClaimPage() {
     setUploadedFile('hospital_bill_apollo_2026.pdf');
     setIsParsing(true);
     setTimeout(() => {
-      const bill = MOCK_BILLS[selectedBillIndex];
-      setParsedBill(bill);
-      setClaimForm({
-        policyNumber: 'ZYNTRA-HEALTH-2026-4891',
-        patientName: bill.patientName,
-        hospitalName: bill.hospitalName,
-        dateOfAdmission: bill.admissionDate,
-        dateOfDischarge: bill.dischargeDate,
-        diagnosis: bill.diagnosis,
-        treatmentType: bill.treatmentType,
-        totalAmount: bill.totalAmount,
-        consultation: bill.items.filter(i => i.category === 'consultation').reduce((s, i) => s + i.amount, 0),
-        medicine: bill.items.filter(i => i.category === 'medicine').reduce((s, i) => s + i.amount, 0),
-        labCharges: bill.items.filter(i => i.category === 'lab').reduce((s, i) => s + i.amount, 0),
-        roomCharges: bill.items.filter(i => i.category === 'room').reduce((s, i) => s + i.amount, 0),
-        surgeryCharges: bill.items.filter(i => i.category === 'surgery').reduce((s, i) => s + i.amount, 0),
-        otherCharges: bill.items.filter(i => i.category === 'other').reduce((s, i) => s + i.amount, 0),
-      });
+      setParsedBill(null);
+      setClaimForm(prev => ({ ...prev }));
       setIsParsing(false);
       setDocuments(prev => prev.map((d, i) => i === 0 ? { ...d, uploaded: true } : d));
     }, 2500);
@@ -238,9 +178,23 @@ export default function InsuranceClaimPage() {
     };
   };
 
-  const submitClaim = () => {
-    setClaimStatus('submitted');
-    setTimeout(() => setClaimStatus('under_review'), 3000);
+  const submitClaim = async () => {
+    try {
+      const res = await fetch('/api/insurance-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'demo-user', ...claimForm }),
+      });
+      if (res.ok) {
+        setClaimStatus('submitted');
+        const data = await res.json();
+        if (data.claim) {
+          setClaimHistory(prev => [data.claim, ...prev]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to submit claim', e);
+    }
   };
 
   const getCategoryColor = (cat: string) => {
@@ -416,22 +370,7 @@ export default function InsuranceClaimPage() {
                 </div>
 
                 <div className="mt-6 bg-slate-900/80 border border-white/10 rounded-2xl p-4 backdrop-blur-xl">
-                  <p className="text-sm font-bold text-gray-300 mb-3">Quick Select Sample Bills:</p>
-                  <div className="flex gap-3">
-                    {MOCK_BILLS.map((bill, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => { setSelectedBillIndex(idx); if (uploadedFile) { simulateUpload(); } }}
-                        className={`flex-1 p-3 rounded-xl border text-left transition ${
-                          selectedBillIndex === idx ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        <p className="text-sm font-bold text-white">{bill.hospitalName}</p>
-                        <p className="text-xs text-gray-400">{bill.hospitalCity}</p>
-                        <p className="text-xs text-emerald-400 mt-1">₹{bill.totalAmount.toLocaleString()}</p>
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-sm font-bold text-gray-300 mb-3">Upload your hospital bill to get started:</p>
                 </div>
               </div>
 
@@ -696,21 +635,30 @@ export default function InsuranceClaimPage() {
               <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl mb-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
-                    <p className="text-3xl font-black text-emerald-400">{CLAIM_HISTORY.filter(c => c.status === 'approved').length}</p>
+                    <p className="text-3xl font-black text-emerald-400">{claimHistory.filter(c => c.status === 'approved').length}</p>
                     <p className="text-xs text-gray-400">Approved Claims</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-3xl font-black text-red-400">{CLAIM_HISTORY.filter(c => c.status === 'rejected').length}</p>
+                    <p className="text-3xl font-black text-red-400">{claimHistory.filter(c => c.status === 'rejected').length}</p>
                     <p className="text-xs text-gray-400">Rejected</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-3xl font-black text-white">₹{CLAIM_HISTORY.filter(c => c.status === 'approved').reduce((s, c) => s + c.amount, 0).toLocaleString()}</p>
+                    <p className="text-3xl font-black text-white">₹{claimHistory.filter(c => c.status === 'approved').reduce((s, c) => s + c.amount, 0).toLocaleString()}</p>
                     <p className="text-xs text-gray-400">Total Reimbursed</p>
                   </div>
                 </div>
               </div>
 
-              {CLAIM_HISTORY.map((claim, idx) => (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-gray-400 text-sm">Loading claims...</p>
+                </div>
+              ) : claimHistory.length === 0 ? (
+                <div className="text-center py-12 bg-slate-900/30 rounded-2xl border border-white/5">
+                  <p className="text-gray-400">No claim history yet</p>
+                </div>
+              ) : claimHistory.map((claim, idx) => (
                 <motion.div
                   key={claim.id}
                   initial={{ opacity: 0, y: 10 }}

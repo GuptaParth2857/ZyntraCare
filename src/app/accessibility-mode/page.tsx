@@ -61,10 +61,12 @@ export default function AccessibilityModePage() {
 
   useEffect(() => {
     if (isTracking && !sosTriggered) {
+      let driftAngle = 0;
       const interval = setInterval(() => {
+        driftAngle += 0.05;
         setGazePoint(prev => ({
-          x: prev.x + (Math.random() - 0.5) * 2,
-          y: prev.y + (Math.random() - 0.5) * 2
+          x: Math.max(5, Math.min(95, prev.x + Math.sin(driftAngle) * 1.5)),
+          y: Math.max(5, Math.min(95, prev.y + Math.cos(driftAngle * 0.7) * 1.2))
         }));
         
         setDwellTime(prev => {
@@ -102,32 +104,51 @@ export default function AccessibilityModePage() {
   };
 
   const startVoiceRecognition = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
       alert('Voice recognition not supported in this browser');
       return;
     }
     
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
     setIsListening(true);
     
-    setTimeout(() => {
-      const randomCommand = voiceCommands[Math.floor(Math.random() * voiceCommands.length)];
-      setLastVoiceCommand(randomCommand.command);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript.toLowerCase().trim();
+      setLastVoiceCommand(transcript);
       setIsListening(false);
       
-      if (randomCommand.action === 'sos' || randomCommand.action === 'emergency') {
-        triggerSOS();
-      } else if (randomCommand.action === 'ambulance') {
-        window.location.href = '/emergency';
-      } else if (randomCommand.action === 'hospitals') {
-        window.location.href = '/hospitals';
-      } else if (randomCommand.action === 'specialists') {
-        window.location.href = '/specialists';
-      } else if (randomCommand.action === 'medications') {
-        window.location.href = '/medications';
-      } else if (randomCommand.action === 'blood') {
-        window.location.href = '/blood-donors';
+      const matched = voiceCommands.find(cmd => transcript.includes(cmd.command.toLowerCase()));
+      if (matched) {
+        if (matched.action === 'sos') {
+          triggerSOS();
+        } else if (matched.action === 'ambulance') {
+          window.location.href = '/emergency';
+        } else if (matched.action === 'hospitals') {
+          window.location.href = '/hospitals';
+        } else if (matched.action === 'specialists') {
+          window.location.href = '/specialists';
+        } else if (matched.action === 'medications') {
+          window.location.href = '/medications';
+        } else if (matched.action === 'blood') {
+          window.location.href = '/blood-donors';
+        }
       }
-    }, 2000);
+    };
+    
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+    
+    recognition.start();
   };
 
   return (

@@ -1,166 +1,111 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiShield, FiUserPlus, FiUserX, FiExternalLink, FiCopy, FiCheckCircle, FiAlertTriangle, FiClock, FiRefreshCw, FiLink, FiActivity, FiCpu, FiFileText } from 'react-icons/fi';
-import { connectWallet, disconnectWallet as disconnect, isConnected, getChainId, currentAccount, balance as balanceState, chainId } from '@/lib/web3';
+import { FiShield, FiUserPlus, FiUserX, FiExternalLink, FiCopy, FiCheckCircle, FiAlertTriangle, FiClock, FiRefreshCw, FiLink, FiActivity, FiCpu, FiFileText, FiSave } from 'react-icons/fi';
 
-const HEALTHID_ABI = [
-  'function mintHealthID(address patient, string memory ipfsHash) external returns (uint256 tokenId)',
-  'function grantAccess(uint256 tokenId, address doctor) external',
-  'function revokeAccess(uint256 tokenId, address doctor) external',
-  'function hasAccess(uint256 tokenId, address doctor) external view returns (bool)',
-  'function getRecord(uint256 tokenId) external view returns (string memory ipfsHash)',
-  'function getRecordHistory(uint256 tokenId) external view returns (tuple(string ipfsHash, uint256 timestamp, string updatedBy)[])',
-  'function emergencyOverride(uint256 tokenId) external',
-  'function ownerOf(uint256 tokenId) external view returns (address)',
-  'function balanceOf(address owner) external view returns (uint256)',
-  'function tokenURI(uint256 tokenId) external view returns (string memory)',
-  'event HealthIDMinted(uint256 indexed tokenId, address indexed patient, string ipfsHash)',
-  'event RecordUpdated(uint256 indexed tokenId, string newIpfsHash, uint256 timestamp)',
-  'event AccessGranted(uint256 indexed tokenId, address indexed doctor)',
-  'event AccessRevoked(uint256 indexed tokenId, address indexed doctor)',
-];
-
-const CONTRACT_ADDRESS = '0x...'; // Replace with deployed contract address
+interface MedicalIDData {
+  userId: string;
+  bloodGroup: string;
+  allergies: string;
+  conditions: string;
+  medications: string;
+  emergencyContact1: string;
+  emergencyPhone1: string;
+  emergencyContact2: string;
+  emergencyPhone2: string;
+  organDonor: boolean;
+  insuranceProvider: string;
+  insuranceNumber: string;
+  notes: string;
+  createdAt?: string;
+}
 
 function truncate(addr: string): string {
+  if (addr.length <= 10) return addr;
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
+const DEMO_USER_ID = 'demo-user';
+
 export default function HealthIDPage() {
-  const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-  const [account, setAccount] = useState<string | null>(null);
-  const [networkId, setNetworkId] = useState<number | null>(null);
-  const [tokenId, setTokenId] = useState<string | null>(null);
-  const [doctorAddress, setDoctorAddress] = useState('');
-  const [doctorAccess, setDoctorAccess] = useState<Record<string, boolean>>({});
-  const [recordHash, setRecordHash] = useState('');
-  const [recordHistory, setRecordHistory] = useState<any[]>([]);
-  const [minting, setMinting] = useState(false);
-  const [txPending, setTxPending] = useState('');
+  const [medicalId, setMedicalId] = useState<MedicalIDData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [txLog, setTxLog] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    if (isConnected()) {
-      setAccount(currentAccount);
-      setNetworkId(chainId);
-      setStatus('connected');
-    }
-  }, []);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState<MedicalIDData>({
+    userId: DEMO_USER_ID,
+    bloodGroup: '',
+    allergies: '',
+    conditions: '',
+    medications: '',
+    emergencyContact1: '',
+    emergencyPhone1: '',
+    emergencyContact2: '',
+    emergencyPhone2: '',
+    organDonor: false,
+    insuranceProvider: '',
+    insuranceNumber: '',
+    notes: '',
+  });
 
   const addLog = (msg: string) => setTxLog(prev => [msg, ...prev].slice(0, 20));
 
-  const handleConnect = async () => {
-    setStatus('connecting');
-    try {
-      const result = await connectWallet();
-      if (result) {
-        setAccount(result.address);
-        setNetworkId(await getChainId());
-        setStatus('connected');
-        addLog(`✅ Wallet connected: ${truncate(result.address)}`);
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message);
-      setStatus('disconnected');
-    }
-  };
-
-  const handleDisconnect = () => {
-    disconnect();
-    setAccount(null);
-    setNetworkId(null);
-    setTokenId(null);
-    setStatus('disconnected');
-    addLog('🔌 Wallet disconnected');
-  };
-
-  const getContract = useCallback(async () => {
-    const { ethers } = await import('ethers');
-    if (!window.ethereum) throw new Error('MetaMask not installed');
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    return new ethers.Contract(CONTRACT_ADDRESS, HEALTHID_ABI, signer);
+  useEffect(() => {
+    fetchMedicalId();
   }, []);
 
-  const handleMint = async () => {
-    if (!account) return;
-    setMinting(true);
-    setTxPending('Minting Health ID...');
+  const fetchMedicalId = async () => {
+    setLoading(true);
     setErrorMsg('');
     try {
-      const contract = await getContract();
-      const ipfsHash = `Qm${Array.from({ length: 44 }, () => Math.random().toString(36)[2]).join('')}`;
-      const tx = await contract.mintHealthID(account, ipfsHash);
-      addLog(`📝 Transaction sent: ${truncate(tx.hash)}`);
-      setTxPending('Waiting for confirmation...');
-      await tx.wait();
-      const tid = await contract.balanceOf(account);
-      setTokenId(tid.toString());
-      addLog(`✅ Health ID Minted! Token #${tid.toString()}`);
-      setTxPending('');
-    } catch (err: any) {
-      if (err.message?.includes('patient already has a HealthID')) {
-        const contract = await getContract();
-        const tid = await contract.balanceOf(account);
-        setTokenId(tid.toString());
-        addLog(`ℹ️ Already have Health ID #${tid.toString()}`);
-      } else {
-        setErrorMsg(err.message || 'Mint failed');
-        addLog(`❌ Error: ${err.message}`);
+      const res = await fetch(`/api/medical-id?userId=${DEMO_USER_ID}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMedicalId(data);
+        setForm(data);
+        addLog(`✅ Medical ID loaded for ${DEMO_USER_ID}`);
+      } else if (res.status === 404) {
+        setMedicalId(null);
+        addLog('ℹ️ No Medical ID found. Create one below.');
       }
+    } catch {
+      setErrorMsg('Failed to load medical ID');
+      addLog('❌ Error fetching medical ID');
     }
-    setTxPending('');
-    setMinting(false);
+    setLoading(false);
   };
 
-  const handleGrantAccess = async () => {
-    if (!doctorAddress || !tokenId) return;
-    setTxPending('Granting access...');
+  const handleSave = async () => {
+    setSaving(true);
     setErrorMsg('');
+    setSuccessMsg('');
     try {
-      const contract = await getContract();
-      const tx = await contract.grantAccess(tokenId, doctorAddress);
-      addLog(`📝 Grant access tx: ${truncate(tx.hash)}`);
-      await tx.wait();
-      setDoctorAccess(prev => ({ ...prev, [doctorAddress]: true }));
-      addLog(`✅ Access granted to ${truncate(doctorAddress)}`);
-      setDoctorAddress('');
-    } catch (err: any) {
-      setErrorMsg(err.message);
-      addLog(`❌ Error: ${err.message}`);
+      const res = await fetch('/api/medical-id', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, userId: DEMO_USER_ID }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMedicalId(data.medicalId || { ...form, userId: DEMO_USER_ID });
+        setEditMode(false);
+        setSuccessMsg('Medical ID saved successfully');
+        addLog(`✅ Medical ID saved/updated`);
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || 'Failed to save');
+        addLog(`❌ Save failed: ${err.error}`);
+      }
+    } catch {
+      setErrorMsg('Network error saving medical ID');
+      addLog('❌ Network error');
     }
-    setTxPending('');
-  };
-
-  const handleRevokeAccess = async (doc: string) => {
-    if (!tokenId) return;
-    setTxPending('Revoking access...');
-    try {
-      const contract = await getContract();
-      const tx = await contract.revokeAccess(tokenId, doc);
-      addLog(`📝 Revoke access tx: ${truncate(tx.hash)}`);
-      await tx.wait();
-      setDoctorAccess(prev => { const n = { ...prev }; delete n[doc]; return n; });
-      addLog(`✅ Access revoked from ${truncate(doc)}`);
-    } catch (err: any) {
-      addLog(`❌ Error: ${err.message}`);
-    }
-    setTxPending('');
-  };
-
-  const handleGetRecord = async () => {
-    if (!tokenId) return;
-    try {
-      const contract = await getContract();
-      const hash = await contract.getRecord(tokenId);
-      setRecordHash(hash);
-      addLog(`📄 Record IPFS: ${hash}`);
-    } catch (err: any) {
-      addLog(`❌ Error: ${err.message}`);
-    }
+    setSaving(false);
   };
 
   return (
@@ -171,125 +116,203 @@ export default function HealthIDPage() {
             <FiShield size={32} className="text-indigo-400" />
           </div>
           <h1 className="text-5xl md:text-6xl font-black mb-4">
-            Web3 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Health ID</span>
+            Health <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">ID</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Your health identity as an NFT. Own your records. Grant and revoke doctor access on-chain via a Solidity smart contract.
+            Your secure digital health identity. Store emergency contacts, medical conditions, and insurance details.
           </p>
         </motion.div>
 
         <div className="max-w-lg mx-auto space-y-6">
-          {/* Wallet Connection */}
-          {status === 'disconnected' ? (
+          {loading ? (
+            <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-6 text-center">
+              <div className="w-12 h-12 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-400 text-sm">Loading health ID...</p>
+            </div>
+          ) : !medicalId && !editMode ? (
             <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-6 text-center">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <FiShield size={28} className="text-white" />
               </div>
-              <h3 className="text-white font-black text-lg mb-2">Connect Your Wallet</h3>
-              <p className="text-gray-400 text-sm mb-6">Connect MetaMask to mint your Health ID NFT on-chain</p>
-              <button onClick={handleConnect} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] active:scale-[0.98] transition">
-                <FiLink size={16} className="inline mr-2" /> Connect MetaMask
+              <h3 className="text-white font-black text-lg mb-2">Create Your Health ID</h3>
+              <p className="text-gray-400 text-sm mb-6">Set up your digital health identity with emergency contacts and medical info</p>
+              <button onClick={() => setEditMode(true)} className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] active:scale-[0.98] transition">
+                <FiUserPlus size={16} className="inline mr-2" /> Create Health ID
               </button>
             </div>
           ) : (
-            <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center"><FiCheckCircle className="text-emerald-400" size={18} /></div>
-                  <div>
-                    <p className="text-white font-bold text-sm">Connected</p>
-                    <p className="text-gray-500 text-xs font-mono">{account ? truncate(account) : ''}</p>
-                  </div>
-                </div>
-                <button onClick={handleDisconnect} className="text-xs text-gray-500 hover:text-white bg-white/5 px-3 py-1.5 rounded-lg transition">Disconnect</button>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                <FiCpu size={12} /> Network: {networkId === 80001 ? 'Polygon Mumbai' : networkId === 137 ? 'Polygon' : networkId === 1 ? 'Ethereum' : `Chain ${networkId}`}
-              </div>
-              {!tokenId ? (
-                <button onClick={handleMint} disabled={minting}
-                  className="w-full mt-3 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm disabled:opacity-40 transition active:scale-[0.98]"
-                >
-                  {minting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {txPending}
-                    </span>
-                  ) : '🪪 Mint Health ID NFT'}
-                </button>
-              ) : (
-                <div className="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 flex items-center gap-3">
-                  <FiShield className="text-emerald-400 shrink-0" size={18} />
-                  <div>
-                    <p className="text-emerald-400 font-bold text-xs">Health ID Active</p>
-                    <p className="text-emerald-400/60 text-[10px] font-mono">Token #{tokenId}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Grant/Revoke Access */}
-          {status === 'connected' && tokenId && (
-            <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-5 space-y-4">
-              <h3 className="font-bold text-sm flex items-center gap-2"><FiUserPlus className="text-indigo-400" /> Doctor Access Control</h3>
-              <div className="flex gap-2">
-                <input type="text" value={doctorAddress} onChange={e => setDoctorAddress(e.target.value)}
-                  placeholder="0x... (doctor wallet address)"
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs font-mono placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition"
-                />
-                <button onClick={handleGrantAccess} disabled={!doctorAddress || !!txPending}
-                  className="px-4 py-2.5 bg-emerald-600/20 text-emerald-300 rounded-xl text-xs font-bold hover:bg-emerald-600/30 transition disabled:opacity-30 border border-emerald-500/30"
-                >
-                  Grant
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {Object.keys(doctorAccess).length === 0 && (
-                  <p className="text-gray-600 text-xs text-center py-2">No doctors granted access yet</p>
-                )}
-                {Object.entries(doctorAccess).map(([doc, granted]) => (
-                  <div key={doc} className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <FiCheckCircle size={12} className="text-emerald-400" />
-                      <span className="text-xs font-mono text-gray-300">{truncate(doc)}</span>
+            <>
+              {/* Medical ID Card */}
+              {medicalId && !editMode && (
+                <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center"><FiCheckCircle className="text-emerald-400" size={18} /></div>
+                      <div>
+                        <p className="text-white font-bold text-sm">Health ID Active</p>
+                        <p className="text-gray-500 text-xs font-mono">{medicalId.userId}</p>
+                      </div>
                     </div>
-                    <button onClick={() => handleRevokeAccess(doc)}
-                      className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 px-2 py-1 rounded-lg transition">
-                      <FiUserX size={12} className="inline mr-1" /> Revoke
+                    <button onClick={() => { setEditMode(true); }} className="text-xs text-gray-500 hover:text-white bg-white/5 px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                      <FiCpu size={12} /> Edit
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Record */}
-          {status === 'connected' && tokenId && (
-            <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-5 space-y-3">
-              <h3 className="font-bold text-sm flex items-center gap-2"><FiFileText className="text-purple-400" /> Health Record</h3>
-              <button onClick={handleGetRecord}
-                className="w-full py-3 bg-purple-500/10 text-purple-300 border border-purple-500/30 rounded-xl text-sm font-bold hover:bg-purple-500/20 transition"
-              >
-                <FiRefreshCw size={14} className="inline mr-2" /> Fetch Record from Chain
-              </button>
-              {recordHash && (
-                <div className="bg-white/5 rounded-xl px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-mono text-gray-400 truncate mr-2">{recordHash}</span>
-                  <button onClick={() => navigator.clipboard.writeText(recordHash)}
-                    className="text-indigo-400 hover:text-indigo-300 shrink-0">
-                    <FiCopy size={14} />
-                  </button>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {medicalId.bloodGroup && (
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-[10px] text-gray-500">Blood Group</p>
+                        <p className="font-bold text-red-400">{medicalId.bloodGroup}</p>
+                      </div>
+                    )}
+                    {medicalId.organDonor && (
+                      <div className="bg-emerald-500/10 rounded-xl p-3">
+                        <p className="text-[10px] text-gray-500">Organ Donor</p>
+                        <p className="font-bold text-emerald-400">Yes</p>
+                      </div>
+                    )}
+                    {medicalId.emergencyContact1 && (
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-[10px] text-gray-500">Emergency Contact</p>
+                        <p className="font-bold text-white text-xs">{medicalId.emergencyContact1}</p>
+                        <p className="text-[10px] text-gray-400 font-mono">{medicalId.emergencyPhone1}</p>
+                      </div>
+                    )}
+                    {medicalId.insuranceProvider && (
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-[10px] text-gray-500">Insurance</p>
+                        <p className="font-bold text-white text-xs">{medicalId.insuranceProvider}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {medicalId.conditions && (
+                    <div className="mt-3 bg-white/5 rounded-xl p-3">
+                      <p className="text-[10px] text-gray-500 mb-1">Conditions</p>
+                      <p className="text-xs text-gray-300">{medicalId.conditions}</p>
+                    </div>
+                  )}
+                  {medicalId.allergies && (
+                    <div className="mt-2 bg-white/5 rounded-xl p-3">
+                      <p className="text-[10px] text-gray-500 mb-1">Allergies</p>
+                      <p className="text-xs text-gray-300">{medicalId.allergies}</p>
+                    </div>
+                  )}
+                  {medicalId.medications && (
+                    <div className="mt-2 bg-white/5 rounded-xl p-3">
+                      <p className="text-[10px] text-gray-500 mb-1">Medications</p>
+                      <p className="text-xs text-gray-300">{medicalId.medications}</p>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Edit Form */}
+              {(editMode || !medicalId) && (
+                <div className="bg-slate-900/60 border border-white/10 rounded-3xl p-5 space-y-4">
+                  <h3 className="font-bold text-sm flex items-center gap-2"><FiFileText className="text-indigo-400" /> {medicalId ? 'Edit Health ID' : 'Create Health ID'}</h3>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Blood Group</label>
+                      <select value={form.bloodGroup} onChange={e => setForm({ ...form, bloodGroup: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none focus:border-indigo-500/50 transition appearance-none cursor-pointer">
+                        <option value="" className="bg-slate-900">Select</option>
+                        {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g} className="bg-slate-900">{g}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs cursor-pointer w-full">
+                        <input type="checkbox" checked={form.organDonor} onChange={e => setForm({ ...form, organDonor: e.target.checked })} className="accent-emerald-500" />
+                        <span className="text-gray-300">Organ Donor</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Medical Conditions</label>
+                    <textarea value={form.conditions} onChange={e => setForm({ ...form, conditions: e.target.value })} placeholder="e.g. Diabetes Type 2, Hypertension" rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition resize-none" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Allergies</label>
+                    <textarea value={form.allergies} onChange={e => setForm({ ...form, allergies: e.target.value })} placeholder="e.g. Penicillin, Peanuts" rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition resize-none" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Current Medications</label>
+                    <textarea value={form.medications} onChange={e => setForm({ ...form, medications: e.target.value })} placeholder="e.g. Metformin 500mg, Amlodipine 5mg" rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition resize-none" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Emergency Contact 1</label>
+                      <input type="text" value={form.emergencyContact1} onChange={e => setForm({ ...form, emergencyContact1: e.target.value })} placeholder="Name" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Phone</label>
+                      <input type="tel" value={form.emergencyPhone1} onChange={e => setForm({ ...form, emergencyPhone1: e.target.value })} placeholder="+91-XXXXXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs font-mono placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Emergency Contact 2</label>
+                      <input type="text" value={form.emergencyContact2} onChange={e => setForm({ ...form, emergencyContact2: e.target.value })} placeholder="Name (optional)" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Phone</label>
+                      <input type="tel" value={form.emergencyPhone2} onChange={e => setForm({ ...form, emergencyPhone2: e.target.value })} placeholder="+91-XXXXXXXXXX" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs font-mono placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Insurance Provider</label>
+                      <input type="text" value={form.insuranceProvider} onChange={e => setForm({ ...form, insuranceProvider: e.target.value })} placeholder="e.g. Star Health" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Policy Number</label>
+                      <input type="text" value={form.insuranceNumber} onChange={e => setForm({ ...form, insuranceNumber: e.target.value })} placeholder="Policy # (optional)" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs font-mono placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Additional Notes</label>
+                    <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Any other important medical info..." rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 transition resize-none" />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button onClick={handleSave} disabled={saving}
+                      className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-sm disabled:opacity-40 transition active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      {saving ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : <FiSave size={14} />}
+                      {saving ? 'Saving...' : 'Save Health ID'}
+                    </button>
+                    {medicalId && (
+                      <button onClick={() => { setEditMode(false); setForm(medicalId); }} className="px-4 py-3 bg-white/5 border border-white/10 text-gray-400 rounded-2xl text-sm font-medium hover:bg-white/10 transition">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Success */}
+          {successMsg && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-start gap-3">
+              <FiCheckCircle className="text-emerald-400 shrink-0 mt-0.5" size={16} />
+              <p className="text-emerald-300 text-xs">{successMsg}</p>
             </div>
           )}
 
           {/* Transaction Log */}
           {txLog.length > 0 && (
             <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-4">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Transaction Log</h4>
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Activity Log</h4>
               <div className="space-y-1 max-h-[200px] overflow-y-auto">
                 {txLog.map((log, i) => (
                   <p key={i} className="text-xs text-gray-400 font-mono">{log}</p>
@@ -307,22 +330,22 @@ export default function HealthIDPage() {
           )}
         </div>
 
-        {/* Contract Info */}
+        {/* Info Cards */}
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="mt-12 grid md:grid-cols-3 gap-4">
           <div className="bg-slate-900/40 border border-white/10 rounded-2xl p-5">
             <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-3"><FiShield className="text-indigo-400" size={20} /></div>
-            <h3 className="font-bold text-sm text-white mb-1">ERC-721 Health ID</h3>
-            <p className="text-gray-500 text-xs">ERC-721 non-transferable NFT. Each patient gets exactly one unique Health ID token.</p>
+            <h3 className="font-bold text-sm text-white mb-1">Secure Storage</h3>
+            <p className="text-gray-500 text-xs">Your health data is stored securely and only accessible by you and authorized doctors.</p>
           </div>
           <div className="bg-slate-900/40 border border-white/10 rounded-2xl p-5">
             <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center mb-3"><FiUserPlus className="text-purple-400" size={20} /></div>
-            <h3 className="font-bold text-sm text-white mb-1">Granular Access Control</h3>
-            <p className="text-gray-500 text-xs">Patients grant/revoke doctor access on-chain. Only authorised doctors can view records.</p>
+            <h3 className="font-bold text-sm text-white mb-1">Emergency Ready</h3>
+            <p className="text-gray-500 text-xs">First responders can access your emergency contacts and critical medical info instantly.</p>
           </div>
           <div className="bg-slate-900/40 border border-white/10 rounded-2xl p-5">
-            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3"><FiExternalLink className="text-emerald-400" size={20} /></div>
-            <h3 className="font-bold text-sm text-white mb-1">IPFS + Blockchain</h3>
-            <p className="text-gray-500 text-xs">Records stored on IPFS, hashes anchored on-chain. Immutable and verifiable.</p>
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3"><FiActivity className="text-emerald-400" size={20} /></div>
+            <h3 className="font-bold text-sm text-white mb-1">Always Available</h3>
+            <p className="text-gray-500 text-xs">Access your health ID from any device, anytime. Your data is always within reach.</p>
           </div>
         </motion.div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 
 type ColorTheme = 'teal' | 'blue' | 'purple' | 'red' | 'green' | 'amber' | 'cyan' | 'pink' | 'emerald' | 'indigo';
 
@@ -30,6 +30,23 @@ export default function AnimatedBackground({
 }: AnimatedBackgroundProps) {
   const c = THEME_COLORS[theme];
 
+  // Respect the OS "reduce motion" setting: stop the pulsing orbs (they are
+  // large blurred layers repainting every frame). The visual design stays
+  // identical for everyone else.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReducedMotion(mq.matches);
+    setReducedMotion(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const orbAnim = reducedMotion ? undefined : { scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] };
+  const orbAnim2 = reducedMotion ? undefined : { scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] };
+  const orbAnim3 = reducedMotion ? undefined : { scale: [1, 1.1, 1], opacity: [0.2, 0.5, 0.2] };
+  const orbAnim4 = reducedMotion ? undefined : { scale: [1.1, 1, 1.1], opacity: [0.2, 0.4, 0.2] };
+
   return (
     <div className={`fixed inset-0 pointer-events-none z-0 ${className}`}>
       {/* Radial gradient overlays */}
@@ -46,23 +63,23 @@ export default function AnimatedBackground({
 
       {/* Pulsing orbs */}
       <motion.div
-        animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        animate={orbAnim}
+        transition={reducedMotion ? { duration: 0 } : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
         className={`absolute top-[15%] left-[5%] w-[500px] h-[500px] ${c.orb1} rounded-full blur-[150px]`}
       />
       <motion.div
-        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+        animate={orbAnim2}
+        transition={reducedMotion ? { duration: 0 } : { duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
         className={`absolute bottom-[10%] right-[5%] w-[600px] h-[600px] ${c.orb2} rounded-full blur-[180px]`}
       />
       <motion.div
-        animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.5, 0.2] }}
-        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        animate={orbAnim3}
+        transition={reducedMotion ? { duration: 0 } : { duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
         className={`absolute top-[40%] right-[20%] w-[400px] h-[400px] ${c.orb3} rounded-full blur-[120px]`}
       />
       <motion.div
-        animate={{ scale: [1.1, 1, 1.1], opacity: [0.2, 0.4, 0.2] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+        animate={orbAnim4}
+        transition={reducedMotion ? { duration: 0 } : { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
         className={`absolute top-[60%] left-[30%] w-[350px] h-[350px] ${c.orb4} rounded-full blur-[100px]`}
       />
 

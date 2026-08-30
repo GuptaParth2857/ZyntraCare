@@ -100,7 +100,7 @@ export default function MedicineVerifyPage() {
               className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
             />
             <button
-              onClick={handleSearch}
+              onClick={() => handleSearch()}
               disabled={loading}
               className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition"
             >
