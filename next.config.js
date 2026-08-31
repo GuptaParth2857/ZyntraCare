@@ -5,7 +5,6 @@ const { withSentryConfig } = require('@sentry/nextjs');
 const nextConfig = {
   reactStrictMode: false,
   compress: true,
-  output: 'standalone',
 
   // Skip TypeScript errors during build (code compiles correctly, types need cleanup)
   typescript: {
