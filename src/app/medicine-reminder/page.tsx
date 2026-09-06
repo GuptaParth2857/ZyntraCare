@@ -24,6 +24,7 @@ export default function MedicineReminderPage() {
     medicineName: '', dosage: '', time: '', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   });
   const [userId, setUserId] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('zyntracare_reminders');
@@ -38,6 +39,7 @@ export default function MedicineReminderPage() {
   const fetchReminders = async (uid: string) => {
     try {
       const res = await fetch(`/api/medicine-reminders?userId=${uid}`);
+      if (!res.ok) throw new Error('Failed to sync reminders');
       const data = await res.json();
       if (data.reminders?.length) {
         setReminders(data.reminders.map((r: any) => ({
@@ -50,7 +52,10 @@ export default function MedicineReminderPage() {
           taken: false,
         })));
       }
-    } catch {}
+      setError('');
+    } catch (err: any) {
+      setError(err.message || 'Failed to sync reminders from server. Changes are saved locally.');
+    }
   };
 
   useEffect(() => {
@@ -117,6 +122,17 @@ export default function MedicineReminderPage() {
             <FiPlus size={16} /> Add Reminder
           </motion.button>
         </motion.div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+            <FiAlertCircle className="text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-red-400/90 text-sm font-medium">Couldn&apos;t sync from server</p>
+              <p className="text-red-400/70 text-xs">{error}</p>
+            </div>
+            <button onClick={() => window.location.reload()} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+          </div>
+        )}
 
         {reminders.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">

@@ -24,42 +24,57 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 }
 
 const fallbackHospitals: NearbyHospital[] = [
-  { id: 'fb1', name: 'Government Hospital', phone: '102', address: 'Emergency Services, Your Area', distance: 0.8, lat: 28.6139, lng: 77.2090 },
-  { id: 'fb2', name: 'City Hospital', phone: '102', address: '24/7 Emergency Care', distance: 1.5, lat: 28.6200, lng: 77.2200 },
-  { id: 'fb3', name: 'Multi-Specialty Hospital', phone: '102', address: 'Trauma & Emergency Center', distance: 2.2, lat: 28.6300, lng: 77.2000 },
+  { id: 'fb1', name: 'Government Hospital', phone: '102', address: 'Emergency Services, Your Area', distance: 0, lat: 0, lng: 0 },
+  { id: 'fb2', name: 'City Hospital', phone: '102', address: '24/7 Emergency Care', distance: 0, lat: 0, lng: 0 },
+  { id: 'fb3', name: 'Multi-Specialty Hospital', phone: '102', address: 'Trauma & Emergency Center', distance: 0, lat: 0, lng: 0 },
 ];
 
 async function fetchHospitals(lat: number, lng: number): Promise<NearbyHospital[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const q = `[out:json][timeout:15];(node["amenity"="hospital"](around:2000,${lat},${lng});way["amenity"="hospital"](around:2000,${lat},${lng}););out center 10;`;
-    const r = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`, { signal: controller.signal });
+    const r = await fetch(`/api/hospitals/nearby?lat=${lat}&lng=${lng}&radius=20000`, { signal: controller.signal });
     clearTimeout(timeout);
     if (!r.ok) throw new Error('API error');
     const d = await r.json();
-    const result: NearbyHospital[] = (d.elements || [])
-      .filter((el: any) => el.tags?.amenity === 'hospital')
-      .map((el: any) => {
-        const hLat = el.lat ?? el.center?.lat;
-        const hLng = el.lon ?? el.center?.lon;
-        return {
-          id: String(el.id),
-          name: el.tags?.name || 'Nearby Hospital',
-          phone: el.tags?.['contact:phone'] || el.tags?.phone || '102',
-          address: [el.tags?.['addr:street'], el.tags?.['addr:city']].filter(Boolean).join(', ') || 'Nearby',
-          distance: haversine(lat, lng, hLat, hLng),
-          lat: hLat,
-          lng: hLng,
-        };
-      })
+    const list = Array.isArray(d?.hospitals) ? d.hospitals : [];
+    const result: NearbyHospital[] = list
+      .filter((p: any) => p?.type === 'hospital' || p?.facilityType === 'hospital' || p?.emergency)
+      .map((p: any) => ({
+        id: String(p.id || p.name + p.location?.lat),
+        name: p.name || 'Nearby Hospital',
+        phone: p.phone || '102',
+        address: [p.address, p.city].filter(Boolean).join(', ') || 'Nearby',
+        distance: p.distance ?? haversine(lat, lng, p.location?.lat, p.location?.lng),
+        lat: p.location?.lat,
+        lng: p.location?.lng,
+      }))
+      .filter((h: NearbyHospital) => typeof h.lat === 'number' && typeof h.lng === 'number')
       .sort((a: NearbyHospital, b: NearbyHospital) => a.distance - b.distance)
       .slice(0, 10);
-    return result.length > 0 ? result : fallbackHospitals.map(h => ({ ...h, distance: Math.random() * 2 + 0.3 }));
+    return result.length > 0 ? result : getFallbackWithDistance(lat, lng);
   } catch {
     clearTimeout(timeout);
-    return fallbackHospitals.map(h => ({ ...h, distance: Math.random() * 2 + 0.3 }));
+    return getFallbackWithDistance(lat, lng);
   }
+}
+
+function getFallbackWithDistance(userLat: number, userLng: number): NearbyHospital[] {
+  const offsets = [
+    { dlat: 0.01, dlng: 0.01 },
+    { dlat: -0.008, dlng: 0.015 },
+    { dlat: 0.012, dlng: -0.009 },
+  ];
+  return fallbackHospitals.map((h, i) => {
+    const hLat = userLat + offsets[i].dlat;
+    const hLng = userLng + offsets[i].dlng;
+    return {
+      ...h,
+      lat: hLat,
+      lng: hLng,
+      distance: haversine(userLat, userLng, hLat, hLng),
+    };
+  });
 }
 
 export default function EmergencyScrollMonitor() {
@@ -108,12 +123,26 @@ export default function EmergencyScrollMonitor() {
   const handleYes = useCallback(async () => {
     setShowHospitals(true);
     setLoadingHospitals(true);
-    const loc = userLocRef.current;
+
+    let loc = userLocRef.current;
+
     if (!loc) {
-      setHospitals(fallbackHospitals.map(h => ({ ...h, distance: Math.random() * 2 + 0.3 })));
+      loc = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        );
+      });
+      if (loc) userLocRef.current = loc;
+    }
+
+    if (!loc) {
+      setHospitals(getFallbackWithDistance(28.6139, 77.2090));
       setLoadingHospitals(false);
       return;
     }
+
     const results = await fetchHospitals(loc.lat, loc.lng);
     setHospitals(results);
     setLoadingHospitals(false);
@@ -196,7 +225,7 @@ export default function EmergencyScrollMonitor() {
                     <div className="w-16 h-16 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
                   </div>
                   <p className="text-lg font-black text-white">Finding nearest hospitals...</p>
-                  <p className="text-gray-500 text-sm mt-2">Searching within 2km radius</p>
+                  <p className="text-gray-500 text-sm mt-2">Searching within 10km radius</p>
                 </div>
               ) : (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -205,7 +234,7 @@ export default function EmergencyScrollMonitor() {
                       <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                       <span className="font-black text-emerald-400 text-sm">Hospitals Near You</span>
                     </div>
-                    <p className="text-gray-400 text-xs">{hospitals.length} hospital{hospitals.length !== 1 ? 's' : ''} found within 2km</p>
+                    <p className="text-gray-400 text-xs">{hospitals.length} hospital{hospitals.length !== 1 ? 's' : ''} found within 10km</p>
                   </div>
                   <div className="space-y-3 max-h-[300px] overflow-y-auto">
                     {hospitals.map((h, i) => (

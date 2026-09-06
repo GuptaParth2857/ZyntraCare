@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FiMic, FiMicOff, FiAlertTriangle, FiCheckCircle, FiPhone, FiMapPin, FiShield, FiInfo } from 'react-icons/fi';
 import { FaAmbulance } from 'react-icons/fa';
@@ -18,12 +18,12 @@ export default function VoiceEmergencyPage() {
   const recognitionRef = useRef<any>(null);
   const activeRef = useRef(false);
 
-  const EMERGENCY_KEYWORDS = [
+  const EMERGENCY_KEYWORDS = useMemo(() => [
     'chest pain', 'heart attack', 'cannot breathe', 'can\'t breathe', 'emergency',
     'help me', 'stroke', 'bleeding', 'accident', 'unconscious', 'severe pain',
     'difficulty breathing', 'choking', 'head injury', 'broken bone',
     'सीने में दर्द', 'हार्ट अटैक', 'मदद', 'आपातकालीन',
-  ];
+  ], []);
 
   useEffect(() => {
     return () => { if (recognitionRef.current) recognitionRef.current.abort(); };
@@ -36,6 +36,14 @@ export default function VoiceEmergencyPage() {
     }
     setListening(false);
     activeRef.current = false;
+  }, []);
+
+  const speak = useCallback((text: string) => {
+    const s = window.speechSynthesis;
+    s.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.9;
+    s.speak(u);
   }, []);
 
   const startListening = useCallback(() => {
@@ -80,15 +88,7 @@ export default function VoiceEmergencyPage() {
     r.start();
     setListening(true);
     speak('Voice emergency assistant activated. I am listening for emergency keywords.');
-  }, [stopListening]);
-
-  const speak = useCallback((text: string) => {
-    const s = window.speechSynthesis;
-    s.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.9;
-    s.speak(u);
-  }, []);
+  }, [stopListening, speak, EMERGENCY_KEYWORDS]);
 
   const handleYes = useCallback(async () => {
     setStage('locating');
@@ -142,7 +142,7 @@ export default function VoiceEmergencyPage() {
       () => { setStage('error'); setErrorMsg('Please enable location or call 112'); },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
-  }, []);
+  }, [speak]);
 
   const handleNo = useCallback(() => {
     setDetected(false);

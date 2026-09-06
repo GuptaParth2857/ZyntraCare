@@ -139,18 +139,27 @@ export async function GET(req: NextRequest) {
     // "Top rated" mode: showcase India's best hospitals across all cities,
     // highest rating first with variety of cities (not just nearest to user).
     if (top) {
-      // Rank by genuine quality. Real sources (wibest / overture / osm) carry
-      // authentic ratings & NABH accreditation; legacy "manual" rows are old
-      // synthetic placeholders with random ratings, so they rank below real
-      // data even if their numeric rating happens to be higher.
+      // Rank by genuine quality combined with proximity to the user so nearby
+      // top-rated hospitals show up first. Real sources (wibest / overture /
+      // osm) carry authentic ratings & NABH accreditation; legacy "manual"
+      // rows are old synthetic placeholders, so they rank below real data.
       const sourceRank: Record<string, number> = { wibest: 0, overture: 1, osm: 1, database: 1, manual: 2 };
       const admins = results
         .slice()
+        .map((h: any) => {
+          const distKm = typeof h.distance === 'number' ? h.distance : getDistanceKm(lat, lng, h.location?.lat ?? lat, h.location?.lng ?? lng);
+          const rating = h.rating || 0;
+          const proximity = Math.max(1, distKm || 1);
+          // Proximity bonus favours closer hospitals within a quality band,
+          // while rating + source still dominate the ranking.
+          const score = ((rating - 3) * 10 + 20) - proximity * 0.5;
+          return { ...h, distance: distKm, __score: score };
+        })
         .sort((a: any, b: any) => {
           const ra = sourceRank[a.source] ?? 1;
           const rb = sourceRank[b.source] ?? 1;
           if (ra !== rb) return ra - rb;
-          return (b.rating || 0) - (a.rating || 0);
+          return (b.__score || 0) - (a.__score || 0);
         });
       const wanted = (limit > 0 ? limit : 6);
       const chosen: any[] = [];

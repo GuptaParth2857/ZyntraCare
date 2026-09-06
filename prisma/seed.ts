@@ -30,12 +30,10 @@ const SPECIALTIES = [
 const FIRST_NAMES = ['Rajesh', 'Priya', 'Amit', 'Sneha', 'Vikram', 'Anjali', 'Raj', 'Meera', 'Sanjay', 'Kavita'];
 const LAST_NAMES = ['Sharma', 'Kumar', 'Patel', 'Gupta', 'Singh', 'Verma', 'Reddy', 'Joshi', 'Mehta', 'Shah'];
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
-
 async function main() {
   console.log('🌱 Starting seed...');
 
-  const hashedPassword = await bcrypt.hash('admin123', 12);
+  const hashedPassword = await bcrypt.hash('8447304702Pg', 12);
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'gupta.parth2857@gmail.com' },
@@ -223,21 +221,6 @@ async function main() {
     });
   }
   console.log('✅ Created 10 ambulances');
-
-  for (let i = 0; i < 20; i++) {
-    const city = CITIES[Math.floor(Math.random() * CITIES.length)];
-    await prisma.user.create({
-      data: {
-        email: `donor${i}@bloodbank.com`,
-        name: `Blood Donor ${i + 1}`,
-        phone: `+91999999999${String(i).padStart(2, '0')}`,
-        bloodGroup: BLOOD_GROUPS[Math.floor(Math.random() * BLOOD_GROUPS.length)],
-        role: 'patient',
-        city: city.city,
-      },
-    });
-  }
-  console.log('✅ Created 20 blood donors');
 
   const BLOG_DATA = [
     {

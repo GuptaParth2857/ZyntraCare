@@ -5,6 +5,7 @@ const { withSentryConfig } = require('@sentry/nextjs');
 const nextConfig = {
   reactStrictMode: false,
   compress: true,
+  poweredByHeader: false,
 
   // Skip TypeScript errors during build (code compiles correctly, types need cleanup)
   typescript: {
@@ -26,7 +27,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'plus.unsplash.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
-    formats: ['image/webp'],
+    formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080],
     imageSizes: [16, 32, 48, 64, 96, 128],
   },
@@ -39,8 +40,11 @@ const nextConfig = {
       'react-icons',
       'recharts',
       'three',
-      'jspdf',
-      'twilio',
+      '@react-three/fiber',
+      '@react-three/drei',
+      '@react-three/postprocessing',
+      'leaflet',
+      'react-leaflet',
     ],
   },
 

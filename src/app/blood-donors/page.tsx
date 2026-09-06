@@ -2,19 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiDroplet, FiSearch, FiMapPin, FiPhone, FiClock, FiUser, FiHeart, FiFilter, FiAlertCircle, FiCheckCircle, FiShare2, FiBell } from 'react-icons/fi';
+import { FiDroplet, FiSearch, FiMapPin, FiPhone, FiUser, FiFilter, FiAlertCircle, FiCheckCircle, FiShare2, FiClock, FiActivity } from 'react-icons/fi';
+import { EK_BLOOD_GROUPS, EK_COMPONENTS } from '@/lib/eraktkosh';
 
 interface BloodDonor {
   id: string;
   name: string;
   bloodType: string;
   location: string;
-  distance: string;
   phone: string;
   available: boolean;
-  lastDonated: string;
-  donations: number;
-  verified: boolean;
 }
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -23,6 +20,7 @@ export default function BloodDonorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBlood, setSelectedBlood] = useState<string>('');
   const [donors, setDonors] = useState<BloodDonor[]>([]);
+  const [stats, setStats] = useState<{ total: number; cities: number; groups: number }>({ total: 0, cities: 0, groups: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showRequest, setShowRequest] = useState(false);
@@ -35,6 +33,22 @@ export default function BloodDonorsPage() {
   const [registerSent, setRegisterSent] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState('');
+  const [activeTab, setActiveTab] = useState<'donors' | 'banks' | 'stock'>('donors');
+  const [bankCity, setBankCity] = useState('');
+  const [banks, setBanks] = useState<any[]>([]);
+  const [banksTotal, setBanksTotal] = useState(0);
+  const [banksLoading, setBanksLoading] = useState(false);
+  const [banksError, setBanksError] = useState('');
+  const [banksMeta, setBanksMeta] = useState<{ live: boolean; partial?: boolean; source?: string } | null>(null);
+  const [stockState, setStockState] = useState('');
+  const [stockDistrict, setStockDistrict] = useState('');
+  const [stockDistricts, setStockDistricts] = useState<{ code: string; name: string }[]>([]);
+  const [stockGroup, setStockGroup] = useState('all');
+  const [stockComponent, setStockComponent] = useState('11');
+  const [stockBanks, setStockBanks] = useState<any[]>([]);
+  const [stockTotal, setStockTotal] = useState(0);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockError, setStockError] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -52,14 +66,11 @@ export default function BloodDonorsPage() {
           name: d.name || 'Anonymous',
           bloodType: d.bloodType || d.bloodGroup || '',
           location: d.location || d.city || '',
-          distance: d.distance || 'N/A',
           phone: d.phone || '',
-          available: d.available !== undefined ? d.available : true,
-          lastDonated: d.lastDonated || 'Never',
-          donations: d.donations || 0,
-          verified: d.verified || false,
+          available: Boolean(d.phone || d.available),
         }));
         setDonors(mapped);
+        if (data.stats) setStats({ total: data.stats.total || mapped.length, cities: data.stats.cities || 0, groups: data.stats.groups || 0 });
       } catch (err) {
         setError('Failed to load donors');
         console.error('Error fetching donors:', err);
@@ -74,6 +85,72 @@ export default function BloodDonorsPage() {
     const matchesBlood = !selectedBlood || donor.bloodType === selectedBlood;
     return matchesSearch && matchesBlood;
   });
+
+  const fetchBanks = async (city: string) => {
+    setBanksLoading(true);
+    setBanksError('');
+    setBanksMeta(null);
+    try {
+      const q = city ? `?city=${encodeURIComponent(city)}&limit=30` : '?limit=30';
+      const res = await fetch(`/api/blood-banks${q}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setBanks([]);
+        setBanksTotal(0);
+        setBanksError(err?.error || 'Failed to load blood banks');
+        return;
+      }
+      const data = await res.json();
+      setBanks(data.banks || []);
+      setBanksTotal(data.total || 0);
+      if (data.live === false || data.partial) {
+        setBanksMeta({ live: false, partial: data.partial, source: data.source });
+      } else {
+        setBanksMeta({ live: true });
+      }
+    } catch (err) {
+      console.error('Error fetching blood banks:', err);
+      setBanksError('Failed to load blood banks');
+    }
+    setBanksLoading(false);
+  };
+
+  const loadDistricts = async (state: string) => {
+    setStockDistricts([]);
+    setStockDistrict('');
+    if (!state) return;
+    try {
+      const res = await fetch(`/api/eraktkosh?action=districts&state=${encodeURIComponent(state)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setStockDistricts(data.districts || []);
+    } catch (err) {
+      console.error('error loading districts:', err);
+    }
+  };
+
+  const fetchStock = async () => {
+    if (!stockState || !stockDistrict) return;
+    setStockLoading(true);
+    setStockError('');
+    try {
+      const q = `/api/eraktkosh?action=stock&state=${encodeURIComponent(stockState)}&district=${encodeURIComponent(stockDistrict)}&group=${encodeURIComponent(stockGroup)}&component=${encodeURIComponent(stockComponent)}`;
+      const res = await fetch(q);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setStockBanks([]);
+        setStockTotal(0);
+        setStockError(data?.error || 'Failed to load blood stock');
+        return;
+      }
+      setStockBanks(data.banks || []);
+      setStockTotal(data.total || 0);
+    } catch (err) {
+      console.error('error fetching stock:', err);
+      setStockError('Failed to load blood stock');
+    }
+    setStockLoading(false);
+  };
 
   const handleRequest = async () => {
     setRequestError('');
@@ -160,8 +237,8 @@ export default function BloodDonorsPage() {
               transition={{ delay: 0.1 }}
               className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
             >
-              <p className="text-3xl font-black text-red-400">{donors.filter(d => d.available).length}</p>
-              <p className="text-xs text-gray-400">Available Now</p>
+              <p className="text-3xl font-black text-red-400">{stats.total}</p>
+              <p className="text-xs text-gray-400">Total Donors</p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -169,8 +246,8 @@ export default function BloodDonorsPage() {
               transition={{ delay: 0.2 }}
               className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
             >
-              <p className="text-3xl font-black text-emerald-400">{donors.length}</p>
-              <p className="text-xs text-gray-400">Total Donors</p>
+              <p className="text-3xl font-black text-emerald-400">{stats.cities}</p>
+              <p className="text-xs text-gray-400">Cities Covered</p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -178,8 +255,8 @@ export default function BloodDonorsPage() {
               transition={{ delay: 0.3 }}
               className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
             >
-              <p className="text-3xl font-black text-blue-400">{donors.reduce((a, d) => a + d.donations, 0)}</p>
-              <p className="text-xs text-gray-400">Total Donations</p>
+              <p className="text-3xl font-black text-blue-400">{stats.groups}</p>
+              <p className="text-xs text-gray-400">Blood Groups</p>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -187,8 +264,8 @@ export default function BloodDonorsPage() {
               transition={{ delay: 0.4 }}
               className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
             >
-              <p className="text-3xl font-black text-purple-400">{donors.filter(d => d.verified).length}</p>
-              <p className="text-xs text-gray-400">Verified Donors</p>
+              <p className="text-3xl font-black text-purple-400">{filteredDonors.length}</p>
+              <p className="text-xs text-gray-400">Showing Now</p>
             </motion.div>
           </div>
 
@@ -242,6 +319,249 @@ export default function BloodDonorsPage() {
 
       {/* Donors List */}
       <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setActiveTab('donors')}
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'donors' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+          >
+            🩸 Blood Donors
+          </button>
+          <button
+            onClick={() => setActiveTab('banks')}
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'banks' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+          >
+            🏥 Blood Banks (Government Directory)
+          </button>
+          <button
+            onClick={() => setActiveTab('stock')}
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'stock' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+          >
+            📦 Live Blood Stock (e-RaktKosh)
+          </button>
+        </div>
+
+        {activeTab === 'banks' && (
+          <div>
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center mb-4">
+              <input
+                type="text"
+                value={bankCity}
+                onChange={(e) => setBankCity(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchBanks(bankCity)}
+                placeholder="Search blood banks by city (e.g. Delhi, Mumbai, Pune)..."
+                className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
+              />
+              <button
+                onClick={() => fetchBanks(bankCity)}
+                disabled={banksLoading}
+                className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl font-bold disabled:opacity-50"
+              >
+                {banksLoading ? 'Searching...' : 'Search Banks'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-6">
+              Source: data.gov.in — National Blood Bank Directory (NACO, Ministry of Health &amp; Family Welfare, Govt. of India)
+            </p>
+
+            {banksMeta && !banksMeta.live && (
+              <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-xs text-amber-300">
+                The live government API is briefly rate-limited, so showing the official directory snapshot right now. It auto-refreshes within a few minutes — try again or set your own free data.gov.in API key (&apos;OGD_API_KEY&apos;) for the full live list.
+              </div>
+            )}
+
+            {banksLoading ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400">Fetching blood banks from government directory...</p>
+              </div>
+            ) : banksError ? (
+              <div className="text-center py-16">
+                <FiAlertCircle className="text-4xl text-red-500 mx-auto mb-4" />
+                <p className="text-xl font-bold text-red-400">{banksError}</p>
+                <button onClick={() => fetchBanks(bankCity)} className="mt-4 px-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-bold">
+                  Retry
+                </button>
+              </div>
+            ) : banks.length === 0 ? (
+              <div className="text-center py-16">
+                <FiDroplet className="text-6xl text-gray-700 mx-auto mb-4" />
+                <p className="text-xl font-bold">No blood banks found</p>
+                <p className="text-gray-400">Try searching by another city</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-400 mb-4">{banksTotal} verified blood banks found</p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {banks.map((bank: any) => (
+                    <div key={bank.id} className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-5 hover:border-red-500/30 transition">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="font-bold flex items-center gap-2"><FiMapPin className="text-red-400 shrink-0" /> {bank.name}</h3>
+                        {bank.category && <span className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-red-500/15 text-red-300">{bank.category}</span>}
+                      </div>
+                      <p className="text-sm text-gray-400 mt-2">{bank.address}{bank.city ? `, ${bank.city}` : ''}{bank.district ? `, ${bank.district}` : ''}{bank.state ? `, ${bank.state}` : ''} {bank.pincode ? `- ${bank.pincode}` : ''}</p>
+                      {bank.serviceTime && <p className="text-xs text-gray-500 mt-1"><FiClock className="inline mr-1" />Service: {bank.serviceTime}</p>}
+                      {bank.bloodComponents && <p className="text-xs text-emerald-400 mt-1">Components: {bank.bloodComponents}</p>}
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {bank.contact && (
+                          <a href={`tel:${bank.contact.replace(/\s+/g, '')}`} className="flex items-center gap-2 py-2.5 px-3 bg-red-500/15 text-red-300 rounded-xl font-bold text-sm hover:bg-red-500/25 transition">
+                            <FiPhone size={14} /> {bank.contact}
+                          </a>
+                        )}
+                        {bank.helpline && (
+                          <a href={`tel:${bank.helpline.replace(/\s+/g, '')}`} className="flex items-center gap-2 py-2.5 px-3 bg-white/10 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition">
+                            <FiAlertCircle size={14} /> Help: {bank.helpline}
+                          </a>
+                        )}
+                        {bank.email && (
+                          <a href={`mailto:${bank.email}`} className="flex items-center gap-2 py-2.5 px-3 bg-white/10 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition truncate">
+                            <FiShare2 size={14} /> {bank.email}
+                          </a>
+                        )}
+                        {bank.website && (
+                          <a href={bank.website.startsWith('http') ? bank.website : `https://${bank.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 py-2.5 px-3 bg-white/10 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition truncate">
+                            <FiShare2 size={14} /> Website
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'stock' && (
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <select
+                value={stockState}
+                onChange={(e) => { setStockState(e.target.value); loadDistricts(e.target.value); }}
+                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+              >
+                <option value="">Select State</option>
+                <option value="97">Delhi</option>
+                <option value="27">Maharashtra</option>
+                <option value="29">Karnataka</option>
+                <option value="36">Telangana</option>
+                <option value="28">Andhra Pradesh</option>
+                <option value="33">Tamil Nadu</option>
+                <option value="32">Kerala</option>
+                <option value="24">Gujarat</option>
+                <option value="19">West Bengal</option>
+                <option value="10">Bihar</option>
+                <option value="21">Odisha</option>
+                <option value="23">Madhya Pradesh</option>
+                <option value="99">Uttar Pradesh</option>
+                <option value="98">Rajasthan</option>
+                <option value="30">Goa</option>
+                <option value="18">Assam</option>
+                <option value="11">Sikkim</option>
+                <option value="13">Nagaland</option>
+                <option value="16">Tripura</option>
+                <option value="17">Meghalaya</option>
+                <option value="15">Mizoram</option>
+                <option value="14">Manipur</option>
+                <option value="12">Arunachal Pradesh</option>
+              </select>
+              <select
+                value={stockDistrict}
+                onChange={(e) => setStockDistrict(e.target.value)}
+                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+              >
+                <option value="">Select District</option>
+                {stockDistricts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
+              </select>
+              <select
+                value={stockGroup}
+                onChange={(e) => setStockGroup(e.target.value)}
+                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+              >
+                {EK_BLOOD_GROUPS.map(g => <option key={g.code} value={g.code}>{g.name}</option>)}
+              </select>
+              <select
+                value={stockComponent}
+                onChange={(e) => setStockComponent(e.target.value)}
+                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+              >
+                {EK_COMPONENTS.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <button
+                onClick={fetchStock}
+                disabled={stockLoading || !stockState || !stockDistrict}
+                className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl font-bold disabled:opacity-50"
+              >
+                {stockLoading ? 'Checking stock...' : 'Check Live Stock'}
+              </button>
+              {stockTotal > 0 && (
+                <span className="text-sm text-gray-400 flex items-center gap-1">
+                  <FiActivity className="text-red-400" /> {stockTotal} blood banks reported stock
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-amber-300/90 mb-6">
+              Real-time stock from e-RaktKosh — National Blood Transfusion Council, Ministry of Health &amp; Family Welfare. Stock changes constantly — call the bank to confirm before you go.
+            </p>
+
+            {stockLoading ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400">Fetching live stock from e-RaktKosh...</p>
+              </div>
+            ) : stockError ? (
+              <div className="text-center py-16">
+                <FiAlertCircle className="text-4xl text-red-500 mx-auto mb-4" />
+                <p className="text-xl font-bold text-red-400">{stockError}</p>
+                <button onClick={fetchStock} className="mt-4 px-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-bold">Retry</button>
+              </div>
+            ) : stockBanks.length === 0 ? (
+              <div className="text-center py-16">
+                <FiDroplet className="text-6xl text-gray-700 mx-auto mb-4" />
+                <p className="text-xl font-bold">No stock data yet</p>
+                <p className="text-gray-400">Select state + district and press Check Live Stock</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-4">
+                {stockBanks.map((bank, idx) => (
+                  <div key={`${bank.name}-${idx}`} className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-5 hover:border-red-500/30 transition">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h4 className="font-bold text-white">{bank.name}</h4>
+                        <p className="text-xs text-gray-400">{bank.category || 'Blood Bank'}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${bank.available ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {bank.available ? 'AVAILABLE' : 'NOT AVAILABLE'}
+                      </span>
+                    </div>
+                    {bank.address && <p className="text-sm text-gray-400 mb-2">{bank.address}</p>}
+                    {Object.keys(bank.units || {}).length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {Object.entries(bank.units).map(([group, val]) => (
+                          <span key={group} className="bg-slate-900/70 border border-white/10 rounded-full px-3 py-1 text-xs font-bold text-white">
+                            {group}: <span className="text-red-400">{String(val)} units</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap gap-2">
+                      <span className="flex items-center gap-1"><FiClock size={12} /> {bank.lastUpdated || '—'}</span>
+                      {bank.phone && (
+                        <a href={`tel:${bank.phone.replace(/[^0-9+]/g, '')}`} className="text-red-400 font-bold flex items-center gap-1">
+                          <FiPhone size={12} /> {bank.phone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'donors' && (
+        <>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold">Nearby Donors ({filteredDonors.length})</h2>
           <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -279,26 +599,14 @@ export default function BloodDonorsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold">{donor.name}</h3>
-                      {donor.verified && <FiCheckCircle className="text-emerald-400" size={14} />}
+                      {donor.available && <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> NOW</span>}
                     </div>
                     <p className="text-sm text-gray-400 flex items-center gap-1">
-                      <FiMapPin size={12} /> {donor.location}
+                      <FiMapPin size={12} /> {donor.location || 'Location not shared'}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">{donor.distance} away</p>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-xs font-bold ${donor.available ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                    {donor.available ? 'Available' : 'Busy'}
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500 text-xs">Last Donated</p>
-                    <p className="font-medium">{donor.lastDonated}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs">Total Donations</p>
-                    <p className="font-medium">{donor.donations}</p>
+                    {donor.available ? 'Available' : 'Unavailable'}
                   </div>
                 </div>
 
@@ -325,6 +633,8 @@ export default function BloodDonorsPage() {
           </div>
         )}
         </>)}
+        </>
+        )}
       </div>
 
       {/* Register as Donor Modal */}

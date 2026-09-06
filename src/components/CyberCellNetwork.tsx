@@ -229,7 +229,7 @@ export default function CyberCellNetwork() {
       cancelAnimationFrame(animationRef.current);
       canvas.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [hoveredCell]);
+  }, [cells, hoveredCell]);
 
   return (
     <motion.div className="relative">

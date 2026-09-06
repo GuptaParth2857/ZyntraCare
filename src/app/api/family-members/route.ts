@@ -45,3 +45,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create family member' }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    if (!body.id) {
+      return NextResponse.json({ error: 'Missing member id' }, { status: 400 });
+    }
+    const member = await prisma.familyMember.update({
+      where: { id: body.id },
+      data: {
+        name: body.name ?? undefined,
+        relation: body.relation ?? undefined,
+        age: body.age ?? undefined,
+        bloodGroup: body.bloodGroup ?? undefined,
+        gender: body.gender ?? undefined,
+        phone: body.phone ?? undefined,
+        email: body.email ?? undefined,
+        conditions: body.conditions ? JSON.stringify(body.conditions) : undefined,
+        medications: body.medications ? JSON.stringify(body.medications) : undefined,
+        isEmergency: body.isEmergency ?? undefined,
+      },
+    });
+    return NextResponse.json({ member });
+  } catch (error) {
+    console.error('Family members PUT error:', error);
+    return NextResponse.json({ error: 'Failed to update family member' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Missing member id' }, { status: 400 });
+    }
+    await prisma.familyMember.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Family members DELETE error:', error);
+    return NextResponse.json({ error: 'Failed to delete family member' }, { status: 500 });
+  }
+}

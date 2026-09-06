@@ -1,7 +1,7 @@
 // src/app/hospitals/page.tsx
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FiFilter, FiMapPin, FiGrid, FiSearch, FiActivity, FiTrendingUp, FiHeart, FiClock, FiRefreshCw } from 'react-icons/fi';
 import { MdLocalHospital } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,9 +10,10 @@ import HospitalCard from '@/components/HospitalCard';
 import { Hospital } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useNearbyPlaces, RADIUS_OPTIONS, Place } from '@/hooks/useNearbyPlaces';
-import { PlaceCard, PlaceCardSkeleton } from '@/components/PlaceCard';
+import { Place } from '@/hooks/useNearbyPlaces';
 import LocationPermission from '@/components/LocationPermission';
+
+const RADIUS_OPTIONS = [2, 5, 10, 15, 20];
 
 const NearbyMap = dynamic(() => import('@/components/NearbyMap'), {
   ssr: false,
@@ -64,26 +65,58 @@ export default function HospitalsPage() {
   const [dataLastUpdated, setDataLastUpdated] = useState<number | null>(null);
   const [radius, setRadius] = useState(10);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>();
-  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'clinic' | 'pharmacy'>('all');
+  const [selectedType, setSelectedType] = useState<'all' | 'hospital' | 'clinic' | 'pharmacy'>('hospital');
   const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<Place | null>(null);
 
   // Use geolocation hook
   const { position, loading: locationLoading, error: locationError, requestLocation, hasPermission } = useGeolocation();
 
-  // Use nearby places hook for real-time data
-  const {
-    places,
-    hospitals: hospitalList,
-    clinics: clinicList,
-    pharmacies: pharmacyList,
-    loading: placesLoading,
-    error: placesError,
-    totalCount,
-    refresh: refreshPlaces,
-  } = useNearbyPlaces(position?.lat ?? null, position?.lng ?? null, {
-    initialRadius: radius,
-    autoFetch: true,
-  });
+  // Fetch hospitals from the real local DB via /api/hospitals/nearby
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshPlaces = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  useEffect(() => {
+    if (!position) return;
+    setPlacesLoading(true);
+    setPlacesError(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    fetch(`/api/hospitals/nearby?lat=${position.lat}&lng=${position.lng}&radius=${radius * 1000}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then((d) => {
+        const list = Array.isArray(d?.hospitals) ? d.hospitals : [];
+        const mapped: Place[] = list.map((p: any) => ({
+          id: String(p.id || `${p.name}-${p.location?.lat}-${p.location?.lng}`),
+          name: p.name || 'Nearby Facility',
+          type: (p.type || 'hospital') as Place['type'],
+          lat: p.location?.lat,
+          lng: p.location?.lng,
+          address: p.address || '',
+          phone: p.phone || '',
+          website: p.website || '',
+          openingHours: p.workingHours || '',
+          workingHours: p.workingHours || '',
+          rating: p.rating || 4.2,
+          totalBeds: p.beds?.total,
+          distance: p.distance,
+        })).filter((p: Place) => typeof p.lat === 'number' && typeof p.lng === 'number');
+        setPlaces(mapped);
+      })
+      .catch((e) => {
+        console.error('Error fetching nearby hospitals:', e);
+        setPlacesError('Failed to fetch nearby hospitals. Please try again.');
+        setPlaces([]);
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+        setPlacesLoading(false);
+      });
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, [position, radius, refreshKey]);
 
   // Filter places by type
   const filteredPlaces = useMemo(() => {
@@ -108,7 +141,7 @@ export default function HospitalsPage() {
         name: place.name,
         address: place.address || '',
         city: place.address?.split(',')[0] || 'Unknown',
-        state: place.address?.split(',').pop()?.trim() || 'Delhi',
+        state: place.address?.split(',').pop()?.trim() || 'Unknown',
         phone: place.phone || '',
         rating: place.rating || 4.2,
         specialties: place.type === 'hospital' ? ['General Medicine', 'Emergency Care'] : ['General'],
@@ -127,10 +160,10 @@ export default function HospitalsPage() {
   const isLoading = placesLoading || locationLoading;
 
   const platformStats = [
-    { label: 'Nearby Places', value: totalCount.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
-    { label: 'Hospitals', value: hospitalList.length.toString(), icon: MdLocalHospital, color: 'text-red-400' },
-    { label: 'Clinics', value: clinicList.length.toString(), icon: FiMapPin, color: 'text-blue-400' },
-    { label: 'Pharmacies', value: pharmacyList.length.toString(), icon: FiActivity, color: 'text-emerald-400' },
+    { label: 'Nearby Places', value: places.length.toString(), icon: MdLocalHospital, color: 'text-teal-400' },
+    { label: 'Hospitals', value: places.filter(p => p.type === 'hospital').length.toString(), icon: MdLocalHospital, color: 'text-red-400' },
+    { label: 'Clinics', value: places.filter(p => p.type === 'clinic').length.toString(), icon: FiMapPin, color: 'text-blue-400' },
+    { label: 'Pharmacies', value: places.filter(p => p.type === 'pharmacy').length.toString(), icon: FiActivity, color: 'text-emerald-400' },
   ];
 
   // Filter hospitals by search (for compatibility)
@@ -390,7 +423,7 @@ export default function HospitalsPage() {
               selectedType === 'all' ? 'bg-teal-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
             }`}
           >
-            All ({totalCount})
+            All ({places.length})
           </button>
           <button
             onClick={() => setSelectedType('hospital')}
@@ -398,7 +431,7 @@ export default function HospitalsPage() {
               selectedType === 'hospital' ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
             }`}
           >
-            🏥 {hospitalList.length}
+            🏥 {places.filter(p => p.type === 'hospital').length}
           </button>
           <button
             onClick={() => setSelectedType('clinic')}
@@ -406,7 +439,7 @@ export default function HospitalsPage() {
               selectedType === 'clinic' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
             }`}
           >
-            🏨 {clinicList.length}
+            🏨 {places.filter(p => p.type === 'clinic').length}
           </button>
           <button
             onClick={() => setSelectedType('pharmacy')}
@@ -414,7 +447,7 @@ export default function HospitalsPage() {
               selectedType === 'pharmacy' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
             }`}
           >
-            💊 {pharmacyList.length}
+            💊 {places.filter(p => p.type === 'pharmacy').length}
           </button>
         </div>
 

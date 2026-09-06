@@ -1,26 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { FiFileText, FiUpload, FiSearch, FiFilter, FiDownload, FiTrash2, FiEye, FiPlus, FiChevronRight, FiCalendar, FiClock } from 'react-icons/fi';
-
-const MOCK_RECORDS = [
-  { id: 1, title: 'Complete Blood Count', type: 'Lab Report', date: '2026-03-15', hospital: 'Apollo Hospital', doctor: 'Dr. Sharma', fileSize: '2.3 MB' },
-  { id: 2, title: 'Chest X-Ray', type: 'Imaging', date: '2026-03-10', hospital: 'Fortis Memorial', doctor: 'Dr. Gupta', fileSize: '5.1 MB' },
-  { id: 3, title: 'Cardiology Prescription', type: 'Prescription', date: '2026-03-05', hospital: 'AIIMS Delhi', doctor: 'Dr. Verma', fileSize: '0.4 MB' },
-  { id: 4, title: 'COVID-19 Vaccination', type: 'Immunization', date: '2026-02-20', hospital: 'City Health Center', doctor: 'Dr. Singh', fileSize: '0.8 MB' },
-  { id: 5, title: 'Lipid Profile', type: 'Lab Report', date: '2026-02-10', hospital: 'Max Super Speciality', doctor: 'Dr. Kapoor', fileSize: '1.1 MB' },
-];
+import { useSession } from 'next-auth/react';
+import { FiFileText, FiUpload, FiSearch, FiFilter, FiDownload, FiTrash2, FiEye, FiPlus, FiChevronRight, FiCalendar, FiClock, FiLoader, FiAlertCircle } from 'react-icons/fi';
 
 export default function HealthRecordsPage() {
+  const { data: session } = useSession();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
-  const [records, setRecords] = useState(MOCK_RECORDS);
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const userId = (session?.user as any)?.id || 'demo-user';
 
   useEffect(() => {
-    fetch('/api/health-records?userId=demo-user')
-      .then(r => r.json())
+    fetch(`/api/health-records?userId=${userId}`)
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load records');
+        return r.json();
+      })
       .then(data => {
         if (data.records?.length) {
           setRecords(data.records.map((r: any) => ({
@@ -33,9 +35,58 @@ export default function HealthRecordsPage() {
             fileSize: r.fileSize || '--',
           })));
         }
+        setLoading(false);
       })
-      .catch(() => {});
-  }, []);
+      .catch((err) => {
+        setError(err.message || 'Failed to load health records');
+        setLoading(false);
+      });
+  }, [session, userId]);
+
+  const handleDelete = (id: number) => {
+    fetch(`/api/health-records?id=${id}`, { method: 'DELETE' })
+      .then(() => setRecords(prev => prev.filter(r => r.id !== id)))
+      .catch(() => setRecords(prev => prev.filter(r => r.id !== id)));
+  };
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const inferType = (name: string): string => {
+      const n = name.toLowerCase();
+      if (n.includes('prescri') || n.includes('rx')) return 'prescription';
+      if (n.includes('scan') || n.includes('mri') || n.includes('ct') || n.includes('xray') || n.includes('x-ray')) return 'scan';
+      if (n.includes('vacci') || n.includes('immun')) return 'vaccination';
+      return 'report';
+    };
+    const recordPreview: any = {
+      id: -Date.now(),
+      title: file.name.replace(/\.[^.]+$/, ''),
+      type: inferType(file.name) === 'prescription' ? 'Prescription' : inferType(file.name) === 'scan' ? 'Imaging' : inferType(file.name) === 'vaccination' ? 'Immunization' : 'Lab Report',
+      date: new Date().toLocaleDateString(),
+      hospital: '',
+      doctor: '',
+      fileSize: file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.round(file.size / 1024)} KB`,
+    };
+    fetch('/api/health-records', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        title: recordPreview.title,
+        type: inferType(file.name),
+        date: new Date().toISOString().split('T')[0],
+        fileUrl: `upload://${file.name}`,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.record) setRecords(prev => [{ ...recordPreview, id: data.record.id }, ...prev]);
+        else setRecords(prev => [recordPreview, ...prev]);
+      })
+      .catch(() => setRecords(prev => [recordPreview, ...prev]));
+    if (fileRef.current) fileRef.current.value = '';
+  };
 
   const filtered = records.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || r.hospital.toLowerCase().includes(search.toLowerCase());
@@ -60,14 +111,26 @@ export default function HealthRecordsPage() {
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." className="w-full bg-white/10 border border-white/20 rounded-xl pl-10 pr-4 py-3 text-white placeholder:text-white/50 focus:outline-none focus:border-purple-400/50 backdrop-blur" />
             </div>
-            <button className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-bold text-sm hover:bg-white/20 transition flex items-center gap-2">
+            <button onClick={() => fileRef.current?.click()} className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white font-bold text-sm hover:bg-white/20 transition flex items-center gap-2">
               <FiUpload size={14} /> Upload
             </button>
+            <input ref={fileRef} type="file" accept="image/*,.pdf,.doc,application/pdf" onChange={handleUpload} className="hidden" />
           </div>
         </motion.div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
+        {error && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+            <FiAlertCircle className="text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-red-400 text-sm font-bold">Error loading records</p>
+              <p className="text-red-400/70 text-xs">{error}</p>
+            </div>
+            <button onClick={() => { setError(''); setLoading(true); window.location.reload(); }} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+          </motion.div>
+        )}
+
         <div className="flex gap-2 overflow-x-auto pb-4">
           {['All', 'Lab Report', 'Prescription', 'Imaging', 'Immunization'].map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${filter === f ? 'bg-purple-500/30 text-purple-300 border border-purple-500/40' : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'}`}>
@@ -76,14 +139,21 @@ export default function HealthRecordsPage() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <FiLoader className="animate-spin text-purple-400" size={32} />
+            <p className="text-gray-400 text-sm">Loading your health records...</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <FiFileText className="text-5xl text-gray-600 mx-auto mb-4" />
-            <p className="text-xl font-bold">No records found</p>
-            <p className="text-gray-500 text-sm mt-1">Upload your first health record to get started</p>
-            <button className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold inline-flex items-center gap-2">
-              <FiPlus size={16} /> Upload Record
-            </button>
+            <p className="text-xl font-bold">{records.length === 0 ? 'No records yet' : 'No records found'}</p>
+            <p className="text-gray-500 text-sm mt-1">{records.length === 0 ? 'Upload your first health record to get started' : 'Try a different search or filter'}</p>
+            {records.length === 0 && (
+              <button onClick={() => fileRef.current?.click()} className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold inline-flex items-center gap-2">
+                <FiPlus size={16} /> Upload Record
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -105,9 +175,9 @@ export default function HealthRecordsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-600">{record.fileSize}</span>
-                    <button className="p-2 text-gray-500 hover:text-blue-400 transition"><FiEye size={16} /></button>
-                    <button className="p-2 text-gray-500 hover:text-emerald-400 transition"><FiDownload size={16} /></button>
-                    <button className="p-2 text-gray-500 hover:text-red-400 transition"><FiTrash2 size={16} /></button>
+                    <button className="p-2 text-gray-500 hover:text-blue-400 transition" title="View"><FiEye size={16} /></button>
+                    <button className="p-2 text-gray-500 hover:text-emerald-400 transition" title="Download"><FiDownload size={16} /></button>
+                    <button onClick={() => handleDelete(record.id)} className="p-2 text-gray-500 hover:text-red-400 transition" title="Delete"><FiTrash2 size={16} /></button>
                   </div>
                 </div>
               </motion.div>

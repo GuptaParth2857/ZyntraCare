@@ -5,59 +5,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { FiCheck, FiStar, FiShield, FiLoader, FiExternalLink } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-
-const plans = [
-  {
-    name: 'Free',
-    price: 0,
-    priceDisplay: '0',
-    period: 'forever',
-    features: [
-      'Basic hospital search',
-      'Limited doctor listings',
-      'Community support',
-      'Basic symptom checking',
-    ],
-    popular: false,
-    color: 'from-gray-500 to-gray-600',
-    border: 'border-white/10',
-  },
-  {
-    name: 'Premium Monthly',
-    price: 499,
-    priceDisplay: '499',
-    period: 'month',
-    features: [
-      'Unlimited doctor consultations',
-      'Priority appointment booking',
-      'Access to premium health records',
-      '24/7 priority support',
-      'AI-powered health insights',
-      'Medicine reminders',
-      'Family member profiles',
-    ],
-    popular: true,
-    color: 'from-blue-500 to-purple-600',
-    border: 'border-blue-500/50',
-  },
-  {
-    name: 'Premium Yearly',
-    price: 4999,
-    priceDisplay: '4,999',
-    period: 'year',
-    features: [
-      'All monthly features',
-      '2 months free',
-      'Annual health checkup voucher',
-      'Free medicine delivery',
-      'Exclusive health tips',
-      'Early access to new features',
-    ],
-    popular: false,
-    color: 'from-emerald-500 to-teal-600',
-    border: 'border-emerald-500/50',
-  },
-];
+import { PLANS } from '@/lib/plans';
+import { createOrder, processPayment } from '@/lib/payment';
 
 export default function SubscriptionPage() {
   const { data: session, status } = useSession();
@@ -66,21 +15,15 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => setRazorpayLoaded(true);
-    script.onerror = () => console.error('Failed to load Razorpay script');
-    document.body.appendChild(script);
+    const userSubscription = (session?.user as any)?.subscription;
+    if (userSubscription?.plan && typeof userSubscription.plan === 'string') {
+      setCurrentPlan(userSubscription.plan);
+    }
+  }, [session]);
 
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  const handleSubscribe = async (plan: typeof plans[0]) => {
+  const handleSubscribe = async (plan: (typeof PLANS)[number]) => {
     if (status !== 'authenticated') {
       router.push('/auth/signin?callbackUrl=/subscription');
       return;
@@ -111,95 +54,64 @@ export default function SubscriptionPage() {
       return;
     }
 
-    if (!razorpayLoaded) {
-      setError('Payment system is loading. Please try again in a moment.');
-      return;
-    }
-
     setLoading(true);
     setError('');
     setSuccess('');
 
     try {
-      const orderRes = await fetch('/api/payment/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: plan.price,
-          currency: 'INR',
-          receipt: `sub_${plan.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
-        }),
+      const order = await createOrder({
+        plan: plan.name,
+        receipt: `sub_${plan.id}_${Date.now()}`,
       });
-
-      if (!orderRes.ok) {
-        const err = await orderRes.json();
-        throw new Error(err.error || 'Failed to create payment order');
-      }
-
-      const order = await orderRes.json();
 
       const user = session?.user as any;
 
-      const RazorpayClass = window.Razorpay as any;
-      if (!RazorpayClass) {
-        throw new Error('Razorpay SDK not loaded. Please refresh the page.');
-      }
-      const razorpay = new RazorpayClass({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      const result = await processPayment({
+        orderId: order.orderId,
         amount: order.amount,
         currency: order.currency,
         name: 'ZyntraCare',
         description: `${plan.name} Subscription`,
-        order_id: order.orderId,
-        handler: async (response: any) => {
-          try {
-            const subRes = await fetch('/api/subscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'subscribe',
-                plan: plan.name,
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                signature: response.razorpay_signature,
-              }),
-            });
-
-            if (subRes.ok) {
-              setCurrentPlan(plan.name);
-              setSuccess(`Subscribed to ${plan.name} successfully!`);
-            } else {
-              throw new Error('Subscription activation failed');
-            }
-          } catch {
-            setError('Payment received but subscription activation failed. Contact support.');
-          }
-          setLoading(false);
-        },
         prefill: {
           name: user?.name || '',
           email: user?.email || '',
           contact: '',
         },
-        theme: {
-          color: '#0ea5e9',
-          backdrop_color: 'rgba(0,0,0,0.6)',
-        },
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-          },
-        },
+        theme: { color: '#0ea5e9' },
       });
 
-      razorpay.on('payment.failed', (response: any) => {
-        setError(response.error?.description || 'Payment failed. Please try again.');
+      if (!result.success) {
+        setError(result.error || 'Payment failed. Please try again.');
         setLoading(false);
-      });
+        return;
+      }
 
-      razorpay.open();
+      try {
+        const subRes = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'subscribe',
+            plan: plan.name,
+            paymentId: result.paymentId,
+            orderId: result.orderId,
+            signature: result.signature,
+          }),
+        });
+
+        if (subRes.ok) {
+          setCurrentPlan(plan.name);
+          setSuccess(`Subscribed to ${plan.name} successfully!`);
+        } else {
+          const err = await subRes.json();
+          throw new Error(err.error || 'Subscription activation failed');
+        }
+      } catch {
+        setError('Payment received but subscription activation failed. Contact support.');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to initiate payment. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -245,7 +157,7 @@ export default function SubscriptionPage() {
               {error}
             </div>
           )}
-          {plans.map((plan, idx) => (
+          {PLANS.map((plan, idx) => (
             <motion.div
               key={plan.name}
               initial={{ opacity: 0, y: 20 }}
@@ -273,12 +185,12 @@ export default function SubscriptionPage() {
                 </div>
                 
                 <ul className="space-y-4 mb-8 min-h-[220px]">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
+                  {plan.features.filter((f) => f.included).map((feature) => (
+                    <li key={feature.text} className="flex items-start gap-3">
                       <div className="mt-1 bg-white/10 p-1 rounded-full border border-white/5">
                         <FiCheck className="text-blue-400 text-sm" />
                       </div>
-                      <span className="text-gray-300">{feature}</span>
+                      <span className="text-gray-300">{feature.text}</span>
                     </li>
                   ))}
                 </ul>

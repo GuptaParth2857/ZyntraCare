@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiEye, FiMic, FiAlertCircle, FiPhone, FiNavigation, FiSettings, FiVolume2, FiZap, FiShield, FiUsers } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -39,6 +39,11 @@ export default function AccessibilityModePage() {
   const [calibrationStep, setCalibrationStep] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gazeRef = useRef({ x: 50, y: 50 });
+
+  useEffect(() => {
+    gazeRef.current = gazePoint;
+  }, [gazePoint]);
 
   useEffect(() => {
     if (isTracking && videoRef.current && canvasRef.current) {
@@ -58,6 +63,28 @@ export default function AccessibilityModePage() {
       startTracking();
     }
   }, [isTracking]);
+
+  const triggerSOS = useCallback(() => {
+    setSosTriggered(true);
+    setTimeout(() => {
+      alert('🚨 EMERGENCY SOS TRIGGERED!\n\nAmbulance dispatched to your location.\nContacts notified.');
+      setSosTriggered(false);
+    }, 1500);
+  }, []);
+
+  const handleElementSelect = useCallback(() => {
+    const gaze = gazeRef.current;
+    if (gaze.y < 30) {
+      setSelectedElement('emergency');
+      triggerSOS();
+    } else if (gaze.x < 30) {
+      setSelectedElement('left-menu');
+    } else if (gaze.x > 70) {
+      setSelectedElement('right-menu');
+    } else if (gaze.y > 70) {
+      setSelectedElement('bottom-actions');
+    }
+  }, [triggerSOS]);
 
   useEffect(() => {
     if (isTracking && !sosTriggered) {
@@ -80,28 +107,7 @@ export default function AccessibilityModePage() {
       }, 100);
       return () => clearInterval(interval);
     }
-  }, [isTracking, sosTriggered]);
-
-  const handleElementSelect = () => {
-    if (gazePoint.y < 30) {
-      setSelectedElement('emergency');
-      triggerSOS();
-    } else if (gazePoint.x < 30) {
-      setSelectedElement('left-menu');
-    } else if (gazePoint.x > 70) {
-      setSelectedElement('right-menu');
-    } else if (gazePoint.y > 70) {
-      setSelectedElement('bottom-actions');
-    }
-  };
-
-  const triggerSOS = () => {
-    setSosTriggered(true);
-    setTimeout(() => {
-      alert('🚨 EMERGENCY SOS TRIGGERED!\n\nAmbulance dispatched to your location.\nContacts notified.');
-      setSosTriggered(false);
-    }, 1500);
-  };
+  }, [isTracking, sosTriggered, handleElementSelect]);
 
   const startVoiceRecognition = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

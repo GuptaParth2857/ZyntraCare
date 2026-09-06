@@ -1,7 +1,7 @@
 // useGeolocation.ts - Browser Geolocation Hook
 // Real-time location tracking with permission handling
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 export interface GeolocationPosition {
   lat: number;
@@ -38,11 +38,11 @@ export function useGeolocation(options?: {
   const [watchId, setWatchId] = useState<number | null>(null);
   const [isWatching, setIsWatching] = useState(false);
 
-  const geoOptions = {
+  const geoOptions = useMemo(() => ({
     enableHighAccuracy: options?.enableHighAccuracy ?? true,
     timeout: options?.timeout ?? 10000,
     maximumAge: options?.maximumAge ?? 0,
-  };
+  }), [options?.enableHighAccuracy, options?.timeout, options?.maximumAge]);
 
   const handleSuccess = useCallback((pos: GeolocationPosition) => {
     setPosition(pos);
@@ -137,7 +137,7 @@ export function useGeolocation(options?: {
     return () => {
       stopWatching();
     };
-  }, []);
+  }, [requestLocation, startWatching, stopWatching, options?.watchPosition]);
 
   return {
     position,

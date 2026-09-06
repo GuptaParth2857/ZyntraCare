@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   await pruneExpired();
   
   const sessions = await prisma.userSession.findMany({
-    select: { id: true, device: true, ipAddress: true, expiresAt: true },
+    include: { user: { select: { name: true, email: true } } },
     orderBy: { createdAt: 'desc' },
     take: 100
   });
@@ -40,6 +40,8 @@ export async function GET(req: NextRequest) {
     count: sessions.length,
     users: sessions.map(s => ({
       id: s.id,
+      name: s.user?.name || s.user?.email || 'Guest',
+      email: s.user?.email || '',
       device: s.device,
       ipAddress: s.ipAddress,
       lastSeen: s.expiresAt.toISOString()
@@ -51,24 +53,33 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, name, email, page, device, ipAddress } = body;
+    const { sessionId, userId, device, ipAddress } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId required' }, { status: 400 });
+    if (!sessionId || !userId) {
+      return NextResponse.json({ error: 'sessionId and userId required' }, { status: 400 });
     }
+
+    const forwarded = req.headers.get('x-forwarded-for');
+    const remoteAddr = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
 
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
     await prisma.userSession.upsert({
-      where: { id: userId },
-      update: { expiresAt, device, ipAddress },
-      create: {
+      where: { id: sessionId },
+      update: {
         userId,
-        token: `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        expiresAt,
         device: device || 'web',
-        ipAddress: ipAddress || 'unknown',
-        expiresAt
-      }
+        ipAddress: ipAddress || remoteAddr,
+      },
+      create: {
+        id: sessionId,
+        userId,
+        token: `session_${sessionId}`,
+        device: device || 'web',
+        ipAddress: ipAddress || remoteAddr,
+        expiresAt,
+      },
     });
 
     const count = await prisma.userSession.count({ where: { expiresAt: { gt: new Date() } } });

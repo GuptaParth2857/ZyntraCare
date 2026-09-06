@@ -1,0 +1,340 @@
+openapi: 3.0.3
+info:
+  title: ZyntraCare API
+  description: |
+    AI-Powered Healthcare Platform API.
+    Provides endpoints for symptom checking, health risk assessment,
+    emergency services, hospital management, and AI chat.
+
+    ## Authentication
+    Most endpoints require JWT authentication via NextAuth.
+    Pass the session token in cookies or Authorization header.
+
+    ## Rate Limiting
+    All endpoints are rate-limited:
+    - Auth endpoints: 20 requests/minute
+    - AI endpoints: 30 requests/minute
+    - General API: 60 requests/minute
+
+  version: 1.0.0
+  contact:
+    name: ZyntraCare Team
+    url: https://zyntracare.com
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+tags:
+  - name: AI
+    description: AI-powered health features
+  - name: Emergency
+    description: Emergency response system
+  - name: Hospitals
+    description: Hospital management
+  - name: Auth
+    description: Authentication & authorization
+  - name: Health
+    description: Health records & risk assessment
+
+paths:
+  /api/ai:
+    post:
+      tags: [AI]
+      summary: AI Health Chat
+      description: Get AI-powered health response using Gemini/Ollama with heuristic fallback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: Health question or symptom description
+                language:
+                  type: string
+                  enum: [en, hi]
+                  default: en
+      responses:
+        '200':
+          description: AI response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  response:
+                    type: string
+                  source:
+                    type: string
+                    enum: [gemini, ollama, mock]
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+        '429':
+          description: Rate limit exceeded
+
+  /api/symptoms:
+    post:
+      tags: [AI]
+      summary: Symptom Analysis
+      description: Analyze symptoms using AI (Gemini) with comprehensive rule-based fallback (200+ conditions)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symptoms]
+              properties:
+                symptoms:
+                  type: array
+                  items:
+                    type: string
+                  description: List of symptoms
+                duration:
+                  type: string
+                  enum: [today, few-days, a-week, more-than-week, few-months]
+                severity:
+                  type: string
+                  enum: [mild, moderate, severe]
+      responses:
+        '200':
+          description: Symptom analysis result
+
+  /api/triage:
+    post:
+      tags: [AI, Emergency]
+      summary: Emergency Triage
+      description: Classify symptoms as high/medium/low priority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symptoms]
+              properties:
+                symptoms:
+                  type: string
+                  description: Symptom description text
+      responses:
+        '200':
+          description: Triage priority
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  priority:
+                    type: string
+                    enum: [high, medium, low]
+                  source:
+                    type: string
+                    enum: [ai, heuristic]
+
+  /api/health-risk:
+    post:
+      tags: [Health]
+      summary: Health Risk Assessment
+      description: Calculate health risk score from patient metrics and lifestyle factors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [age, gender, bmi, bloodPressure, bloodSugar, cholesterol]
+              properties:
+                age:
+                  type: integer
+                  minimum: 1
+                  maximum: 120
+                gender:
+                  type: string
+                  enum: [male, female, other]
+                bmi:
+                  type: number
+                  minimum: 10
+                  maximum: 60
+                bloodPressure:
+                  type: integer
+                  description: Systolic BP
+                  minimum: 60
+                  maximum: 250
+                bloodSugar:
+                  type: integer
+                  description: Fasting blood sugar (mg/dL)
+                cholesterol:
+                  type: integer
+                smoking:
+                  type: string
+                  enum: [yes, no, occasional]
+                exercise:
+                  type: string
+                  enum: [daily, weekly, rarely, never]
+                familyHistory:
+                  type: string
+                  enum: [yes, no, partial]
+      responses:
+        '200':
+          description: Health risk assessment result
+        '400':
+          description: Invalid input
+
+  /api/emergency:
+    get:
+      tags: [Emergency]
+      summary: Get Emergency Data
+      description: Fetch emergency alerts, hospitals, and ambulance services
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Emergency data with alerts, hospitals, and ambulances
+
+    post:
+      tags: [Emergency]
+      summary: Create Emergency Alert
+      description: Trigger an emergency alert with location data
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                location:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                alertType:
+                  type: string
+                  enum: [MEDICAL, ACCIDENT, FIRE, CRIME, OTHER]
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Emergency alert created
+        '401':
+          description: Unauthorized
+
+  /api/emergency/cases:
+    get:
+      tags: [Emergency]
+      summary: Get Emergency Cases
+      description: List active emergency cases with real-time ETA from ambulance locations
+      responses:
+        '200':
+          description: List of emergency cases with ETA
+
+  /api/ambulance:
+    get:
+      tags: [Emergency]
+      summary: Get Ambulance Bookings
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+        - name: lng
+          in: query
+          schema:
+            type: number
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, assigned, en_route, completed, cancelled]
+      responses:
+        '200':
+          description: Ambulance bookings list
+
+  /api/hospitals/nearby:
+    get:
+      tags: [Hospitals]
+      summary: Find Nearby Hospitals
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius
+          in: query
+          schema:
+            type: number
+            default: 10
+      responses:
+        '200':
+          description: Nearby hospitals with bed availability
+
+  /api/realtime:
+    get:
+      tags: [Emergency, Hospitals]
+      summary: SSE Real-time Updates
+      description: |
+        Server-Sent Events endpoint for real-time updates:
+        - Hospital bed availability changes
+        - Emergency alerts
+        - Ambulance location tracking
+        - Supply chain updates
+      responses:
+        '200':
+          description: SSE event stream
+
+  /api/subscribe:
+    post:
+      tags: [Health]
+      summary: Manage Subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, plan]
+              properties:
+                action:
+                  type: string
+                  enum: [subscribe, upgrade, downgrade, cancel, reactivate]
+                plan:
+                  type: string
+                  enum: [Free, Premium Monthly, Premium Yearly]
+      responses:
+        '200':
+          description: Subscription updated
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: NextAuth session cookie

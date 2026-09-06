@@ -306,7 +306,7 @@ out center;`;
     };
 
     fetch();
-  }, [userLocation]);
+  }, [propFacilities, userLocation]);
 
   // Place facility markers on map
   useEffect(() => {

@@ -33,16 +33,21 @@ export default function OutbreakRadarPage() {
   const [systemPulse, setSystemPulse] = useState(0);
   const [totalRisk, setTotalRisk] = useState(0);
   const [activeDiseases, setActiveDiseases] = useState(0);
+  const [error, setError] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     fetch('/api/outbreak-radar')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load outbreak data');
+        return res.json();
+      })
       .then(data => {
         if (data.cities) setCities(data.cities);
         if (data.alerts) setAlerts(data.alerts);
+        setError('');
       })
-      .catch(() => {});
+      .catch((err: any) => setError(err.message || 'Failed to load outbreak data'));
   }, []);
 
   useEffect(() => {
@@ -197,6 +202,17 @@ export default function OutbreakRadarPage() {
           </div>
         </div>
       </motion.div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+          <FiAlertTriangle className="text-red-400 flex-shrink-0" />
+          <div>
+            <p className="text-red-400 text-sm font-bold">Couldn&apos;t load live outbreak data</p>
+            <p className="text-red-400/70 text-xs">{error}</p>
+          </div>
+          <button onClick={() => window.location.reload()} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4">

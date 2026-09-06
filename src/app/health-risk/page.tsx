@@ -34,9 +34,11 @@ export default function HealthRiskPage() {
 
   const [result, setResult] = useState<RiskResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await fetch('/api/health-risk', {
         method: 'POST',
@@ -46,9 +48,11 @@ export default function HealthRiskPage() {
       const data = await res.json();
       if (data.success) {
         setResult(data.result);
+      } else {
+        setError(data.error || 'Analysis failed. Please try again.');
       }
     } catch (err) {
-      console.error('Error:', err);
+      setError('Network error. Please check your connection and try again.');
     }
     setLoading(false);
   };
@@ -254,12 +258,23 @@ export default function HealthRiskPage() {
               </div>
             </div>
 
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm mt-4">
+                {error}
+              </div>
+            )}
+
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="w-full mt-6 py-4 bg-gradient-to-r from-rose-600 to-orange-600 rounded-xl font-bold text-white hover:opacity-90 transition"
+              className="w-full mt-6 py-4 bg-gradient-to-r from-rose-600 to-orange-600 rounded-xl font-bold text-white hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Analyzing...' : 'Analyze Health Risks'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  Analyzing Risks...
+                </span>
+              ) : 'Analyze Health Risks'}
             </button>
           </motion.div>
 

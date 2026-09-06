@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { pipeline, env } from '@xenova/transformers';
 
 env.allowLocalModels = false;
-// @ts-ignore
-env.backends = ['wasm']; // Use WASM backend for browser
+(env as any).backends = ['wasm']; // Use WASM backend for browser
 
 const AIChatWidget: React.FC = () => {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);

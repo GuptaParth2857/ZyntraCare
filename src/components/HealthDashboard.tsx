@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface PatientRecord {
   id: string;
@@ -31,11 +31,7 @@ export default function PatientHealthDashboard({ userId }: { userId: string }) {
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (userId) fetchData();
-  }, [userId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [recordRes, metricsRes] = await Promise.all([
         fetch(`/api/patient-records?userId=${userId}`),
@@ -52,7 +48,11 @@ export default function PatientHealthDashboard({ userId }: { userId: string }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) fetchData();
+  }, [userId, fetchData]);
 
   const updateRecord = async (data: Partial<PatientRecord>) => {
     try {

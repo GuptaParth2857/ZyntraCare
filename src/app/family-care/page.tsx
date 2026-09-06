@@ -22,7 +22,10 @@ interface FamilyMember {
 export default function FamilyDashboardPage() {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedMember, setSelectedMember] = useState<string>('1');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMember, setNewMember] = useState({ name: '', relation: '', age: 30, bloodType: 'O+' });
   const currentMember = familyMembers.find(m => m.id === selectedMember);
 
   useEffect(() => {
@@ -32,8 +35,30 @@ export default function FamilyDashboardPage() {
         setFamilyMembers(data.familyMembers || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setError('Failed to load family members.');
+        setLoading(false);
+      });
   }, []);
+
+  const handleAddMember = async () => {
+    if (!newMember.name || !newMember.relation) return;
+    try {
+      const res = await fetch('/api/family-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMember),
+      });
+      const data = await res.json();
+      if (data.member) {
+        setFamilyMembers(prev => [...prev, data.member]);
+        setShowAddModal(false);
+        setNewMember({ name: '', relation: '', age: 30, bloodType: 'O+' });
+      }
+    } catch {
+      setError('Failed to add member. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
@@ -60,11 +85,33 @@ export default function FamilyDashboardPage() {
             <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 mb-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-bold text-lg">Family Members</h3>
-                <button className="flex items-center gap-2 bg-pink-500 hover:bg-pink-400 text-white px-4 py-2 rounded-xl font-bold text-sm transition">
+                <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-pink-500 hover:bg-pink-400 text-white px-4 py-2 rounded-xl font-bold text-sm transition">
                   <FiPlus size={16} /> Add Member
                 </button>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2">
+
+              {loading ? (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex flex-col items-center gap-2 p-4 rounded-2xl min-w-[120px] bg-white/5 border border-white/10 animate-pulse">
+                      <div className="w-14 h-14 rounded-full bg-white/10" />
+                      <div className="w-16 h-3 bg-white/10 rounded" />
+                      <div className="w-10 h-2 bg-white/10 rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">{error}</div>
+              ) : familyMembers.length === 0 ? (
+                <div className="text-center py-8">
+                  <FiUsers size={48} className="text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400 mb-3">No family members added yet</p>
+                  <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-pink-500 hover:bg-pink-400 text-white rounded-xl font-bold text-sm transition">
+                    Add Your First Member
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-2">
                 {familyMembers.map((member) => (
                   <motion.button
                     key={member.id}
@@ -85,7 +132,8 @@ export default function FamilyDashboardPage() {
                     </div>
                   </motion.button>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
 
             {currentMember && (
@@ -200,6 +248,72 @@ export default function FamilyDashboardPage() {
         </div>
 
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-slate-900 border border-white/10 rounded-3xl p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold mb-4">Add Family Member</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm">Name</label>
+                <input
+                  type="text"
+                  value={newMember.name}
+                  onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                  placeholder="Full name"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 mt-1 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">Relation</label>
+                <input
+                  type="text"
+                  value={newMember.relation}
+                  onChange={(e) => setNewMember({ ...newMember, relation: e.target.value })}
+                  placeholder="e.g. Spouse, Father, Child"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 mt-1 text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-sm">Age</label>
+                  <input
+                    type="number"
+                    value={newMember.age}
+                    onChange={(e) => setNewMember({ ...newMember, age: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 mt-1 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm">Blood Type</label>
+                  <select
+                    value={newMember.bloodType}
+                    onChange={(e) => setNewMember({ ...newMember, bloodType: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 mt-1 text-white"
+                  >
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bt => (
+                      <option key={bt} value={bt}>{bt}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition">
+                Cancel
+              </button>
+              <button onClick={handleAddMember} disabled={!newMember.name || !newMember.relation} className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 text-white rounded-xl font-bold transition disabled:opacity-50">
+                Add Member
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

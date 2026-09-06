@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface RecoveryAction {
   id: string;
@@ -64,6 +64,67 @@ export default function SelfHealingSystem({ children }: SelfHealingSystemProps) 
   const [healingLog, setHealingLog] = useState<string[]>([]);
   const lastErrorRef = useRef<string>('');
 
+  const addLog = useCallback((message: string) => {
+    setHealingLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()} - ${message}`]);
+  }, []);
+
+  const showHealingNotification = useCallback((description: string, success: boolean) => {
+    // Create toast notification
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 z-[99999] px-4 py-3 rounded-xl shadow-2xl ${
+      success 
+        ? 'bg-emerald-600/90 text-white' 
+        : 'bg-red-600/90 text-white'
+    } backdrop-blur-xl border border-white/20 flex items-center gap-3`;
+    toast.innerHTML = `
+      <span class="text-xl">${success ? '✅' : '❌'}</span>
+      <div>
+        <p class="font-bold text-sm">${success ? 'Self-Healed!' : 'Auto-fix Failed'}</p>
+        <p class="text-xs opacity-80">${description}</p>
+      </div>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }, []);
+
+  const attemptSelfHealing = useCallback(async (errorMessage: string) => {
+    setIsHealing(true);
+    
+    for (const recovery of autoRecoveryActions) {
+      if (errorMessage.toLowerCase().includes(recovery.error.toLowerCase())) {
+        addLog(`🔍 Detected: ${recovery.error}`);
+        addLog(`🩹 Attempting: ${recovery.description}`);
+        
+        try {
+          const success = await recovery.action();
+          if (success) {
+            addLog(`✅ ${recovery.description} - Done!`);
+            
+            // Show toast notification
+            showHealingNotification(recovery.description, true);
+            
+            // Small delay then reload
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          }
+        } catch (err) {
+          addLog(`❌ Failed to auto-fix`);
+          showHealingNotification(recovery.description, false);
+        }
+        
+        break;
+      }
+    }
+    
+    setIsHealing(false);
+  }, [addLog, showHealingNotification]);
+
   useEffect(() => {
     // Check for map refresh flag
     const checkMapRefresh = () => {
@@ -97,68 +158,7 @@ export default function SelfHealingSystem({ children }: SelfHealingSystemProps) 
     return () => {
       window.removeEventListener('error', handleError);
     };
-  }, []);
-
-  const attemptSelfHealing = async (errorMessage: string) => {
-    setIsHealing(true);
-    
-    for (const recovery of autoRecoveryActions) {
-      if (errorMessage.toLowerCase().includes(recovery.error.toLowerCase())) {
-        addLog(`🔍 Detected: ${recovery.error}`);
-        addLog(`🩹 Attempting: ${recovery.description}`);
-        
-        try {
-          const success = await recovery.action();
-          if (success) {
-            addLog(`✅ ${recovery.description} - Done!`);
-            
-            // Show toast notification
-            showHealingNotification(recovery.description, true);
-            
-            // Small delay then reload
-            setTimeout(() => {
-              window.location.reload();
-            }, 1500);
-          }
-        } catch (err) {
-          addLog(`❌ Failed to auto-fix`);
-          showHealingNotification(recovery.description, false);
-        }
-        
-        break;
-      }
-    }
-    
-    setIsHealing(false);
-  };
-
-  const addLog = (message: string) => {
-    setHealingLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()} - ${message}`]);
-  };
-
-  const showHealingNotification = (description: string, success: boolean) => {
-    // Create toast notification
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 z-[99999] px-4 py-3 rounded-xl shadow-2xl ${
-      success 
-        ? 'bg-emerald-600/90 text-white' 
-        : 'bg-red-600/90 text-white'
-    } backdrop-blur-xl border border-white/20 flex items-center gap-3`;
-    toast.innerHTML = `
-      <span class="text-xl">${success ? '✅' : '❌'}</span>
-      <div>
-        <p class="font-bold text-sm">${success ? 'Self-Healed!' : 'Auto-fix Failed'}</p>
-        <p class="text-xs opacity-80">${description}</p>
-      </div>
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s';
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
-  };
+  }, [attemptSelfHealing]);
 
   // Listen for heal button click
   useEffect(() => {
@@ -184,7 +184,7 @@ export default function SelfHealingSystem({ children }: SelfHealingSystemProps) 
 
     window.addEventListener('runSelfHealing', handleHealRequest);
     return () => window.removeEventListener('runSelfHealing', handleHealRequest);
-  }, []);
+  }, [addLog]);
 
   return (
     <>

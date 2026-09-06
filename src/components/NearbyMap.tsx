@@ -184,7 +184,9 @@ export default function NearbyMap({
         )}
 
         {/* Place markers */}
-        {markers.map((place, idx) => (
+        {markers
+          .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+          .map((place, idx) => (
           <Marker
             key={`${place.id}_${idx}`}
             position={[place.lat, place.lng]}

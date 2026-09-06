@@ -44,7 +44,7 @@ const TABLE_CONFIG: Record<string, { model: any; orderBy?: string; select?: any 
   sponsors: {
     model: prisma.sponsorInquiry,
     orderBy: 'createdAt',
-    select: { id: true, companyName: true, email: true, phone: true, message: true, createdAt: true },
+    select: { id: true, companyName: true, contactName: true, contactEmail: true, contactPhone: true, partnershipType: true, status: true, createdAt: true },
   },
   subscriptions: {
     model: prisma.subscription,
@@ -74,7 +74,7 @@ const TABLE_CONFIG: Record<string, { model: any; orderBy?: string; select?: any 
   pharmacies: {
     model: prisma.pharmacy,
     orderBy: 'createdAt',
-    select: { id: true, name: true, city: true, phone: true, isVerified: true, createdAt: true },
+    select: { id: true, name: true, city: true, phone: true, verified: true, createdAt: true },
   },
   labs: {
     model: prisma.lab,
@@ -84,17 +84,17 @@ const TABLE_CONFIG: Record<string, { model: any; orderBy?: string; select?: any 
   insurance: {
     model: prisma.insurancePolicy,
     orderBy: 'createdAt',
-    select: { id: true, userId: true, planName: true, status: true, createdAt: true },
+    select: { id: true, userId: true, planId: true, status: true, startDate: true, endDate: true, premiumPaid: true, createdAt: true },
   },
   corporate: {
     model: prisma.corporateProgram,
     orderBy: 'createdAt',
-    select: { id: true, companyName: true, email: true, city: true, createdAt: true },
+    select: { id: true, companyName: true, contactName: true, contactEmail: true, contactPhone: true, employeeCount: true, status: true, createdAt: true },
   },
   wellnessMissions: {
     model: prisma.wellnessMission,
     orderBy: 'createdAt',
-    select: { id: true, title: true, points: true, difficulty: true, createdAt: true },
+    select: { id: true, title: true, category: true, points: true, duration: true, isActive: true, createdAt: true },
   },
   healthRecords: {
     model: prisma.healthRecord,
@@ -104,12 +104,12 @@ const TABLE_CONFIG: Record<string, { model: any; orderBy?: string; select?: any 
   healthMetrics: {
     model: prisma.healthMetric,
     orderBy: 'createdAt',
-    select: { id: true, userId: true, type: true, value: true, unit: true, date: true, createdAt: true },
+    select: { id: true, userId: true, bloodPressure: true, heartRate: true, bloodSugar: true, weight: true, date: true, createdAt: true },
   },
   rewards: {
     model: prisma.reward,
     orderBy: 'createdAt',
-    select: { id: true, userId: true, points: true, reason: true, createdAt: true },
+    select: { id: true, userId: true, points: true, source: true, description: true, createdAt: true },
   },
   transactions: {
     model: prisma.healthTransaction,

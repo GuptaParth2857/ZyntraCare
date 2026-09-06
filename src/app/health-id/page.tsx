@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FiShield, FiUserPlus, FiUserX, FiExternalLink, FiCopy, FiCheckCircle, FiAlertTriangle, FiClock, FiRefreshCw, FiLink, FiActivity, FiCpu, FiFileText, FiSave } from 'react-icons/fi';
 
@@ -52,13 +52,9 @@ export default function HealthIDPage() {
     notes: '',
   });
 
-  const addLog = (msg: string) => setTxLog(prev => [msg, ...prev].slice(0, 20));
+  const addLog = useCallback((msg: string) => setTxLog(prev => [msg, ...prev].slice(0, 20)), []);
 
-  useEffect(() => {
-    fetchMedicalId();
-  }, []);
-
-  const fetchMedicalId = async () => {
+  const fetchMedicalId = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
@@ -77,7 +73,11 @@ export default function HealthIDPage() {
       addLog('❌ Error fetching medical ID');
     }
     setLoading(false);
-  };
+  }, [addLog]);
+
+  useEffect(() => {
+    fetchMedicalId();
+  }, [fetchMedicalId]);
 
   const handleSave = async () => {
     setSaving(true);

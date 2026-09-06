@@ -45,9 +45,6 @@ export default function AdSlot({
   // No configured/serving ad network -> render nothing (avoids ugly empty
   // "Advertisement" gaps). Real ads only appear once AdSense/Adsterra is set up.
   const hasRealAdNetwork = ADSENSE_CONFIG.enabled || ADSTERRA_CONFIG.isProduction;
-  if (!hasRealAdNetwork) {
-    return null;
-  }
 
   const config = ADSTERRA_SLOTS[placement];
   const adSize = size || config?.defaultSize || 'BANNER';
@@ -78,6 +75,10 @@ export default function AdSlot({
 
     return null;
   }, [placement, adSize, dimensions, config, className]);
+
+  if (!hasRealAdNetwork) {
+    return null;
+  }
 
   const showLabel = label !== undefined ? label : 'Advertisement';
 

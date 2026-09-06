@@ -111,7 +111,7 @@ function getPossibleConditions(urgency: string, matchedConditions: string[]): st
 function getRecommendedAction(urgency: string): string {
   switch (urgency) {
     case 'critical': return 'Immediate emergency response required. Dispatch ambulance and prepare ICU.';
-    case 'high': return 'Urent medical attention needed. Arrange transportation to nearest hospital.';
+    case 'high': return 'Urgent medical attention needed. Arrange transportation to nearest hospital.';
     case 'medium': return 'Schedule medical appointment within 24 hours. Monitor symptoms.';
     case 'low': return 'Self-care recommended. Consult primary care if symptoms persist.';
     default: return 'Monitor symptoms and seek advice if condition worsens.';
@@ -356,13 +356,18 @@ export class MedicalAgent {
 
       if (this.activeEmergency) {
         try {
-          // await fetch('/api/notifications/send', {
-          //   method: 'POST',
-          //   headers: { 'Content-Type': 'application/json' },
-          //   body: JSON.stringify(notification),
-          // });
+          await fetch('/api/emergency', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'EMERGENCY_CONTACT',
+              description: `Emergency contact notification: ${message}`,
+              phone: contactPhone,
+              location: this.activeEmergency.dispatchResult?.hospital?.hospitalName || 'Unknown',
+            }),
+          });
         } catch {
-          // notification stored locally even if API fails
+          console.error(`[MedicalAgent] Failed to notify emergency contact: ${contactPhone}`);
         }
       }
 

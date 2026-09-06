@@ -235,7 +235,7 @@ async function seedRewards(userId: string) {
   const count = await prisma.reward.count({ where: { userId } });
   if (count > 0) return;
   const sources = ['mission', 'appointment', 'workout', 'donation', 'referral'];
-  const descs = ['Completed 10K steps', 'Booked appointment', 'Workout streak 5 days', 'Health data donation', 'Referred a friend'];
+  const descs = ['Completed a wellness mission', 'Health check-up attended', 'Workout session logged', 'Health data shared (anonymized)', 'Appointment confirmed'];
   await prisma.reward.createMany({
     data: Array.from({ length: 10 }, (_, i) => ({
       userId,
@@ -476,30 +476,6 @@ async function seedDrones() {
     ],
   });
   console.log('✅ Drone (5) + missions');
-}
-
-async function seedOrganMatch() {
-  const dCount = await prisma.organDonor.count();
-  if (dCount >= 5) return;
-  await prisma.user.deleteMany({ where: { email: { in: ['donor0@zyntracare.app','donor1@zyntracare.app','donor2@zyntracare.app','donor3@zyntracare.app','donor4@zyntracare.app','recipient0@zyntracare.app','recipient1@zyntracare.app','recipient2@zyntracare.app','recipient3@zyntracare.app','recipient4@zyntracare.app'] } } as any });
-  const cities = CITIES;
-  const now = new Date();
-  for (let i = 0; i < 5; i++) {
-    const c = cities[i % cities.length];
-    const donor = await prisma.user.create({
-      data: { email: `donor${i}@zyntracare.app`, name: `Organ Donor ${i + 1}`, phone: `+91930${String(10000 + i * 1111)}`, role: 'patient', city: c.city },
-    });
-    await prisma.organDonor.create({
-      data: { userId: donor.id, organs: JSON.stringify(['Kidney', 'Liver'].slice(0, 1 + (i % 2))), bloodType: ['O+', 'O-', 'A+', 'B+', 'AB+'][i % 5], age: 30 + i, weight: 70 + i, height: 168 + i, city: c.city, state: c.state, isActive: true },
-    });
-    const rec = await prisma.user.create({
-      data: { email: `recipient${i}@zyntracare.app`, name: `Recipient ${i + 1}`, phone: `+91931${String(10000 + i * 1111)}`, role: 'patient', city: c.city },
-    });
-    await prisma.organRecipient.create({
-      data: { userId: rec.id, organNeeded: ['Kidney', 'Liver', 'Cornea', 'Heart'][i % 4], bloodType: ['O+', 'A+', 'B+', 'O-', 'AB+'][i % 5], urgency: ['HIGH', 'MEDIUM', 'CRITICAL', 'LOW', 'MEDIUM'][i % 5], age: 40 + i, city: c.city, state: c.state, isActive: true },
-    });
-  }
-  console.log('✅ OrganDonor (5) + Recipient (5)');
 }
 
 async function seedInsurancePlans() {
@@ -810,7 +786,6 @@ async function main() {
   await seedHealthChallenges();
   await seedDoctorReviews();
   await seedDrones();
-  await seedOrganMatch();
   await seedInsurancePlans();
   await seedEmergencyAlerts();
   await seedCampRegistrations();

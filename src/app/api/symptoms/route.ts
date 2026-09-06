@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+import { generateSymptomAnalysis } from '@/lib/gemini';
 
 interface SymptomResult {
   symptoms: string[];
@@ -328,6 +326,40 @@ const SYMPTOM_DATABASE: Record<string, {
   },
 };
 
+function mapSymptomToKey(symptom: string): string | null {
+  const L = symptom.trim().toLowerCase();
+  if (SYMPTOM_ALIASES[L]) return SYMPTOM_ALIASES[L];
+  if (SYMPTOM_DATABASE[L]) return L;
+  const words = L.split(' ').filter(Boolean);
+  for (const key of Object.keys(SYMPTOM_DATABASE)) {
+    const keyWords = key.split(' ').filter(Boolean);
+    if (keyWords.every(w => L.includes(w))) return key;
+    if (words.length > 1 && words.every(w => key.includes(w))) return key;
+  }
+  return null;
+}
+
+const SYMPTOM_ALIASES: Record<string, string> = {
+  'stomach pain': 'abdominal pain',
+  'skin rash': 'skin rash itching',
+  'itchy skin': 'skin rash itching',
+  'joint pain': 'joint pain swelling',
+  'fatigue': 'fatigue weakness',
+  'nausea': 'nausea vomiting',
+  'dizziness': 'dizziness vertigo',
+  'vertigo': 'dizziness vertigo',
+  'sore throat': 'throat pain',
+  'eye pain': 'eye problems',
+  'wheezing': 'breathing wheezing',
+  'urinary issues': 'urinary problems',
+  'urinary problem': 'urinary problems',
+  'weight change': 'weight changes',
+  'anxiety / stress': 'anxiety stress',
+  'anxiety': 'anxiety stress',
+  'stress': 'anxiety stress',
+  'runny nose': 'throat pain',
+};
+
 function getUrgencyLevel(symptomKeys: string[], severity: string): 'self-care' | 'consult-doctor' | 'emergency' {
   let hasEmergency = false;
   let hasConsult = false;
@@ -344,10 +376,19 @@ function getUrgencyLevel(symptomKeys: string[], severity: string): 'self-care' |
   return 'self-care';
 }
 
+function escalateWithSeverity(level: SymptomResult['urgencyLevel'], severity: string, duration: string): SymptomResult['urgencyLevel'] {
+  if (severity === 'severe') return 'emergency';
+  let next = level;
+  if (next === 'self-care' && severity === 'moderate') next = 'consult-doctor';
+  if (next === 'self-care' && ['2-weeks', 'more'].includes(duration)) next = 'consult-doctor';
+  return next;
+}
+
 function ruleBasedAnalysis(symptoms: string[], duration: string, severity: string): SymptomResult {
-  const matchedKeys = Object.keys(SYMPTOM_DATABASE).filter(key =>
-    symptoms.some(s => s.toLowerCase().includes(key))
-  );
+  const matchedKeys = symptoms
+    .map(mapSymptomToKey)
+    .filter((k): k is string => !!k)
+    .filter((k, i, arr) => arr.indexOf(k) === i);
   if (matchedKeys.length === 0) {
     const general = Object.keys(SYMPTOM_DATABASE).filter(key =>
       key === 'fatigue weakness' || key === 'anxiety stress'
@@ -373,7 +414,8 @@ function ruleBasedAnalysis(symptoms: string[], duration: string, severity: strin
   }
 
   const maxCount = Math.max(...Object.values(conditionsMap).map(c => c.count), 1);
-  const urgency = getUrgencyLevel(matchedKeys, severity);
+  let urgency = getUrgencyLevel(matchedKeys, severity);
+  if (urgency === 'self-care' && ['2-weeks', 'more'].includes(duration)) urgency = 'consult-doctor';
   const severityMap: Record<string, string> = { mild: 'low', medium: 'medium', high: 'high', critical: 'critical' };
 
   const possibleConditions = Object.values(conditionsMap)
@@ -397,17 +439,10 @@ function ruleBasedAnalysis(symptoms: string[], duration: string, severity: strin
 }
 
 async function analyzeWithGemini(symptoms: string[], duration: string, severity: string): Promise<SymptomResult | null> {
-  if (!GEMINI_API_KEY) return null;
+  const raw = await generateSymptomAnalysis(symptoms, undefined, undefined, duration, severity);
+  if (!raw) return null;
   try {
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const prompt = `You are a medical AI. Analyze: Symptoms: ${symptoms.join(', ')}. Duration: ${duration}. Severity: ${severity}.
-
-Return JSON ONLY (no markdown):
-{"conditions":[{"name":"Condition","probability":70,"severity":"high/medium/low","category":"Category","recommendation":"Action"}],"urgencyLevel":"self-care/consult-doctor/emergency","redFlags":["flag1"],"suggestedTests":["test1"],"aiAnalysis":"Brief analysis"}`;
-    const result = await model.generateContent(prompt);
-    const text = (await result.response).text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     const parsed = JSON.parse(jsonMatch[0]);
     return {
@@ -434,6 +469,7 @@ export async function POST(req: NextRequest) {
     let result = await analyzeWithGemini(symptoms, duration || 'few-days', severity || 'moderate');
     const source = result ? 'gemini' : 'rules';
     if (!result) result = ruleBasedAnalysis(symptoms, duration || 'few-days', severity || 'moderate');
+    if (result) result.urgencyLevel = escalateWithSeverity(result.urgencyLevel, severity, duration);
 
     return NextResponse.json({ success: true, result, source });
   } catch (error) {

@@ -112,9 +112,7 @@ export default function NearbyHospitalsMap({
 
   const [mounted, setMounted] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [L, setL] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [radius, setRadius] = useState(initialRadius || 10);
   const [selectedHospital, setSelectedHospital] = useState<RealHospital | null>(null);
@@ -141,7 +139,6 @@ export default function NearbyHospitalsMap({
   }, []);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any[]>([]);
   const mapInitialised = useRef(false);
   const hasFlownToUserRef = useRef(false);
@@ -763,7 +760,7 @@ export default function NearbyHospitalsMap({
           animate={{ opacity: 1, x: 0 }}
           className="absolute top-36 right-4 z-[1000] w-60 max-h-72 overflow-y-auto rounded-2xl shadow-2xl hidden lg:block"
           style={{ background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)' }}
-          role="list"
+          role="group"
           aria-label="Nearby hospitals list"
         >
           <div
@@ -776,9 +773,8 @@ export default function NearbyHospitalsMap({
             <button
               key={h.id}
               onClick={() => handleSidebarClick(h)}
-              role="listitem"
               aria-label={`Select ${h.name}, ${Number(h.distance || 0).toFixed(1)} km away, ${h.beds.available} beds available`}
-              aria-pressed={selectedHospital?.id === h.id}
+              data-pressed={selectedHospital?.id === h.id}
               className={`w-full text-left px-3 py-2.5 border-b border-white/5 hover:bg-white/10 transition-all ${
                 selectedHospital?.id === h.id ? 'bg-blue-600/25 border-l-2 border-blue-500' : ''
               }`}

@@ -27,6 +27,8 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+let addNotificationRef: ((notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void) | null = null;
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -73,6 +75,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  useEffect(() => {
+    addNotificationRef = addNotification;
+  });
+
   return (
     <NotificationContext.Provider value={{
       notifications,
@@ -97,31 +103,19 @@ export function useNotifications() {
 
 // Helper functions to trigger different notification types
 export function notifySuccess(title: string, message: string) {
-  const { addNotification } = useNotifications() || {};
-  if (addNotification) {
-    addNotification({ type: 'success', title, message });
-  }
+  addNotificationRef?.({ type: 'success', title, message });
 }
 
 export function notifyError(title: string, message: string) {
-  const { addNotification } = useNotifications() || {};
-  if (addNotification) {
-    addNotification({ type: 'error', title, message });
-  }
+  addNotificationRef?.({ type: 'error', title, message });
 }
 
 export function notifyInfo(title: string, message: string) {
-  const { addNotification } = useNotifications() || {};
-  if (addNotification) {
-    addNotification({ type: 'info', title, message });
-  }
+  addNotificationRef?.({ type: 'info', title, message });
 }
 
 export function notifyWarning(title: string, message: string) {
-  const { addNotification } = useNotifications() || {};
-  if (addNotification) {
-    addNotification({ type: 'warning', title, message });
-  }
+  addNotificationRef?.({ type: 'warning', title, message });
 }
 
 // Notification Bell Component

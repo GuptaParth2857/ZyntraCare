@@ -56,10 +56,14 @@ export default function EmergencyPage() {
   const [activeTip, setActiveTip] = useState<number | null>(null);
   const [emergencyNumbers, setEmergencyNumbers] = useState<EmergencyNumber[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/emergency')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load emergency numbers');
+        return res.json();
+      })
       .then(data => {
         if (data.emergencyNumbers) {
           const formatted = data.emergencyNumbers.map((en: any, i: number) => ({
@@ -71,8 +75,9 @@ export default function EmergencyPage() {
           }));
           setEmergencyNumbers(formatted);
         }
+        setError('');
       })
-      .catch(() => {})
+      .catch((err) => setError(err.message || 'Failed to load emergency numbers'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -311,6 +316,16 @@ export default function EmergencyPage() {
         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 mb-4">
           All Emergency Numbers — {filteredNumbers.length} found
         </h2>
+        {error && (
+          <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <FiAlertCircle className="text-red-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-red-400 text-sm font-bold">Couldn&apos;t load state numbers</p>
+              <p className="text-red-400/70 text-xs">Using national emergency numbers below. Please call 112 for any emergency.</p>
+            </div>
+            <button onClick={() => { setError(''); setLoading(true); window.location.reload(); }} className="px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+          </div>
+        )}
         {loading ? (
           <div className="text-center py-16">
             <FiLoader className="animate-spin text-red-400 mx-auto mb-4" size={32} />

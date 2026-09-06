@@ -1,4 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { authRateLimit } from '@/lib/rate-limit';
+
+const healthRiskSchema = z.object({
+  age: z.number().int().min(1).max(120),
+  gender: z.enum(['male', 'female', 'other']),
+  bmi: z.number().min(10).max(60),
+  bloodPressure: z.number().int().min(60).max(250),
+  bloodSugar: z.number().int().min(40).max(400),
+  cholesterol: z.number().int().min(100).max(400),
+  smoking: z.enum(['yes', 'no', 'occasional']).optional().default('no'),
+  alcohol: z.enum(['yes', 'no', 'occasional']).optional().default('no'),
+  exercise: z.enum(['daily', 'weekly', 'rarely', 'never']).optional().default('weekly'),
+  stress: z.enum(['low', 'medium', 'high']).optional().default('medium'),
+  sleep: z.number().min(0).max(24).optional().default(7),
+  familyHistory: z.enum(['yes', 'no', 'partial']).optional().default('no'),
+});
 
 interface RiskFactor {
   category: string;
@@ -18,12 +35,24 @@ interface RiskResult {
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimitCheck = await authRateLimit(req, 20, 60000);
+  if (rateLimitCheck) return rateLimitCheck;
+
   try {
     const body = await req.json();
-    const { 
+    const parsed = healthRiskSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid input', details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const {
       age, gender, bmi, bloodPressure, bloodSugar, cholesterol,
-      smoking, alcohol, exercise, stress, sleep, diet, familyHistory
-    } = body;
+      smoking, alcohol, exercise, stress, sleep, familyHistory
+    } = parsed.data;
 
     const factors: RiskFactor[] = [];
     let totalScore = 0;
@@ -73,14 +102,25 @@ export async function POST(req: NextRequest) {
     totalScore += cholScore;
     maxTotalScore += 15;
 
+    // Age risk
+    const ageScore = age > 60 ? 15 : age > 45 ? 10 : age > 35 ? 5 : 2;
+    factors.push({
+      category: 'Age',
+      score: ageScore,
+      maxScore: 15,
+      risk: age > 60 ? 'high' : age > 45 ? 'medium' : 'low'
+    });
+    totalScore += ageScore;
+    maxTotalScore += 15;
+
     // Lifestyle Factors
-    const lifestyleScore = 
+    const lifestyleScore =
       (smoking === 'yes' ? 15 : smoking === 'occasional' ? 8 : 0) +
       (alcohol === 'yes' ? 12 : alcohol === 'occasional' ? 6 : 0) +
       (exercise === 'never' ? 10 : exercise === 'rarely' ? 5 : 0) +
       (stress === 'high' ? 10 : stress === 'medium' ? 5 : 0) +
       (sleep < 6 ? 8 : sleep < 7 ? 4 : 0);
-    
+
     factors.push({
       category: 'Lifestyle',
       score: lifestyleScore,
@@ -106,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     // Generate disease probabilities
     const diseases: { name: string; probability: number; category: string }[] = [];
-    if (bmi >= 25 || bmi >= 30) {
+    if (bmi >= 25) {
       diseases.push({ name: 'Type 2 Diabetes', probability: Math.min(95, 40 + (bmi - 25) * 5), category: 'Metabolic' });
       diseases.push({ name: 'Hypertension', probability: Math.min(90, 30 + (bmi - 25) * 4), category: 'Cardiovascular' });
     }
@@ -118,14 +158,13 @@ export async function POST(req: NextRequest) {
       diseases.push({ name: 'Diabetes Complications', probability: Math.min(80, 25 + (bloodSugar - 140) * 0.5), category: 'Metabolic' });
     }
     if (smoking === 'yes') {
-      diseases.push({ name: 'Lung Cancer', probability: Math.min(75, 20 + 15), category: 'Respiratory' });
-      diseases.push({ name: 'COPD', probability: Math.min(70, 15 + 15), category: 'Respiratory' });
+      diseases.push({ name: 'Lung Cancer', probability: Math.min(75, 35), category: 'Respiratory' });
+      diseases.push({ name: 'COPD', probability: Math.min(70, 30), category: 'Respiratory' });
     }
     if (cholesterol >= 200) {
       diseases.push({ name: 'Atherosclerosis', probability: Math.min(80, 25 + (cholesterol - 200) * 0.3), category: 'Cardiovascular' });
     }
 
-    // Sort by probability
     diseases.sort((a, b) => b.probability - a.probability);
 
     // Generate recommendations
@@ -135,9 +174,10 @@ export async function POST(req: NextRequest) {
     if (bloodSugar >= 100) recommendations.push('Limit sugar intake, increase physical activity');
     if (cholesterol >= 200) recommendations.push('Reduce fatty foods, increase fiber intake');
     if (smoking === 'yes') recommendations.push('Consider smoking cessation programs');
-    if (exercise === 'never') recommendations.push('Start with 30 min daily walking or moderate exercise');
+    if (exercise === 'never' || exercise === 'rarely') recommendations.push('Start with 30 min daily walking or moderate exercise');
     if (sleep < 6) recommendations.push('Prioritize 7-8 hours of sleep for recovery');
     if (stress === 'high') recommendations.push('Practice stress management techniques');
+    if (age > 50) recommendations.push('Schedule regular health checkups every 6 months');
 
     return NextResponse.json({
       success: true,

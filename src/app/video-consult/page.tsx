@@ -38,6 +38,7 @@ export default function VideoConsultPage() {
   const [joining, setJoining] = useState(false);
   const [meetingLink, setMeetingLink] = useState('');
   const [jitsiApi, setJitsiApi] = useState<any>(null);
+  const jitsiApiRef = useRef<any>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -182,14 +183,16 @@ export default function VideoConsultPage() {
         });
 
         setJitsiApi(api);
+        jitsiApiRef.current = api;
       }
     };
     document.body.appendChild(script);
   }, [selectedDoctor]);
 
   const leaveCall = () => {
-    if (jitsiApi) {
-      jitsiApi.dispose();
+    if (jitsiApiRef.current) {
+      jitsiApiRef.current.dispose();
+      jitsiApiRef.current = null;
       setJitsiApi(null);
     }
     setInCall(false);

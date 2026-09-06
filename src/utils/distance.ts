@@ -88,9 +88,11 @@ export function sortByDistance<T extends { lat: number; lng: number }>(
   });
 }
 
-export default {
+export const distanceUtils = {
   getDistanceKm,
   formatDistance,
   isWithinRadius,
   sortByDistance,
 };
+
+export default distanceUtils;

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiPlus, FiX, FiAlertTriangle, FiCheckCircle, FiInfo, FiShare2, FiShield, FiActivity, FiCopy, FiCheck } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiX, FiAlertTriangle, FiCheckCircle, FiInfo, FiShare2, FiShield, FiActivity, FiCopy, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import Link from 'next/link';
 
 interface MedicineInfo {
@@ -46,6 +46,8 @@ export default function MedicineInteractionsPage() {
   const [searchResults, setSearchResults] = useState<MedicineInfo[]>([]);
   const [searching, setSearching] = useState(false);
   const [dangerousCombinations, setDangerousCombinations] = useState<Interaction[]>([]);
+  const [searchError, setSearchError] = useState('');
+  const [checkError, setCheckError] = useState('');
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -63,15 +65,22 @@ export default function MedicineInteractionsPage() {
     }
     setSearching(true);
     fetch(`/api/medicine-interactions?medicine=${encodeURIComponent(query)}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Search failed');
+        return res.json();
+      })
       .then(data => {
         const meds = (data.medicines || data.results || data || []);
         const filtered = (Array.isArray(meds) ? meds : [])
           .filter((m: MedicineInfo) => !selectedMedicines.some(s => s.id === m.id))
           .slice(0, 8);
         setSearchResults(filtered);
+        setSearchError('');
       })
-      .catch(() => setSearchResults([]))
+      .catch((err: any) => {
+        setSearchResults([]);
+        setSearchError(err.message || 'Failed to search medicines');
+      })
       .finally(() => setSearching(false));
   }, [selectedMedicines]);
 
@@ -94,11 +103,18 @@ export default function MedicineInteractionsPage() {
   const checkInteractions = () => {
     const medsParam = selectedMedicines.map(m => encodeURIComponent(m.name)).join(',');
     fetch(`/api/medicine-interactions?medicine=${medsParam}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to check interactions');
+        return res.json();
+      })
       .then(data => {
         setInteractions(data.interactions || []);
+        setCheckError('');
       })
-      .catch(() => setInteractions([]));
+      .catch((err: any) => {
+        setInteractions([]);
+        setCheckError(err.message || 'Failed to check interactions');
+      });
     setShowResults(true);
   };
 
@@ -189,10 +205,17 @@ export default function MedicineInteractionsPage() {
             />
 
             <AnimatePresence>
-              {(showResults && (filteredMedicines.length > 0 || searching)) && (
+              {(showResults && (filteredMedicines.length > 0 || searching || searchError)) && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                   className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden z-50 shadow-2xl">
-                  {searching ? (
+                  {searchError ? (
+                    <div className="px-5 py-4 text-center">
+                      <FiAlertCircle className="text-red-400 mx-auto mb-2" size={20} />
+                      <p className="text-sm text-red-400 font-bold">Search failed</p>
+                      <p className="text-xs text-gray-500 mt-1">{searchError}</p>
+                      <button onClick={() => setSearchError('')} className="mt-2 text-xs text-purple-400 hover:text-purple-300">Dismiss</button>
+                    </div>
+                  ) : searching ? (
                     <div className="px-5 py-4 text-center">
                       <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                       <p className="text-sm text-gray-400">Searching medicines...</p>
@@ -253,6 +276,16 @@ export default function MedicineInteractionsPage() {
         <AnimatePresence>
           {showResults && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              {checkError && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+                  <FiAlertCircle className="text-red-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-red-400 text-sm font-bold">Couldn&apos;t check interactions</p>
+                    <p className="text-red-400/70 text-xs">{checkError}</p>
+                  </div>
+                  <button onClick={() => { setCheckError(''); checkInteractions(); }} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+                </div>
+              )}
               {/* Safety Score */}
               {safety && (
                 <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-8 mb-8">

@@ -74,6 +74,36 @@ export default function EyeControlPage() {
     }, 200);
   }, []);
 
+  const simulateGaze = useCallback(() => {
+    const simulate = () => {
+      if (!isTracking) return;
+      
+      const features = UI_FEATURES.map((f, i) => ({
+        x: 150 + (i % 3) * 180,
+        y: 200 + Math.floor(i / 3) * 180,
+        id: f.id
+      }));
+      
+      const randomFeature = features[Math.floor(Math.random() * features.length)];
+      setCurrentGaze({ 
+        x: randomFeature.x + Math.random() * 40, 
+        y: randomFeature.y + Math.random() * 40, 
+        timestamp: Date.now() 
+      });
+      
+      setGazeTrail(prev => [...prev.slice(-20), { 
+        x: randomFeature.x + Math.random() * 40, 
+        y: randomFeature.y + Math.random() * 40, 
+        timestamp: Date.now() 
+      }]);
+      
+      setConfidence(Math.min(95, 70 + Math.random() * 25));
+      
+      setTimeout(simulate, 200);
+    };
+    simulate();
+  }, [isTracking]);
+
   const startTracking = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -130,37 +160,7 @@ export default function EyeControlPage() {
       setIsTracking(true);
       simulateGaze();
     }
-  }, []);
-
-  const simulateGaze = useCallback(() => {
-    const simulate = () => {
-      if (!isTracking) return;
-      
-      const features = UI_FEATURES.map((f, i) => ({
-        x: 150 + (i % 3) * 180,
-        y: 200 + Math.floor(i / 3) * 180,
-        id: f.id
-      }));
-      
-      const randomFeature = features[Math.floor(Math.random() * features.length)];
-      setCurrentGaze({ 
-        x: randomFeature.x + Math.random() * 40, 
-        y: randomFeature.y + Math.random() * 40, 
-        timestamp: Date.now() 
-      });
-      
-      setGazeTrail(prev => [...prev.slice(-20), { 
-        x: randomFeature.x + Math.random() * 40, 
-        y: randomFeature.y + Math.random() * 40, 
-        timestamp: Date.now() 
-      }]);
-      
-      setConfidence(Math.min(95, 70 + Math.random() * 25));
-      
-      setTimeout(simulate, 200);
-    };
-    simulate();
-  }, [isTracking]);
+  }, [isTracking, simulateGaze]);
 
   const stopTracking = useCallback(() => {
     if (videoRef.current && videoRef.current.srcObject) {

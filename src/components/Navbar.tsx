@@ -8,11 +8,14 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, availableLanguages } from '@/context/LanguageContext';
 import { NotificationBell } from '@/components/Notifications';
+import { useSession } from 'next-auth/react';
 
 export default function Navbar() {
   // Guest mode - no login required
   const session = null;
   const status = 'authenticated';
+  const { data: authSession } = useSession();
+  const isAdmin = (authSession?.user as any)?.role === 'admin';
   const { lang, setLang, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -38,8 +41,6 @@ export default function Navbar() {
     { href: '/', label: t('home') },
     { href: '/hospitals', label: t('hospitals') },
     { href: '/specialists', label: t('specialists') },
-    { href: '/pharmacies', label: 'Pharmacies' },
-    { href: '/labs', label: 'Labs' },
     { href: '/emergency', label: t('emergency'), isEmergency: true },
     { href: '/telehealth', label: 'Telehealth' },
     { href: '/booking', label: 'Book Now' },
@@ -63,6 +64,8 @@ export default function Navbar() {
       { href: '/health-wallet', label: 'Smart Wallet' },
       { href: '/medicine-verify', label: 'Verify Medicine' },
       { href: '/blockchain-records', label: 'Blockchain Records' },
+      { href: '/personal-analytics', label: 'Personal Analytics 📊' },
+      { href: '/ai-vision', label: 'AI Vision 🧠' },
     ],
     download: [
       { href: '/download-windows', label: 'Download for PC' },
@@ -82,11 +85,32 @@ export default function Navbar() {
     ],
     moreCare: [
       { href: '/rewards', label: 'Rewards 🏆' },
+      { href: '/health-coins-marketplace', label: 'Coins Shop 🛍️' },
+      { href: '/family-dashboard', label: 'Family Dashboard 👨‍👩‍👧' },
       { href: '/family-care', label: 'Family Care 👨‍👩‍👧' },
+      { href: '/voice-journal', label: 'Voice Journal 🎙️' },
       { href: '/womens-health', label: "Women's Health 🌸" },
       { href: '/communities', label: 'Communities 👥' },
       { href: '/pill-scanner', label: 'Pill Scanner 📷' },
       { href: '/pets', label: 'Pet Care 🐾' },
+      { href: '/government-schemes', label: 'Govt Schemes 🏛️' },
+      { href: '/medication-adherence', label: 'Med Adherence 💊' },
+      { href: '/team-challenges', label: 'Team Challenge 👥' },
+    ],
+    healthHub: [
+      { href: '/health-records', label: 'Health Records 🗂️' },
+      { href: '/health-risk', label: 'Health Risk Assessment 🎯' },
+      { href: '/health-pulse', label: 'Health Pulse 📈' },
+      { href: '/predictive-risk', label: 'Predictive Risk 🔮' },
+      { href: '/lab-report-analyzer', label: 'Lab Report Analyzer 🧪' },
+      { href: '/chronic-care', label: 'Chronic Care 🩺' },
+      { href: '/medicine-reminder', label: 'Medicine Reminder ⏰' },
+      { href: '/e-prescription', label: 'E-Prescription 💊' },
+      { href: '/health-timeline', label: 'Health Timeline 🗓️' },
+    ],
+    membership: [
+      { href: '/membership-plans', label: 'Membership Plans 👑' },
+      { href: '/subscription', label: 'Premium Subscription ⭐' },
     ],
     adminPanel: [
       { href: '/admin/god-mode', label: 'God Mode 🛡️' },
@@ -110,7 +134,7 @@ export default function Navbar() {
             : 'bg-slate-950/70 backdrop-blur-md py-3 border-b border-white/5'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="relative max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link
@@ -167,42 +191,56 @@ export default function Navbar() {
               ))}
               
               {/* Mega Menu */}
-              <div className="relative group">
+              <div className="group">
                 <button className="px-3 py-2 rounded-xl font-medium text-sm text-gray-400 hover:text-white hover:bg-white/8 transition-all">
                   More ▾
                 </button>
-                <div className="absolute top-full right-0 mt-2 w-[95vw] max-w-[700px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[95vw] max-w-[1150px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-6 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="grid grid-cols-2 md:grid-cols-7 gap-x-5 gap-y-4">
                     <div>
-                      <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-2">Find Care</h4>
+                      <h4 className="text-sm font-bold text-sky-400 uppercase tracking-wider mb-3">Find Care</h4>
                       {megaMenuLinks.findCare.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                        <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
                       ))}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">AI & Tech</h4>
+                      <h4 className="text-sm font-bold text-purple-400 uppercase tracking-wider mb-3">AI & Tech</h4>
                       {megaMenuLinks.aiTech.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                        <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
                       ))}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Download</h4>
+                      <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-wider mb-3">Download</h4>
                       {megaMenuLinks.download.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                        <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
                       ))}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2">More Care</h4>
+                      <h4 className="text-sm font-bold text-green-400 uppercase tracking-wider mb-3">More Care</h4>
                       {megaMenuLinks.moreCare.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                        <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
                       ))}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">Admin</h4>
-                      {megaMenuLinks.adminPanel.map(link => (
-                        <Link key={link.href} href={link.href} className="block px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      <h4 className="text-sm font-bold text-blue-400 uppercase tracking-wider mb-3">Health Hub</h4>
+                      {megaMenuLinks.healthHub.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
                       ))}
                     </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-violet-400 uppercase tracking-wider mb-3">Membership</h4>
+                      {megaMenuLinks.membership.map(link => (
+                        <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                      ))}
+                    </div>
+                    {isAdmin && (
+                      <div>
+                        <h4 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-3">Admin</h4>
+                        {megaMenuLinks.adminPanel.map(link => (
+                          <Link key={link.href} href={link.href} className="block px-2.5 py-2 text-[15px] leading-snug text-gray-300 hover:text-white hover:bg-white/5 rounded-lg">{link.label}</Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -374,7 +412,38 @@ export default function Navbar() {
                   </motion.div>
                 ))}
 
+                {/* Quick care links (kept prominent on mobile) */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <Link
+                    href="/pharmacies"
+                    onClick={() => setIsOpen(false)}
+                    className="py-2.5 px-4 rounded-xl bg-white/5 text-gray-300 font-medium text-sm transition hover:bg-white/10"
+                  >
+                    💊 Pharmacies
+                  </Link>
+                  <Link
+                    href="/labs"
+                    onClick={() => setIsOpen(false)}
+                    className="py-2.5 px-4 rounded-xl bg-white/5 text-gray-300 font-medium text-sm transition hover:bg-white/10"
+                  >
+                    🧪 Labs
+                  </Link>
+                </div>
+
                 <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-xs font-bold text-blue-400 uppercase tracking-wider px-4 mt-2">Health Hub</p>
+                  {megaMenuLinks.healthHub.map(link => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsOpen(false)}
+                      className={`py-2.5 px-4 rounded-xl font-medium text-sm transition ${
+                        pathname === link.href ? 'bg-blue-500/15 text-blue-300' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
                   <div className="flex flex-col gap-2">
                       <Link
                         href="/subscription"

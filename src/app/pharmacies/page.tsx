@@ -41,6 +41,7 @@ export default function PharmaciesPage() {
   const [radius, setRadius] = useState(5);
   const [source, setSource] = useState('');
   const [show24Only, setShow24Only] = useState(false);
+  const [error, setError] = useState('');
 
   // Get user location
   useEffect(() => {
@@ -68,11 +69,14 @@ export default function PharmaciesPage() {
     const { lat, lng } = userLocation;
     try {
       const res = await fetch(`/api/pharmacies?lat=${lat}&lng=${lng}&search=${searchQuery}&radius=${radius * 1000}`);
+      if (!res.ok) throw new Error('Failed to load pharmacies');
       const data = await res.json();
       setPharmacies(data.pharmacies || []);
       setSource(data.source || '');
-    } catch (err) {
+      setError('');
+    } catch (err: any) {
       console.error('Failed to fetch pharmacies:', err);
+      setError(err.message || 'Failed to load pharmacies');
       setPharmacies([]);
     }
     setLoading(false);
@@ -244,6 +248,12 @@ export default function PharmaciesPage() {
                   <p className="text-slate-400 text-sm font-medium px-1">
                     <span className="text-emerald-400 font-bold text-base">{filteredPharmacies.length}</span> pharmacies within {radius}km
                   </p>
+                  {error && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2">
+                      <FiShield className="text-red-400 flex-shrink-0" />
+                      <p className="text-red-400 text-xs font-bold">{error}</p>
+                    </div>
+                  )}
                   {filteredPharmacies.length === 0 ? (
                     <div className="text-center py-10 bg-slate-900/30 rounded-2xl border border-white/5">
                       <FaPills className="w-12 h-12 text-emerald-500/30 mx-auto mb-3" />

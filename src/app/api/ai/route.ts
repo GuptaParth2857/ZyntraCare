@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateHealthResponse, isGeminiConfigured } from '@/lib/gemini';
+import { authRateLimit } from '@/lib/rate-limit';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 async function callOllama(prompt: string): Promise<string | null> {
   try {
@@ -23,21 +23,6 @@ async function callOllama(prompt: string): Promise<string | null> {
     if (!response.ok) return null;
     const data = await response.json();
     return data.message?.content || null;
-  } catch {
-    return null;
-  }
-}
-
-async function callGemini(prompt: string): Promise<string | null> {
-  if (!GEMINI_API_KEY) return null;
-  
-  try {
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text() || null;
   } catch {
     return null;
   }
@@ -78,6 +63,9 @@ function getMockResponse(query: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimitCheck = await authRateLimit(req, 30, 60000);
+  if (rateLimitCheck) return rateLimitCheck;
+
   try {
     const body = await req.json();
     const { query, language } = body;
@@ -86,14 +74,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
 
-    // Priority 1: Try Ollama (local, free, fast)
-    let response = await callOllama(query);
-    let source = 'ollama';
+    // Priority 1: Try Gemini (cloud AI)
+    let response = await generateHealthResponse(`Health question: ${query}`);
+    let source = 'gemini';
 
-    // Priority 2: Try Google Gemini (if Ollama fails)
-    if (!response && GEMINI_API_KEY) {
-      response = await callGemini(`Health question: ${query}`);
-      source = 'gemini';
+    // Priority 2: Try Ollama (local, free)
+    if (!response) {
+      response = await callOllama(query);
+      source = 'ollama';
     }
 
     // Priority 3: Fallback to smart mock
@@ -124,8 +112,8 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     ai: {
+      gemini: isGeminiConfigured() ? 'configured' : 'not configured',
       ollama: ollamaStatus ? 'connected' : 'not running',
-      gemini: GEMINI_API_KEY ? 'configured' : 'not configured',
       mock: 'always available'
     }
   });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
+import { PLAN_BY_NAME, PLANS } from '@/lib/plans';
+import { demoOrders, verifyRazorpaySignature } from '@/lib/razorpay';
 
 async function requireAuth(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ 
     message: 'Subscription API',
-    plans: ['Free', 'Premium Monthly', 'Premium Yearly'],
+    plans: PLANS.map((plan) => plan.name),
     actions: ['subscribe', 'upgrade', 'downgrade', 'cancel', 'reactivate']
   });
 }
@@ -33,19 +35,27 @@ export async function POST(req: NextRequest) {
     switch (action) {
       case 'subscribe':
       case 'upgrade': {
-        const allowedPlans = ['Free', 'Premium Monthly', 'Premium Yearly'];
-        if (!allowedPlans.includes(plan)) {
+        const planConfig = PLAN_BY_NAME[plan];
+        if (!planConfig || planConfig.price === 0) {
           return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
         }
-        
+
+        const { orderId = '', paymentId = '', signature = '' } = body;
+        const isDemoOrder = orderId.startsWith('order_demo_');
+        const paymentVerified = isDemoOrder
+          ? demoOrders.has(orderId)
+          : verifyRazorpaySignature(orderId, paymentId, signature);
+        if (!paymentVerified) {
+          return NextResponse.json({ error: 'Payment verification failed' }, { status: 403 });
+        }
+        demoOrders.delete(orderId);
+
         const startDate = new Date();
         const endDate = new Date();
-        
-        if (plan === 'Free') {
-          endDate.setFullYear(endDate.getFullYear() + 100);
-        } else if (plan === 'Premium Monthly') {
+
+        if (planConfig.period === 'month') {
           endDate.setMonth(endDate.getMonth() + 1);
-        } else if (plan === 'Premium Yearly') {
+        } else {
           endDate.setFullYear(endDate.getFullYear() + 1);
         }
         

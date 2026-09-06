@@ -10,16 +10,6 @@ const LEVEL_VALUES: Record<string, number> = {
   very_high: 68,
 };
 
-function getFallbackHour(hour: number): number {
-  const baseline = [
-    3, 2, 2, 2, 3, 5,
-    8, 15, 28, 45, 48, 44,
-    38, 32, 30, 28, 27, 35,
-    42, 40, 32, 22, 14, 7,
-  ];
-  return baseline[hour] + Math.floor(Math.random() * 4);
-}
-
 export async function GET() {
   if (cache && Date.now() < cache.expiresAt) {
     return NextResponse.json(cache.data, {
@@ -50,10 +40,16 @@ export async function GET() {
       hourly[hour].count += 1;
     }
 
+    if (reports.length === 0) {
+      return NextResponse.json([], {
+        headers: { 'X-Source': 'no-data' },
+      });
+    }
+
     const predictions: number[] = [];
     for (let i = 0; i < 24; i++) {
       const { sum, count } = hourly[i];
-      predictions.push(count > 0 ? Math.round(sum / count) : getFallbackHour(i));
+      predictions.push(Math.round(sum / count));
     }
 
     cache = { data: predictions, expiresAt: Date.now() + 30 * 60 * 1000 };

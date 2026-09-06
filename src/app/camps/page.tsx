@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import AuthModal from '@/components/AuthModal';
 import { FiCalendar, FiMapPin, FiClock, FiFilter, FiActivity, FiX, FiUser, FiPhone, FiMail, FiCheckCircle, FiPlus, FiArrowRight } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate } from '@/lib/utils';
@@ -19,6 +21,9 @@ interface Camp {
   registration: string;
   spotsAvailable?: number;
   organizedBy?: string;
+  contact?: string;
+  registerUrl?: string;
+  source?: string;
   locationCoords?: { lat: number; lng: number };
 }
 
@@ -140,17 +145,24 @@ function RegisterModal({ camp, onClose }: { camp: Camp; onClose: () => void }) {
 
 // ── LIST CAMP MODAL ──
 function ListCampModal({ onClose }: { onClose: () => void }) {
+  const { data: session } = useSession();
   const [form, setForm] = useState({
     orgName: '', campName: '', date: '', time: '', city: '', state: '',
     location: '', services: '', contactEmail: '', contactPhone: '', registration: 'Free'
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   const [listError, setListError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setListError('');
+    if (!session?.user) {
+      setLoading(false);
+      setAuthOpen(true);
+      return;
+    }
     try {
       const res = await fetch('/api/camps', {
         method: 'POST',
@@ -174,7 +186,7 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
       });
 
       if (res.status === 401) {
-        setSubmitted(true);
+        setAuthOpen(true);
       } else if (!res.ok) {
         throw new Error('Failed to list camp');
       } else {
@@ -188,6 +200,7 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
 
   return (
     <AnimatePresence>
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} onLogin={() => setAuthOpen(false)} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto"
         onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -256,6 +269,9 @@ function ListCampModal({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {listError && <p className="text-red-400 text-sm text-center">{listError}</p>}
+                {!session?.user && (
+                  <p className="text-white/40 text-xs text-center mt-3">You'll be asked to sign in before submitting.</p>
+                )}
 
                 <button type="submit" disabled={loading}
                   className="w-full mt-6 py-4 rounded-2xl font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
@@ -343,6 +359,7 @@ export default function CampsPage() {
             Discover free medical checkups organized by top institutions across India. <br />
             Are you an organizer? <button onClick={() => setShowListModal(true)} className="text-teal-400 font-bold hover:text-teal-300 transition-colors underline decoration-teal-500/30 underline-offset-4">List your camp instantly.</button>
           </p>
+          <p className="text-white/30 text-xs mt-4 font-medium">Camps list by institutions & verified organizers, plus official blood donation camps from e-RaktKosh (MoHFW).</p>
         </div>
 
         {/* Filters */}
@@ -365,6 +382,7 @@ export default function CampsPage() {
               <option value="women">Women Health</option>
               <option value="child">Pediatrics</option>
               <option value="eye">Eye & Vision</option>
+              <option value="blood donation">Blood Donation</option>
             </select>
           </div>
         </div>
@@ -404,14 +422,19 @@ function CampCard({ camp, delay, onRegister }: { camp: Camp, delay: number, onRe
         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/20 rounded-full blur-[40px] group-hover:bg-emerald-500/30 transition-all opacity-50" />
         
         <div className="flex justify-between items-start relative z-10 mb-4">
-          <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
-            camp.registration === 'Free' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-          }`}>{camp.registration}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+              camp.registration === 'Free' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+            }`}>{camp.registration}</span>
+            {camp.source === 'eraktkosh' && (
+              <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border bg-teal-500/10 text-teal-400 border-teal-500/20">Official · e-RaktKosh</span>
+            )}
+          </div>
           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><FiActivity size={14} className="text-white/40" /></div>
         </div>
         
         <h3 className="font-black text-2xl text-white leading-tight mb-2 relative z-10">{camp.name}</h3>
-        <p className="text-white/50 text-sm font-medium relative z-10">{camp.hospital}</p>
+        <p className="text-white/50 text-sm font-medium relative z-10">{camp.source === 'eraktkosh' ? 'National Blood Transfusion Council, MoHFW' : camp.hospital}</p>
       </div>
 
       {/* Card Body */}
@@ -445,10 +468,24 @@ function CampCard({ camp, delay, onRegister }: { camp: Camp, delay: number, onRe
           </div>
         </div>
 
-        <button onClick={onRegister} className="mt-auto w-full py-4 rounded-xl font-black text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
-          style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.2), rgba(16,185,129,0.1))', border: '1px solid rgba(20,184,166,0.3)' }}>
-          Register Now <FiArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
-        </button>
+        {camp.source === 'eraktkosh' ? (
+          camp.registerUrl ? (
+            <a href={camp.registerUrl} target="_blank" rel="noopener noreferrer" className="mt-auto w-full py-4 rounded-xl font-black text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
+              style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.2), rgba(16,185,129,0.1))', border: '1px solid rgba(20,184,166,0.3)' }}>
+              Register on e-RaktKosh <FiArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+            </a>
+          ) : (
+            <div className="mt-auto w-full py-4 rounded-xl font-black text-white text-xs flex items-center justify-center gap-2 text-center"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {camp.contact ? <>Contact Organizer · <span className="text-teal-400">{camp.contact}</span></> : 'Visit e-RaktKosh for registration'}
+            </div>
+          )
+        ) : (
+          <button onClick={onRegister} className="mt-auto w-full py-4 rounded-xl font-black text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
+            style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.2), rgba(16,185,129,0.1))', border: '1px solid rgba(20,184,166,0.3)' }}>
+            Register Now <FiArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+          </button>
+        )}
       </div>
     </motion.div>
   );

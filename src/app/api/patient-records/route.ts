@@ -15,17 +15,17 @@ export async function GET(req: NextRequest) {
   const authError = await authenticateRequest(req);
   if (authError) return authError;
 
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
-  
-  if (!userId) {
-    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-  }
-  
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, raw: false });
     const requestingUserId = token?.id as string;
     const role = token?.role as string;
+
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId') || requestingUserId;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    }
 
     if (role !== 'admin' && requestingUserId !== userId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
@@ -34,8 +34,8 @@ export async function GET(req: NextRequest) {
     const record = await prisma.patientRecord.findUnique({
       where: { userId },
     });
-    
-    return NextResponse.json({ record });
+
+    return NextResponse.json({ record, records: record ? [record] : [] });
   } catch (error) {
     console.error('Patient record error:', error);
     return NextResponse.json({ error: 'Failed to fetch record' }, { status: 500 });

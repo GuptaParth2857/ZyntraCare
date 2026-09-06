@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 const SPECIALTIES_LIST = ['Cardiology', 'Oncology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Nephrology', 'Dermatology', 'Ophthalmology', 'Pulmonology', 'Gynecology'];
 import { useLanguage } from '@/context/LanguageContext';
 import { useState, useEffect, useMemo, useRef, memo } from 'react';
+import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 
 import { AnimatedGradientText, MorphingBlob, FloatingIcon, PulseRing } from '@/components/PremiumAnimations';
@@ -22,8 +23,8 @@ const SearchBar = dynamic(() => import('@/components/SearchBar'), { ssr: false, 
 const HospitalCard = dynamic(() => import('@/components/HospitalCard'), { ssr: false });
 const DoctorCard = dynamic(() => import('@/components/DoctorCard'), { ssr: false });
 const DNARotate3D = dynamic(() => import('@/components/DNARotate3D'), { ssr: false });
-const DNAUltra3D = dynamic(() => import('@/components/DNAUltra3D'), { ssr: false });
 const NearbyMap = dynamic(() => import('@/components/NearbyMap'), { ssr: false, loading: () => <div className="w-full h-full bg-slate-800/50 animate-pulse flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin" /></div> });
+const DNASpiral3D = dynamic(() => import('@/components/DNASpiral3D'), { ssr: false });
 
 function usePerformanceMode() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(true);
@@ -125,7 +126,7 @@ function HeroNearbyMap() {
   const latRef = useRef(0);
   const lngRef = useRef(0);
 
-  useEffect(() => { requestLocation(); }, []);
+  useEffect(() => { requestLocation(); }, [requestLocation]);
 
   const userLat = position?.lat ?? DEFAULT_POSITION.lat;
   const userLng = position?.lng ?? DEFAULT_POSITION.lng;
@@ -869,6 +870,8 @@ function VideoSection({ videos }: { videos: VideoMasterclass[] }) {
 
 export default function Home() {
   const { t } = useLanguage();
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role;
   const { prefersReducedMotion, isMobile, isSlowConnection, shouldUse3D } = usePerformanceMode();
   const hasFull3D = false;
   const hasAnimations = shouldUse3D === 'full' || shouldUse3D === 'light';
@@ -879,7 +882,7 @@ export default function Home() {
 
   useEffect(() => {
     requestLocation();
-  }, []);
+  }, [requestLocation]);
 
   useEffect(() => {
     fetch('/api/stats')
@@ -901,7 +904,7 @@ export default function Home() {
     const userLat = position?.lat ?? 28.6139;
     const userLng = position?.lng ?? 77.2090;
 
-    fetch(`/api/hospitals?top=true&limit=6`)
+    fetch(`/api/hospitals?top=true&limit=3&lat=${userLat}&lng=${userLng}`)
       .then(r => r.json())
       .then(d => { if (d.hospitals?.length) setTopHospitals(d.hospitals); })
       .catch(() => {});
@@ -1271,24 +1274,17 @@ export default function Home() {
           <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[40vw] h-[40vw] bg-blue-600/8 blur-[150px] rounded-full" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col md:flex-row gap-16 items-center">
+        <div className="max-w-7xl mx-auto px-4 relative z-10 grid md:grid-cols-2 gap-12 items-center">
           <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.9 }}
-            className="w-full md:w-1/2 h-[480px] bg-transparent relative flex items-center justify-center p-4"
+            className="relative h-[440px] md:h-[520px] rounded-3xl overflow-hidden border border-white/8 shadow-[0_0_80px_rgba(20,184,166,0.15)]"
           >
-            {/* Holographic DNA */}
-            <div className="absolute inset-0 drop-shadow-[0_0_50px_rgba(20,184,166,0.3)]">
-              <ClientOnly>
-                <DNAUltra3D height={400} />
-              </ClientOnly>
-            </div>
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl border border-teal-500/20 rounded-full px-6 py-2 flex items-center gap-3">
-              <span className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(20,184,166,0.8)]" />
-              <span className="font-mono text-xs font-bold text-teal-300 uppercase tracking-widest">Genetic Profiling Active</span>
-            </div>
+            <ClientOnly>
+              <DNASpiral3D height={520} />
+            </ClientOnly>
           </motion.div>
 
           <motion.div
@@ -1296,7 +1292,6 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.9 }}
-            className="w-full md:w-1/2"
           >
             <div className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 text-teal-400 px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-8">
               <FiTrendingUp size={14} />
@@ -1580,7 +1575,7 @@ export default function Home() {
 
               // ── Admin (bottom) ──
               { href: '/admin/god-mode', icon: '🛡️', label: 'God Mode', color: 'from-amber-500 to-red-500', desc: 'Admin panel' },
-            ].map((feature, idx) => (
+            ].filter(feature => feature.href !== '/admin/god-mode' || userRole === 'admin').map((feature, idx) => (
               <motion.div
                 key={feature.href}
                 initial={{ opacity: 0, y: 20 }}

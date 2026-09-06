@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toArray } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -95,7 +95,7 @@ function OTPModal({ phone, onVerified, onClose }: { phone: string; onVerified: (
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(300);
 
-  const sendOTP = async () => {
+  const sendOTP = useCallback(async () => {
     const res = await fetch('/api/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
     const data = await res.json();
     if (data.success) {
@@ -104,9 +104,9 @@ function OTPModal({ phone, onVerified, onClose }: { phone: string; onVerified: (
     } else {
       setError(data.error);
     }
-  };
+  }, [phone]);
 
-  useEffect(() => { sendOTP(); }, []);
+  useEffect(() => { sendOTP(); }, [sendOTP]);
 
   useEffect(() => {
     if (!sent) return;
@@ -235,7 +235,7 @@ export default function BookingPage() {
     return d;
   });
 
-  const fetchHospitals = async () => {
+  const fetchHospitals = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ city, limit: '12' });
@@ -249,9 +249,9 @@ export default function BookingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [city, specialty, search]);
 
-  useEffect(() => { fetchHospitals(); }, [city, specialty]);
+  useEffect(() => { fetchHospitals(); }, [fetchHospitals]);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,7 +271,7 @@ export default function BookingPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [city]);
 
   const handleBook = async () => {
     if (!phoneVerified) { setShowOTP(true); return; }

@@ -3,7 +3,7 @@
 
 import { useState, useMemo, Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FiFilter, FiActivity, FiSearch, FiAward, FiUsers, FiStar, FiTrendingUp, FiGrid, FiList } from 'react-icons/fi';
+import { FiFilter, FiActivity, FiSearch, FiAward, FiUsers, FiStar, FiTrendingUp, FiGrid, FiList, FiAlertCircle } from 'react-icons/fi';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import SearchBar from '@/components/SearchBar';
 import DoctorCard from '@/components/DoctorCard';
@@ -40,6 +40,7 @@ function SpecialistsContent() {
   const [activeSpecialtyTab, setActiveSpecialtyTab] = useState('');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [doctorError, setDoctorError] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [liveStats, setLiveStats] = useState<typeof STATS>(STATS);
@@ -88,10 +89,12 @@ function SpecialistsContent() {
         }
         
         const res = await fetch(`/api/doctors?${params}`);
+        if (!res.ok) throw new Error('Failed to load doctors');
         const data = await res.json();
         setDoctors(data.doctors || []);
-      } catch (err) {
-        console.error('Failed to fetch doctors:', err);
+        setDoctorError('');
+      } catch (err: any) {
+        setDoctorError(err.message || 'Failed to load doctors');
       }
       setLoading(false);
     };
@@ -123,7 +126,7 @@ function SpecialistsContent() {
     else if (sortBy === 'fee') result.sort((a, b) => (a.consultationFee || 0) - (b.consultationFee || 0));
 
     return result;
-  }, [selectedSpecialty, activeSpecialtyTab, selectedLocation, showAvailableOnly, sortBy, searchQuery]);
+  }, [doctors, selectedSpecialty, activeSpecialtyTab, selectedLocation, showAvailableOnly, sortBy, searchQuery]);
 
   const handleBookAppointment = (doctor: Doctor) => {
     // handled inside DoctorCard
@@ -370,6 +373,17 @@ function SpecialistsContent() {
             </motion.button>
           )}
         </div>
+
+        {doctorError && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+            <FiAlertCircle className="text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-red-400 text-sm font-bold">Couldn&apos;t load specialists</p>
+              <p className="text-red-400/70 text-xs">{doctorError}</p>
+            </div>
+            <button onClick={() => { setDoctorError(''); window.location.reload(); }} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+          </div>
+        )}
 
         <motion.div
           variants={containerVariants}

@@ -169,7 +169,7 @@ export function useNearbyPlaces(
     if (options?.autoFetch !== false && userLat && userLng) {
       fetchPlaces();
     }
-  }, [fetchPlaces, options?.autoFetch]);
+  }, [fetchPlaces, options?.autoFetch, userLat, userLng]);
 
   // Filter by type
   const hospitals = places.filter((p) => p.type === 'hospital');

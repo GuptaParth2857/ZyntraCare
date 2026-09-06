@@ -25,6 +25,7 @@ export default function PillScannerPage() {
   const [result, setResult] = useState<MedicineResult | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleScan = async () => {
@@ -39,10 +40,21 @@ export default function PillScannerPage() {
         const formData = new FormData();
         formData.append('image', file);
         const res = await fetch('/api/pill-scanner', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Failed to scan medicine');
         const data = await res.json();
-        if (data.bestMatch) setResult(data.bestMatch as MedicineResult);
-        else if (Array.isArray(data.medicines) && data.medicines.length) setResult(data.medicines[0] as MedicineResult);
-      } catch { /* fallback */ }
+        if (data.bestMatch) {
+          setResult(data.bestMatch as MedicineResult);
+          setError('');
+        } else if (Array.isArray(data.medicines) && data.medicines.length) {
+          setResult(data.medicines[0] as MedicineResult);
+          setError('');
+        } else {
+          setError('No medicine recognized in the image. Try a clearer photo.');
+          setResult(null);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to scan medicine. Please try again.');
+      }
       setScanning(false);
     }
   };
@@ -51,9 +63,18 @@ export default function PillScannerPage() {
     setScanning(true);
     try {
       const res = await fetch('/api/pill-scanner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'search', query: searchQuery }) });
+      if (!res.ok) throw new Error('Failed to search medicine');
       const data = await res.json();
-      if (Array.isArray(data.medicines) && data.medicines.length) setResult(data.medicines[0] as MedicineResult);
-    } catch { /* fallback */ }
+      if (Array.isArray(data.medicines) && data.medicines.length) {
+        setResult(data.medicines[0] as MedicineResult);
+        setError('');
+      } else {
+        setError(`No results found for "${searchQuery}". Check the spelling or try a different medicine.`);
+        setResult(null);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to search medicine. Please try again.');
+    }
     setScanning(false);
   };
 
@@ -142,6 +163,17 @@ export default function PillScannerPage() {
                   </div>
                 )}
               </div>
+
+              {error && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+                  <FiAlertCircle className="text-red-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-red-400 text-sm font-bold">Couldn&apos;t identify medicine</p>
+                    <p className="text-red-400/70 text-xs">{error}</p>
+                  </div>
+                  <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-300"><FiX /></button>
+                </motion.div>
+              )}
 
               {!scanning && !result && (
                 <button

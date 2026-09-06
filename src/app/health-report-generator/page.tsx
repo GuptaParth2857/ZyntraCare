@@ -103,13 +103,7 @@ export default function HealthReportGeneratorPage() {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    simulateAnalysis();
-  }, [selectedReportType]);
-
-  const simulateAnalysis = async () => {
+  const simulateAnalysis = useCallback(async () => {
     setUploadedFile(`${selectedReportType.toLowerCase().replace(' ', '_')}_report.pdf`);
     setIsAnalyzing(true);
     try {
@@ -126,7 +120,13 @@ export default function HealthReportGeneratorPage() {
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [selectedReportType]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    simulateAnalysis();
+  }, [simulateAnalysis]);
 
   const downloadReport = () => {
     if (!report) return;

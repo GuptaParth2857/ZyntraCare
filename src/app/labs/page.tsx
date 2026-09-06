@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { FiMapPin, FiSearch, FiPhone, FiClock, FiNavigation, FiCheckCircle, FiArrowLeft, FiRefreshCw, FiList, FiMap } from 'react-icons/fi';
+import { FiMapPin, FiSearch, FiPhone, FiClock, FiNavigation, FiCheckCircle, FiArrowLeft, FiRefreshCw, FiList, FiMap, FiXCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaFlask } from 'react-icons/fa';
 import Link from 'next/link';
@@ -56,6 +56,7 @@ export default function LabsPage() {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [source, setSource] = useState<string>('');
   const [radius, setRadius] = useState(10);
+  const [error, setError] = useState('');
 
   // Get user location
   useEffect(() => {
@@ -84,20 +85,31 @@ export default function LabsPage() {
 
     try {
       const res = await fetch(`/api/labs?lat=${lat}&lng=${lng}&test=${selectedTest}&radius=${radius * 1000}`);
+      if (!res.ok) throw new Error('Failed to load labs');
       const data = await res.json();
 
       if (data.labs && data.labs.length > 0) {
         const labsWithDist = data.labs.map((lab: any) => ({
           ...lab,
-          distance: calculateDistance(lat, lng, lab.location.lat, lab.location.lng),
+          location: {
+            lat: lab.lat ?? lab.location?.lat,
+            lng: lab.lng ?? lab.location?.lng,
+          },
+          distance: Number.isFinite(lab.location?.lat) && Number.isFinite(lab.location?.lng)
+            ? calculateDistance(lat, lng, lab.location.lat, lab.location.lng)
+            : Number.isFinite(lab.lat) && Number.isFinite(lab.lng)
+              ? calculateDistance(lat, lng, lab.lat, lab.lng)
+              : Number.MAX_SAFE_INTEGER,
         })).sort((a: any, b: any) => a.distance - b.distance);
         setLabs(labsWithDist);
         setSource(data.source || '');
+        setError('');
       } else {
         setLabs([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch labs:', err);
+      setError(err.message || 'Failed to load labs');
       setLabs([]);
     }
     setLoading(false);
@@ -108,16 +120,18 @@ export default function LabsPage() {
   }, [fetchLabs]);
 
   // Map-compatible places format
-  const mapPlaces = useMemo(() => labs.map(lab => ({
-    id: lab.id,
-    name: lab.name,
-    type: 'lab' as const,
-    lat: lab.location.lat,
-    lng: lab.location.lng,
-    address: lab.address || lab.city,
-    phone: lab.phone,
-    distance: lab.distance,
-  })), [labs]);
+  const mapPlaces = useMemo(() => labs
+    .filter(lab => lab.location && Number.isFinite(lab.location?.lat) && Number.isFinite(lab.location?.lng))
+    .map(lab => ({
+      id: lab.id,
+      name: lab.name,
+      type: 'lab' as const,
+      lat: lab.location.lat,
+      lng: lab.location.lng,
+      address: lab.address || lab.city,
+      phone: lab.phone,
+      distance: lab.distance,
+    })), [labs]);
 
   const filteredLabs = selectedTest
     ? labs.filter(lab => lab.tests.some(t => t.toLowerCase().includes(selectedTest.toLowerCase())))
@@ -223,6 +237,17 @@ export default function LabsPage() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+            <FiXCircle className="text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-red-400 text-sm font-bold">Couldn&apos;t load labs</p>
+              <p className="text-red-400/70 text-xs">{error}</p>
+            </div>
+            <button onClick={() => { setError(''); window.location.reload(); }} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-20">

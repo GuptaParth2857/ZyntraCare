@@ -79,15 +79,21 @@ export async function initRazorpay(): Promise<boolean> {
   });
 }
 
-export async function createOrder(
-  amount: number,
-  currency: string,
-  receipt: string
-): Promise<{ orderId: string; amount: number; currency: string }> {
+export async function createOrder(options: {
+  plan?: string;
+  amount?: number;
+  currency?: string;
+  receipt: string;
+}): Promise<{ orderId: string; amount: number; currency: string }> {
   const res = await fetch('/api/payment/create-order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount, currency, receipt }),
+    body: JSON.stringify({
+      plan: options.plan,
+      amount: options.amount,
+      currency: options.currency || 'INR',
+      receipt: options.receipt,
+    }),
   });
   if (!res.ok) {
     const err = await res.json();
@@ -237,7 +243,7 @@ export async function verifyPayment(
       }),
     });
     const data = await res.json();
-    return data.success === true;
+    return data.verified === true;
   } catch {
     return false;
   }

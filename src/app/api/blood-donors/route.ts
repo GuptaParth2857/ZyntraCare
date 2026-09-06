@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       where.city = { contains: city };
     }
 
-    const [donors, total] = await Promise.all([
+    const [donors, total, cities, groups] = await Promise.all([
       prisma.user.findMany({
         where,
         select: {
@@ -38,6 +38,8 @@ export async function GET(req: NextRequest) {
         take: limit,
       }),
       prisma.user.count({ where }),
+      prisma.user.findMany({ where, select: { city: true }, distinct: ['city'] }),
+      prisma.user.findMany({ where, select: { bloodGroup: true }, distinct: ['bloodGroup'] }),
     ]);
 
     return NextResponse.json({
@@ -47,12 +49,18 @@ export async function GET(req: NextRequest) {
         phone: d.phone,
         bloodGroup: d.bloodGroup,
         city: d.city,
-        available: true,
+        available: Boolean(d.phone),
+        registeredSince: null,
       })),
       total,
       page,
       pages: Math.ceil(total / limit),
       bloodGroups: BLOOD_GROUPS,
+      stats: {
+        total,
+        cities: cities.filter(c => c.city).length,
+        groups: groups.filter(g => g.bloodGroup).length,
+      },
     });
   } catch (error) {
     console.error('Blood donors API error:', error);
@@ -75,6 +83,17 @@ export async function POST(req: NextRequest) {
         where: { id: existing.id },
         data: { bloodGroup, city },
       });
+      await prisma.organDonor.upsert({
+        where: { userId: existing.id },
+        update: { bloodType: bloodGroup, city, isActive: true },
+        create: {
+          userId: existing.id,
+          organs: JSON.stringify(['blood']),
+          bloodType: bloodGroup,
+          city,
+          isActive: true,
+        },
+      });
       return NextResponse.json({ message: 'Donor updated successfully' });
     }
 
@@ -86,6 +105,16 @@ export async function POST(req: NextRequest) {
         bloodGroup,
         city: city || '',
         role: 'patient',
+      },
+    });
+
+    await prisma.organDonor.create({
+      data: {
+        userId: donor.id,
+        organs: JSON.stringify(['blood']),
+        bloodType: bloodGroup,
+        city: city || null,
+        isActive: true,
       },
     });
 

@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getToken } from 'next-auth/jwt';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId') || '';
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const userId = searchParams.get('userId') || (token?.id as string) || '';
   const limit = parseInt(searchParams.get('limit') || '20');
 
-  try {
-    const where: any = {};
-    if (userId) where.userId = userId;
+  if (!userId) {
+    return NextResponse.json({ bookings: [] });
+  }
 
+  try {
     const bookings = await prisma.appointment.findMany({
-      where,
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {

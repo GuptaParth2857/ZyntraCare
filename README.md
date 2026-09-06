@@ -1,40 +1,98 @@
 # ZyntraCare - AI-Powered Healthcare Platform
 
-A full-stack, production-ready, AI-powered healthcare platform that integrates multiple healthcare challenges into a unified, scalable ecosystem.
+> A full-stack, AI-powered healthcare platform integrating disease detection, emergency response, hospital management, and telehealth into a unified ecosystem.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLIENT (Browser/Mobile)                  │
+│  Next.js 16 + React 19 + TypeScript + Tailwind CSS             │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │Dashboard │ │Emergency │ │Symptoms  │ │Hospital  │          │
+│  │  Pages   │ │  System  │ │Checker   │ │  Map     │          │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
+│       └─────────────┼───────────┼─────────────┘                │
+│                     │  Zustand Store + SSE                      │
+└─────────────────────┼───────────────────────────────────────────┘
+                      │
+┌─────────────────────┼───────────────────────────────────────────┐
+│                  API LAYER (Next.js API Routes)                 │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │  /api/ai │ │/api/emerg│ │/api/hosp │ │/api/ambul│          │
+│  │  /chat   │ │  /cases  │ │  /nearby │ │  /track  │          │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
+│       │            │            │            │                  │
+│  ┌────┴─────┐ ┌────┴─────┐ ┌───┴──────┐ ┌──┴───────┐         │
+│  │  Rate    │ │  Zod     │ │  Auth    │ │  Cache   │         │
+│  │ Limiter  │ │ Validate │ │  (JWT)   │ │ (Redis)  │         │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘         │
+└─────────────────────┼───────────────────────────────────────────┘
+                      │
+┌─────────────────────┼───────────────────────────────────────────┐
+│                 EXTERNAL SERVICES                               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │ Gemini   │ │ Twilio   │ │ Razorpay │ │ Leaflet  │          │
+│  │ AI API   │ │ SMS/Voice│ │ Payments │ │  Maps    │          │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
+└─────────────────────┼───────────────────────────────────────────┘
+                      │
+┌─────────────────────┼───────────────────────────────────────────┐
+│                    DATA LAYER                                   │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                       │
+│  │ Prisma   │ │  SQLite  │ │  Redis   │                       │
+│  │  ORM     │ │ (dev) /  │ │ (cache)  │                       │
+│  │          │ │PostgreSQL│ │          │                       │
+│  └──────────┘ └──────────┘ └──────────┘                       │
+│  80+ Models: User, Hospital, Doctor, Ambulance, Emergency,     │
+│  HealthRecord, Prescription, Subscription, Insurance, etc.     │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Features
 
-### Core Features
-- **AI-Based Disease Risk Detection** - Predict lifestyle disease risks using health metrics
-- **Real-time Hospital Bed Tracking** - Live bed availability with SSE updates
-- **Emergency Response System** - One-tap emergency mode with auto-location detection
-- **Smart Hospital Recommendation** - AI-powered hospital suggestions based on user needs
-- **Ambulance Booking** - Quick ambulance booking with real-time tracking
-- **Telehealth Access** - Remote consultations with specialists
+### Core Features (Production-Ready)
+- **AI Symptom Checker** - Gemini-powered analysis with 200+ medical conditions database
+- **Emergency Response** - One-tap SOS with real-time haversine-based ETA calculation
+- **Hospital Bed Tracking** - Live bed availability via SSE (Server-Sent Events)
+- **Ambulance Booking** - Real-time tracking with driver console and GPS updates
+- **Telehealth** - JitsiMeet-powered video consultations with specialists
+- **Health Dashboard** - Real-time IoT vitals with smooth interpolation
 
-### AI Features (Gemini Integration)
-- Symptom Checker with possible conditions
-- Risk Prediction for lifestyle diseases
-- Clinical Data Summarization
-- Smart Hospital Recommendations
+### AI Features (Gemini + Fallback)
+- Symptom analysis with probability scores and red flags
+- Emergency triage classification (high/medium/low priority)
+- Health risk prediction with disease probability
+- AI health coach with personalized recommendations
+- Smart hospital recommendations based on user location + symptoms
 
-### Technical Features
-- **Real-time Updates** - Server-Sent Events (SSE)
-- **IoT Simulation** - Simulated wearable health data (heart rate, BP, oxygen)
-- **Blockchain** - Hash-based patient data security
-- **State Management** - Zustand for global state
+### Security & Quality
+- **Rate Limiting** - Redis-backed with in-memory fallback (all API routes)
+- **Input Validation** - Zod schemas for all user inputs
+- **Authentication** - NextAuth.js with Credentials, Phone OTP, Google/GitHub OAuth
+- **Security Headers** - HSTS, CSP, XSS protection via middleware
+- **Tests** - 37 unit tests (Vitest) covering core logic
 
 ## Tech Stack
 
-- **Frontend**: Next.js 16 + React 19 + TypeScript
-- **Styling**: Tailwind CSS + Framer Motion
-- **3D**: Three.js + React Three Fiber
-- **Database**: Prisma + SQLite (dev) / PostgreSQL (prod)
-- **Auth**: NextAuth.js
-- **State**: Zustand
-- **Maps**: Leaflet
-- **AI**: Google Gemini API
-- **Deployment**: Docker + Vercel/Cloud Run
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 16 + React 19 + TypeScript |
+| **Styling** | Tailwind CSS 4 + Framer Motion |
+| **3D** | Three.js + React Three Fiber |
+| **Database** | Prisma 7 + SQLite (dev) / PostgreSQL (prod) |
+| **Auth** | NextAuth.js 5 (Credentials, OTP, OAuth) |
+| **State** | Zustand 5 |
+| **Maps** | Leaflet + React-Leaflet |
+| **AI** | Google Gemini 2.0 Flash + Ollama fallback |
+| **Video** | JitsiMeet External API |
+| **Payments** | Razorpay (test + live modes) |
+| **SMS** | Twilio (OTP + Emergency alerts) |
+| **Email** | Nodemailer (SMTP) |
+| **Cache** | Redis (ioredis) with in-memory fallback |
+| **Testing** | Vitest (unit) + Playwright (E2E) |
+| **API Docs** | OpenAPI 3.0 (docs/openapi.yaml) |
+| **Mobile** | Capacitor 8 (iOS + Android) |
 
 ## Getting Started
 
@@ -42,23 +100,24 @@ A full-stack, production-ready, AI-powered healthcare platform that integrates m
 
 - Node.js 18+
 - npm or yarn
-- Docker (for production)
 
-### Installation
+### Quick Start
 
 ```bash
 # Clone the repository
+git clone <repo-url>
 cd ZyntraCare
 
 # Install dependencies
 npm install
 
 # Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your values
+cp .env.example .env
+# Edit .env with your API keys (optional - app works without them)
 
-# Initialize database
+# Initialize database with real data
 npx prisma db push
+npm run db:seed:all
 
 # Start development server
 npm run dev
@@ -66,13 +125,14 @@ npm run dev
 
 ### Environment Variables
 
-Create `.env.local` with:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | No* | Google Gemini API key for AI features |
+| `RAZORPAY_KEY_ID` | No* | Razorpay test key for payments |
+| `TWILIO_ACCOUNT_SID` | No* | Twilio for OTP/SMS |
+| `DATABASE_URL` | Yes | SQLite file path or PostgreSQL URL |
 
-```env
-DATABASE_URL="file:./dev.db"
-NEXTAUTH_SECRET="your-secret-key"
-GEMINI_API_KEY="your-gemini-api-key"
-```
+*App works without these using heuristic/mock fallbacks
 
 ## Project Structure
 

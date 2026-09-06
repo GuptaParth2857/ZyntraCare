@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PLAN_BY_NAME } from '@/lib/plans';
+import { demoOrders } from '@/lib/razorpay';
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
@@ -11,9 +13,17 @@ function getAuthHeader(): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { amount, currency, receipt } = body;
+    const { plan, amount, currency, receipt } = body;
 
-    if (!amount || !currency || !receipt) {
+    const configuredPlan = typeof plan === 'string' ? PLAN_BY_NAME[plan] : undefined;
+    if (body.plan && !configuredPlan) {
+      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
+    }
+
+    const orderAmount = configuredPlan ? configuredPlan.price : amount;
+    const orderCurrency = (currency || 'INR').toUpperCase();
+
+    if (typeof orderAmount !== 'number' || orderAmount <= 0 || !receipt) {
       return NextResponse.json(
         { error: 'Missing required fields: amount, currency, receipt' },
         { status: 400 }
@@ -23,11 +33,12 @@ export async function POST(req: NextRequest) {
     // Demo mode: when Razorpay keys aren't configured, return a synthetic order
     // so the live checkout flow never breaks. Flagged clearly as demo.
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-      const demoId = 'order_demo_' + Date.now().toString(36);
+      const demoId = 'order_demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      demoOrders.add(demoId);
       return NextResponse.json({
         orderId: demoId,
-        amount: Math.round(amount * 100),
-        currency: currency.toUpperCase(),
+        amount: Math.round(orderAmount * 100),
+        currency: orderCurrency,
         receipt,
         status: 'created',
         demo: true,
@@ -35,8 +46,8 @@ export async function POST(req: NextRequest) {
     }
 
     const orderPayload = {
-      amount: Math.round(amount * 100),
-      currency: currency.toUpperCase(),
+      amount: Math.round(orderAmount * 100),
+      currency: orderCurrency,
       receipt,
       payment_capture: 1,
     };

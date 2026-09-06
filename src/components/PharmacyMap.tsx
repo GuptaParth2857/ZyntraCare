@@ -88,7 +88,7 @@ export default function PharmacyMap({ userLocation, pharmacies }: PharmacyMapPro
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [userLocation.lat, userLocation.lng]);
 
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;

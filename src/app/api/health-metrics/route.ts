@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId') || 'demo-user';
+    const userId = (token?.id as string) || searchParams.get('userId') || 'demo-user';
     const metrics = await prisma.healthMetric.findMany({
       where: { userId },
       orderBy: { date: 'asc' },
@@ -18,8 +20,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const body = await req.json();
-    const userId = body.userId || 'demo-user';
+    const userId = (token?.id as string) || body.userId || 'demo-user';
     const newMetric = await prisma.healthMetric.create({
       data: {
         userId,

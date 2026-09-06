@@ -4,15 +4,68 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RoleGuard from '@/components/RoleGuard';
 import {
-  FiUsers, FiActivity, FiServer, FiShield,
+  FiUsers, FiActivity, FiServer,
   FiAlertTriangle, FiCheckCircle, FiRefreshCw,
-  FiMapPin, FiUser, FiList, FiDatabase
+  FiMapPin, FiUser, FiList, FiDatabase, FiHome, FiStar
 } from 'react-icons/fi';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, AreaChart, Area
-} from 'recharts';
 import ClientOnly from '@/components/ClientOnly';
+import dynamic from 'next/dynamic';
+
+const LazyLoadAreaChart = dynamic(
+  () => import('recharts').then(mod => {
+    const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = mod;
+    return function LoadAreaChart({ data }: { data: { label: string; users: number; appointments: number }[] }) {
+      return (
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}   />
+              </linearGradient>
+              <linearGradient id="colorAppointments" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0}   />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff1a" vertical={false} />
+            <XAxis dataKey="label" stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 10 }} />
+            <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} allowDecimals={false} />
+            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #3b82f650', borderRadius: '12px', color: '#fff' }} />
+            <Legend wrapperStyle={{ fontSize: 12, color: '#fff' }} />
+            <Area type="monotone" dataKey="users" name="New Users" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorUsers)" />
+            <Area type="monotone" dataKey="appointments" name="Appointments" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorAppointments)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-64 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div> }
+);
+
+const LazyBedBarChart = dynamic(
+  () => import('recharts').then(mod => {
+    const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } = mod;
+    return function BedBarChart({ data }: { data: any[] }) {
+      return (
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff1a" vertical={false} />
+            <XAxis dataKey="name" stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+            <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} />
+            <Tooltip
+              cursor={{ fill: '#ffffff10' }}
+              contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #10b98150', borderRadius: '12px', color: '#fff' }}
+            />
+            <Bar dataKey="available" fill="#10b981" radius={[4, 4, 0, 0]} name="Free Beds" />
+            <Bar dataKey="occupied"  fill="#ef4444" radius={[4, 4, 0, 0]} name="Occupied"  />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-64 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" /></div> }
+);
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                      */
@@ -20,13 +73,58 @@ import ClientOnly from '@/components/ClientOnly';
 interface ActiveUser {
   name: string;
   email: string;
-  page: string;
+  device: string;
+  ipAddress: string;
   lastSeen: string;
 }
 
 interface BedStat {
   id: string;
-  beds: { available: number; occupied: number; icuAvailable: number };
+  name: string;
+  beds: { available: number; occupied: number; icu: { available: number } };
+}
+
+interface TrendPoint {
+  label: string;
+  users: number;
+  appointments: number;
+}
+
+interface Overview {
+  counts: {
+    users: number;
+    hospitals: number;
+    doctors: number;
+    labs: number;
+    pharmacies: number;
+    appointments: number;
+    emergencyAlerts: number;
+    healthRecords: number;
+    subscriptions: number;
+    feedback: number;
+    rewards: number;
+    transactions: number;
+    drones: number;
+    onlineNow: number;
+  };
+  today: {
+    users: number;
+    appointments: number;
+    emergencyAlerts: number;
+    healthRecords: number;
+    feedback: number;
+    transactions: number;
+    rewards: number;
+    drones: number;
+  };
+  trend: TrendPoint[];
+  recent: { type: string; message: string; time: string }[];
+  rates: {
+    appointmentConfirmation: number;
+    doctorAvailability: number;
+    verifiedHospitals: number;
+    alertResolution: number;
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -36,7 +134,8 @@ export default function AdminDashboard() {
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [bedData, setBedData]         = useState<{ name: string; available: number; occupied: number; icu: number }[]>([]);
-  const [serverLoad, setServerLoad]   = useState<{ time: string; load: number }[]>([]);
+  const [overview, setOverview]       = useState<Overview | null>(null);
+  const [trend, setTrend]             = useState<TrendPoint[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   /* ---------------------------------------------------------------- */
@@ -60,12 +159,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetch('/api/beds')
       .then(r => r.json())
-      .then((data: BedStat[]) => {
-        const formatted = data.map(h => ({
-          name:      h.id.split('_')[0].slice(0, 10),
+      .then((data: { hospitals: BedStat[] }) => {
+        const formatted = (data.hospitals || []).map(h => ({
+          name:      h.name,
           available: h.beds.available,
           occupied:  h.beds.occupied,
-          icu:       h.beds.icuAvailable,
+          icu:       h.beds.icu.available,
         }));
         setBedData(formatted.slice(0, 8));
       })
@@ -73,27 +172,17 @@ export default function AdminDashboard() {
   }, []);
 
   /* ---------------------------------------------------------------- */
-  /*  Simulated real-time server-load chart                            */
+  /*  Fetch real overview stats from database                          */
   /* ---------------------------------------------------------------- */
   useEffect(() => {
-    const initial = Array.from({ length: 20 }, (_, i) => ({
-      time: new Date(Date.now() - (20 - i) * 2000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      load: 35 + Math.random() * 40,
-    }));
-    setServerLoad(initial);
-
-    const interval = setInterval(() => {
-      setServerLoad(prev => {
-        const updated = [...prev, {
-          time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          load: 35 + Math.random() * 40,
-        }];
-        if (updated.length > 20) updated.shift();
-        return updated;
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
+    fetch('/api/admin/overview')
+      .then(r => r.json())
+      .then((data: Overview) => {
+        setOverview(data);
+        setTrend(data.trend || []);
+        setActiveCount(data.counts.onlineNow ?? 0);
+      })
+      .catch(() => {});
   }, []);
 
   /* ---------------------------------------------------------------- */
@@ -110,7 +199,7 @@ export default function AdminDashboard() {
   /* ---------------------------------------------------------------- */
   return (
     <RoleGuard
-      allow={['admin', 'owner']}
+      allow={['admin']}
       title="Admin access required"
       description="Please sign in with an admin account to view the command center."
     >
@@ -180,7 +269,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[
             {
-              label: 'Active Users Online',
+              label: 'Users Online',
               value: activeCount.toLocaleString(),
               icon: FiUsers,
               color: 'text-blue-400',
@@ -188,27 +277,27 @@ export default function AdminDashboard() {
               live: true,
             },
             {
-              label: 'Avg Server Load',
-              value: `${Math.round(serverLoad[serverLoad.length - 1]?.load ?? 42)}%`,
-              icon: FiServer,
-              color: 'text-purple-400',
-              bg: 'bg-purple-500/10',
-              live: true,
+              label: 'Registered Users',
+              value: (overview?.counts.users ?? 0).toLocaleString(),
+              icon: FiUser,
+              color: 'text-sky-400',
+              bg: 'bg-sky-500/10',
+              live: false,
             },
             {
-              label: 'API Health',
-              value: '99.99%',
-              icon: FiActivity,
+              label: 'Hospitals',
+              value: (overview?.counts.hospitals ?? 0).toLocaleString(),
+              icon: FiHome,
               color: 'text-emerald-400',
               bg: 'bg-emerald-500/10',
               live: false,
             },
             {
-              label: 'Security Incidents',
-              value: '0',
-              icon: FiShield,
-              color: 'text-indigo-400',
-              bg: 'bg-indigo-500/10',
+              label: 'Emergency Alerts',
+              value: (overview?.counts.emergencyAlerts ?? 0).toLocaleString(),
+              icon: FiAlertTriangle,
+              color: 'text-red-400',
+              bg: 'bg-red-500/10',
               live: false,
             },
           ].map((stat, idx) => (
@@ -247,25 +336,11 @@ export default function AdminDashboard() {
           >
             <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
               <FiActivity className="text-blue-400" aria-hidden="true" />
-              Live Request Load (req/s)
+              New Users &amp; Appointments (Last 7 Days)
             </h2>
             <div className="h-64">
               <ClientOnly>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <AreaChart data={serverLoad}>
-                    <defs>
-                      <linearGradient id="colorLoad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}   />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff1a" vertical={false} />
-                    <XAxis dataKey="time" stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 10 }} />
-                    <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} domain={[0, 100]} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #3b82f650', borderRadius: '12px', color: '#fff' }} />
-                    <Area type="monotone" dataKey="load" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorLoad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <LazyLoadAreaChart data={trend} />
               </ClientOnly>
             </div>
           </motion.div>
@@ -282,19 +357,7 @@ export default function AdminDashboard() {
             </h2>
             <div className="h-64">
               <ClientOnly>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <BarChart data={bedData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff1a" vertical={false} />
-                    <XAxis dataKey="name" stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                    <YAxis stroke="#ffffff50" tick={{ fill: '#ffffff50', fontSize: 12 }} />
-                    <Tooltip
-                      cursor={{ fill: '#ffffff10' }}
-                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #10b98150', borderRadius: '12px', color: '#fff' }}
-                    />
-                    <Bar dataKey="available" fill="#10b981" radius={[4, 4, 0, 0]} name="Free Beds" />
-                    <Bar dataKey="occupied"  fill="#ef4444" radius={[4, 4, 0, 0]} name="Occupied"  />
-                  </BarChart>
-                </ResponsiveContainer>
+                <LazyBedBarChart data={bedData} />
               </ClientOnly>
             </div>
           </motion.div>
@@ -333,7 +396,7 @@ export default function AdminDashboard() {
                     <th className="pb-3 text-gray-400 font-semibold uppercase text-xs tracking-wider">User</th>
                     <th className="pb-3 text-gray-400 font-semibold uppercase text-xs tracking-wider">Email</th>
                     <th className="pb-3 text-gray-400 font-semibold uppercase text-xs tracking-wider">
-                      <FiMapPin className="inline mr-1" size={11} />Current Page
+                      <FiMapPin className="inline mr-1" size={11} />Device / IP
                     </th>
                     <th className="pb-3 text-gray-400 font-semibold uppercase text-xs tracking-wider">Last Seen</th>
                   </tr>
@@ -360,7 +423,7 @@ export default function AdminDashboard() {
                         <td className="py-3 pr-4 text-gray-400">{u.email || '—'}</td>
                         <td className="py-3 pr-4">
                           <span className="bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2 py-0.5 rounded-lg text-xs font-mono">
-                            {u.page}
+                            {u.device || 'web'} · {u.ipAddress || '—'}
                           </span>
                         </td>
                         <td className="py-3 text-gray-500 text-xs">
@@ -382,43 +445,24 @@ export default function AdminDashboard() {
           className="p-6 rounded-3xl border border-white/5 bg-slate-900/40 backdrop-blur-2xl shadow-2xl"
         >
           <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
-            <FiShield className="text-indigo-400" aria-hidden="true" />
-            Live AI Insights &amp; System Events
+            <FiActivity className="text-indigo-400" aria-hidden="true" />
+            Recent Activity (Live from Database)
           </h2>
           <div className="space-y-4">
-            {[
-              {
-                time: 'Just now',
-                msg: 'AI detected abnormal spike in respiratory queries from Delhi region. Predictive model alerted local tier-1 hospitals.',
-                icon: FiAlertTriangle,
-                color: 'text-amber-400',
-                bg: 'bg-amber-500/10 border-amber-500/20',
-              },
-              {
-                time: '2 mins ago',
-                msg: 'System scale-up triggered automatically due to +15% traffic deviation. Spun up 3 additional Edge functions.',
-                icon: FiCheckCircle,
-                color: 'text-emerald-400',
-                bg: 'bg-emerald-500/10 border-emerald-500/20',
-              },
-              {
-                time: '5 mins ago',
-                msg: 'Overpass API fetched 145 new hospital capacity updates successfully. Database synchronised.',
-                icon: FiCheckCircle,
-                color: 'text-emerald-400',
-                bg: 'bg-emerald-500/10 border-emerald-500/20',
-              },
-            ].map((log, idx) => (
-              <div key={idx} className={`flex items-start gap-4 p-4 rounded-xl border ${log.bg} backdrop-blur-md`}>
-                <div className={`p-2 rounded-lg ${log.color} bg-black/20 flex-shrink-0`}>
-                  <log.icon size={20} aria-hidden="true" />
+            {(overview?.recent?.length ? overview.recent : []).map((log, idx) => (
+              <div key={idx} className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+                <div className={`p-2 rounded-lg ${log.type === 'user' ? 'text-blue-400' : log.type === 'appointment' ? 'text-emerald-400' : 'text-amber-400'} bg-black/20 flex-shrink-0`}>
+                  {log.type === 'user' ? <FiUser size={20} aria-hidden="true" /> : log.type === 'appointment' ? <FiCheckCircle size={20} aria-hidden="true" /> : <FiStar size={20} aria-hidden="true" />}
                 </div>
                 <div>
-                  <p className="text-white text-sm font-medium leading-relaxed">{log.msg}</p>
-                  <p className="text-gray-400 text-xs font-semibold mt-1">{log.time}</p>
+                  <p className="text-white text-sm font-medium leading-relaxed">{log.message}</p>
+                  <p className="text-gray-400 text-xs font-semibold mt-1">{new Date(log.time).toLocaleString('en-IN')}</p>
                 </div>
               </div>
             ))}
+            {!overview?.recent?.length && (
+              <p className="text-gray-500 text-sm py-8 text-center">No recent activity yet.</p>
+            )}
           </div>
         </motion.div>
       </div>

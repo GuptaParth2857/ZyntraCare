@@ -34,13 +34,18 @@ export function useActiveUserHeartbeat() {
 
   useEffect(() => {
     const sid = sessionIdRef.current;
-    if (!sid || status === 'loading') return;
+    const userId = (session?.user as any)?.id;
+    // Session rows require a linked user — guests are not tracked.
+    if (!sid || status === 'loading' || !userId) return;
+
+    const device =
+      /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
 
     const payload = {
       sessionId: sid,
-      name:  session?.user?.name  || 'Anonymous',
-      email: session?.user?.email || '',
-      page:  pathname,
+      userId,
+      device,
+      ipAddress: '',
     };
 
     const beat = () =>
@@ -67,5 +72,5 @@ export function useActiveUserHeartbeat() {
       clearInterval(timer);
       window.removeEventListener('beforeunload', onUnload);
     };
-  }, [session, pathname]);
+  }, [session, pathname, status]);
 }

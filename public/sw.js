@@ -1,8 +1,8 @@
-const CACHE_NAME = 'zyntracare-v3';
-const STATIC_CACHE = 'zyntracare-static-v3';
-const DYNAMIC_CACHE = 'zyntracare-dynamic-v3';
-const MAP_TILE_CACHE = 'zyntracare-map-tiles-v3';
-const API_CACHE = 'zyntracare-api-v3';
+const CACHE_NAME = 'zyntracare-v4';
+const STATIC_CACHE = 'zyntracare-static-v4';
+const DYNAMIC_CACHE = 'zyntracare-dynamic-v4';
+const MAP_TILE_CACHE = 'zyntracare-map-tiles-v4';
+const API_CACHE = 'zyntracare-api-v4';
 
 const STATIC_ASSETS = [
   '/',
@@ -64,6 +64,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (request.method !== 'GET') {
+    event.respondWith(fetch(request).catch(() => new Response('', { status: 503 })));
+    return;
+  }
+
+  // Never cache auth endpoints — sessions must always come fresh from the
+  // network. Caching/offline-fallback here returns stale or 503 JSON, which
+  // makes next-auth throw ClientFetchError intermittently.
+  const isAuthApi = url.pathname.startsWith('/api/auth/');
+  if (isAuthApi) {
     event.respondWith(fetch(request).catch(() => new Response('', { status: 503 })));
     return;
   }

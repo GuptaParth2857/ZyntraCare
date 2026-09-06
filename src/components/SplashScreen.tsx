@@ -13,11 +13,23 @@ const LOADING_STEPS = [
 ];
 
 export default function SplashScreen() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState<boolean | null>(null);
   const [progress, setProgress] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
+    // Show the splash animation only once per session. Returning visitors
+    // (and client-side navigations) get an instant page — no blocking overlay.
+    // The full animation remains for the very first visit of each session.
+    let firstVisit = true;
+    try {
+      firstVisit = sessionStorage.getItem('zyntra_splash_seen') !== '1';
+      if (firstVisit) sessionStorage.setItem('zyntra_splash_seen', '1');
+    } catch { /* storage unavailable */ }
+    setShowSplash(firstVisit);
+
+    if (!firstVisit) return;
+
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) return 100;
@@ -49,6 +61,7 @@ export default function SplashScreen() {
     };
   }, []);
 
+  if (showSplash === null) return null;
   if (!showSplash) return null;
 
   return (

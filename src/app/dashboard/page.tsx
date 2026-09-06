@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiMessageCircle, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight, FiZap, FiLoader } from 'react-icons/fi';
+import { useSearchParams } from 'next/navigation';
+import { FiUser, FiCalendar, FiFileText, FiActivity, FiClock, FiPlus, FiVideo, FiCheck, FiTrendingUp, FiServer, FiStar, FiMapPin, FiChevronRight, FiZap, FiLoader, FiAlertCircle, FiX } from 'react-icons/fi';
 import { FaStethoscope, FaPills, FaNotesMedical, FaHeartbeat } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import PremiumGuard from '@/components/PremiumGuard';
@@ -48,7 +49,7 @@ const LazyLineChart = dynamic(
       );
     };
   }),
-  { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold uppercase tracking-widest text-xs">Loading AI Models...</p></div> }
+  { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold uppercase tracking-widest text-xs">Loading chart...</p></div> }
 );
 
 const TABS = [
@@ -61,38 +62,90 @@ const TABS = [
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
-  const [activeTab, setActiveTab] = useState('appointments');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'appointments');
   const [predictions, setPredictions] = useState<number[]>([]);
   const [bedStats, setBedStats] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
+  const [currentRecord, setCurrentRecord] = useState<any>(null);
+  const [vitals, setVitals] = useState({ bp: '', hr: null as number | null, spo2: null as number | null, bmi: null as number | null });
   const [loadingAppointments, setLoadingAppointments] = useState(true);
   const [loadingRecords, setLoadingRecords] = useState(true);
+  const [loadingVitals, setLoadingVitals] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedApt, setSelectedApt] = useState<any>(null);
+  const [recordView, setRecordView] = useState<any>(null);
+  const [recordFormOpen, setRecordFormOpen] = useState(false);
+  const [savingRecord, setSavingRecord] = useState(false);
+  const [formData, setFormData] = useState({
+    bloodType: '',
+    allergies: '',
+    medicalHistory: '',
+    emergencyContact: '',
+    emergencyContactPhone: '',
+    dateOfBirth: '',
+    gender: '',
+  });
 
   const handleTabChange = useCallback((tabId: string) => setActiveTab(tabId), []);
 
-  const isPremium = (session?.user as any)?.isPremium || false;
   const isLoggedIn = status === 'authenticated';
+  const userId = isLoggedIn ? ((session?.user as any)?.id as string) || '' : '';
+  const subscription = isLoggedIn ? (session?.user as any)?.subscription : null;
+  const isPremium = !!subscription && subscription.status === 'active' && ['Premium Monthly', 'Premium Yearly'].includes(subscription.plan);
   const userName = isLoggedIn ? (session?.user?.name || 'User') : 'Guest User';
   const userEmail = session?.user?.email || '';
+
+  const fetchRecords = useCallback(async (signal?: AbortSignal) => {
+    if (!isLoggedIn || !userId) {
+      setLoadingRecords(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/patient-records?userId=${userId}`, { signal });
+      const data = await res.json();
+      const rec = data.record || null;
+      setCurrentRecord(rec);
+      setRecords(rec
+        ? [{
+            id: rec.id,
+            title: 'Health Profile',
+            date: rec.updatedAt ? new Date(rec.updatedAt).toLocaleDateString() : '',
+            hospital: 'ZyntraCare Records',
+            type: 'report',
+          }]
+        : []);
+    } catch {
+      // ignore fetch errors, honest empty state shown
+    } finally {
+      setLoadingRecords(false);
+    }
+  }, [isLoggedIn, userId]);
 
   useEffect(() => {
     const controller = new AbortController();
     
     fetch('/api/predict-flow', { signal: controller.signal })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load flow predictions');
+        return res.json();
+      })
       .then(data => { if (Array.isArray(data)) setPredictions(data); })
-      .catch(() => {});
+      .catch(() => setError('Some dashboard widgets couldn’t load. Showing cached data.'));
 
     fetch('/api/beds?limit=5', { signal: controller.signal })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load bed availability');
+        return res.json();
+      })
       .then(data => { 
         if (data.hospitals) setBedStats(data.hospitals); 
       })
-      .catch(() => {});
+      .catch(() => setError('Some dashboard widgets couldn’t load. Showing cached data.'));
 
     if (isLoggedIn) {
-      fetch('/api/bookings', { signal: controller.signal })
+      fetch(`/api/bookings?userId=${userId}&limit=20`, { signal: controller.signal })
         .then(res => res.json())
         .then(data => {
           if (data.bookings) {
@@ -102,37 +155,77 @@ export default function DashboardPage() {
               specialty: b.specialty || b.doctor?.specialty || 'General',
               hospital: b.hospitalName || b.hospital?.name || '',
               date: b.date ? new Date(b.date).toLocaleDateString() : '',
+              dateISO: b.date ? String(b.date).slice(0, 10) : '',
               time: b.time || '',
-              status: b.status || 'Upcoming',
-              type: b.type || 'In-Person',
+              status: b.status === 'confirmed' ? 'Upcoming' : b.status === 'completed' ? 'Completed' : b.status === 'cancelled' ? 'Cancelled' : b.status || 'Upcoming',
+              type: b.isOnline || b.appointmentType?.toLowerCase().includes('video') ? 'Teleconsult' : 'In-Person',
+              notes: b.notes || '',
             })));
           }
         })
         .catch(() => {})
         .finally(() => setLoadingAppointments(false));
 
-      fetch('/api/patient-records?limit=5', { signal: controller.signal })
+      fetchRecords(controller.signal);
+
+      setLoadingVitals(true);
+      fetch('/api/health-metrics', { signal: controller.signal })
         .then(res => res.json())
         .then(data => {
-          if (data.records) {
-            setRecords(data.records.map((r: any) => ({
-              id: r.id,
-              title: r.title || r.type || 'Medical Record',
-              date: r.date ? new Date(r.date).toLocaleDateString() : '',
-              hospital: r.hospitalName || '',
-              type: r.recordType || 'report',
-            })));
+          const metrics = data.metrics || [];
+          if (metrics.length > 0) {
+            const latest = metrics[metrics.length - 1];
+            setVitals({
+              bp: latest.bloodPressure || '',
+              hr: latest.heartRate ?? null,
+              spo2: latest.oxygenLevel ?? null,
+              bmi: latest.weight && latest.height
+                ? Number((latest.weight / Math.pow(latest.height / 100, 2)).toFixed(1))
+                : null,
+            });
+          } else {
+            setVitals({ bp: '', hr: null, spo2: null, bmi: null });
           }
         })
         .catch(() => {})
-        .finally(() => setLoadingRecords(false));
+        .finally(() => setLoadingVitals(false));
     } else {
       setLoadingAppointments(false);
       setLoadingRecords(false);
+      setLoadingVitals(false);
     }
 
     return () => controller.abort();
-  }, [isLoggedIn]);
+  }, [isLoggedIn, userId, fetchRecords]);
+
+  const handleSaveRecord = async () => {
+    if (!userId) return;
+    setSavingRecord(true);
+    setError('');
+    try {
+      const res = await fetch('/api/patient-records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...formData }),
+      });
+      if (!res.ok) throw new Error('Failed to save profile');
+      setRecordFormOpen(false);
+      await fetchRecords();
+    } catch {
+      setError('Failed to save health profile. Please try again.');
+    } finally {
+      setSavingRecord(false);
+    }
+  };
+
+  const recordFields: { label: string; value: string }[] = currentRecord && [
+    { label: 'Blood Type', value: currentRecord.bloodType || '—' },
+    { label: 'Date of Birth', value: currentRecord.dateOfBirth || '—' },
+    { label: 'Gender', value: currentRecord.gender || '—' },
+    { label: 'Allergies', value: currentRecord.allergies || '—' },
+    { label: 'Medical History', value: currentRecord.medicalHistory || '—' },
+    { label: 'Emergency Contact', value: currentRecord.emergencyContact ? `${currentRecord.emergencyContact}${currentRecord.emergencyContactPhone ? ` (${currentRecord.emergencyContactPhone})` : ''}` : '—' },
+  ];
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-x-hidden font-inter pb-32 text-white">
@@ -250,6 +343,14 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
+          {error && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+              <FiAlertCircle className="text-amber-400 flex-shrink-0" />
+              <p className="text-amber-400/90 text-sm font-medium">{error}</p>
+              <button onClick={() => setError('')} className="ml-auto text-amber-400 hover:text-amber-300"><FiX /></button>
+            </motion.div>
+          )}
+
         <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar relative z-10">
             {[
               { icon: <FiVideo />, label: 'Fast Teleconsult', href: '/teleconsult', bg: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/20' },
@@ -342,15 +443,21 @@ export default function DashboardPage() {
                       </div>
                       {apt.status === 'Upcoming' ? (
                         <div className="flex gap-4">
-                          <button className="flex-[2] bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
-                            {apt.type === 'Teleconsult' ? <><FiVideo /> Join Room</> : <><FiMapPin /> Directions</>}
-                          </button>
-                          <button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
-                            <FiMessageCircle size={18} /> Chat
+                          {apt.type === 'Teleconsult' ? (
+                            <Link href={`/teleconsult?appt=${apt.id}`} className="flex-[2] bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                              <FiVideo /> Join Room
+                            </Link>
+                          ) : (
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(apt.hospital || 'nearby hospitals')}`} target="_blank" rel="noopener noreferrer" className="flex-[2] bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                              <FiMapPin /> Directions
+                            </a>
+                          )}
+                          <button onClick={() => setSelectedApt(apt)} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2">
+                            <FiFileText size={18} /> Details
                           </button>
                         </div>
                       ) : (
-                        <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all">
+                        <button onClick={() => setSelectedApt(apt)} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white py-4 rounded-2xl font-bold transition-all">
                           View Summary
                         </button>
                       )}
@@ -363,10 +470,10 @@ export default function DashboardPage() {
             {activeTab === 'health' && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { label: 'Blood Pressure', val: '--/--', unit: 'mmHg', color: 'from-rose-500 to-red-600', shadow: 'shadow-rose-500/30' },
-                  { label: 'Heart Rate', val: '--', unit: 'BPM', color: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/30' },
-                  { label: 'Blood Oxygen', val: '--', unit: '% SpO2', color: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/30' },
-                  { label: 'BMI Index', val: '--', unit: 'kg/m²', color: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/30' },
+                  { label: 'Blood Pressure', val: vitals.bp || '--', unit: 'mmHg', color: 'from-rose-500 to-red-600', shadow: 'shadow-rose-500/30', hint: !isLoggedIn ? 'Sign in to view vitals' : vitals.bp ? 'Latest reading' : 'Log via Health Tracker' },
+                  { label: 'Heart Rate', val: vitals.hr != null ? String(vitals.hr) : '--', unit: 'BPM', color: 'from-orange-500 to-amber-600', shadow: 'shadow-orange-500/30', hint: !isLoggedIn ? 'Sign in to view vitals' : vitals.hr != null ? 'Latest reading' : 'Log via Health Tracker' },
+                  { label: 'Blood Oxygen', val: vitals.spo2 != null ? String(vitals.spo2) : '--', unit: '% SpO2', color: 'from-sky-500 to-blue-600', shadow: 'shadow-sky-500/30', hint: !isLoggedIn ? 'Sign in to view vitals' : vitals.spo2 != null ? 'Latest reading' : 'Log via Health Tracker' },
+                  { label: 'BMI Index', val: vitals.bmi != null ? String(vitals.bmi) : '--', unit: 'kg/m²', color: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-500/30', hint: !isLoggedIn ? 'Sign in to view vitals' : vitals.bmi != null ? 'Latest reading' : 'Log via Health Tracker' },
                 ].map((metric, i) => (
                   <div key={i} className={`bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 lg:p-8 relative overflow-hidden group hover:bg-white/[0.04] transition-colors`}>
                     <div className={`absolute -right-10 -top-10 w-32 h-32 bg-gradient-to-br ${metric.color} rounded-full blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity`} />
@@ -375,10 +482,14 @@ export default function DashboardPage() {
                     </div>
                     <p className="text-white/40 text-xs font-black uppercase tracking-widest mb-1">{metric.label}</p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-3xl lg:text-4xl font-black text-white">{metric.val}</span>
+                      {loadingVitals ? (
+                        <span className="text-white/40 text-3xl lg:text-4xl font-black"><FiLoader className="animate-spin inline" size={28} /></span>
+                      ) : (
+                        <span className="text-3xl lg:text-4xl font-black text-white">{metric.val}</span>
+                      )}
                       <span className="text-white/40 font-bold text-sm tracking-wide">{metric.unit}</span>
                     </div>
-                    <p className="text-white/20 text-xs mt-2">Connect a wearable to track</p>
+                    <p className="text-white/20 text-xs mt-2">{metric.hint}</p>
                   </div>
                 ))}
               </div>
@@ -392,14 +503,20 @@ export default function DashboardPage() {
                       <div className="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-2xl flex items-center justify-center border border-sky-500/20"><FiTrendingUp size={24}/></div>
                       <div>
                         <h3 className="font-black text-white text-xl">Hospital Visit Forecaster</h3>
-                        <p className="text-white/40 text-xs font-bold tracking-widest uppercase">Live AI Predictions</p>
+                        <p className="text-white/40 text-xs font-bold tracking-widest uppercase">Based on live hospital footfall reports</p>
                       </div>
                     </div>
                   </div>
                   <div className="h-[350px] w-full">
                     {predictions.length > 0 ? (
                       <ClientOnly><LazyLineChart data={predictions.map((val, hr) => ({ hour: hr, count: val }))} /></ClientOnly>
-                    ) : <div className="w-full h-full flex items-center justify-center"><p className="text-white/40 font-bold">Querying AI Model...</p></div>}
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+                        <FiTrendingUp className="text-white/20" size={40} />
+                        <p className="text-white/40 font-bold">No hospital visit data available yet</p>
+                        <p className="text-white/20 text-xs max-w-sm">Forecasts appear here once hospital footfall reports are recorded in the system.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -453,19 +570,19 @@ export default function DashboardPage() {
                   ) : records.length === 0 ? (
                     <div className="col-span-full text-center py-12 bg-white/[0.02] border border-white/10 rounded-[2rem]">
                       <FiFileText className="mx-auto text-gray-600 mb-4" size={48} />
-                      <p className="text-gray-400 mb-4">No medical records yet</p>
-                      <p className="text-white/20 text-sm">Records from consultations will appear here</p>
+                      <p className="text-gray-400 mb-4">No health profile yet</p>
+                      <p className="text-white/20 text-sm">Add your blood type, allergies &amp; emergency contact to get started</p>
                     </div>
                   ) : (
                     records.map((rec, i) => (
-                      <div key={rec.id || i} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 rounded-[2rem] p-6 md:p-8 group transition-all relative overflow-hidden cursor-pointer hover:bg-white/[0.04]">
+                      <div key={rec.id || i} onClick={() => setRecordView(currentRecord)} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 hover:border-emerald-500/30 rounded-[2rem] p-6 md:p-8 group transition-all relative overflow-hidden cursor-pointer hover:bg-white/[0.04]">
                         <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform">
                           {rec.type === 'report' ? <FaNotesMedical size={24} /> : <FaPills size={24} />}
                         </div>
                         <h3 className="font-black text-white text-lg mb-2">{rec.title}</h3>
                         <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-6">{rec.hospital} • {rec.date}</p>
-                        <button className="text-emerald-400 text-sm font-black uppercase tracking-wide flex items-center gap-2 group-hover:text-emerald-300 transition-colors">
+                        <button onClick={() => setRecordView(currentRecord)} className="text-emerald-400 text-sm font-black uppercase tracking-wide flex items-center gap-2 group-hover:text-emerald-300 transition-colors">
                           View Document <FiChevronRight />
                         </button>
                       </div>
@@ -473,11 +590,20 @@ export default function DashboardPage() {
                   )}
                   
                   {isLoggedIn && (
-                    <div className="bg-white/[0.01] backdrop-blur-xl border-2 border-dashed border-white/10 hover:border-sky-500/50 rounded-[2rem] p-8 flex flex-col items-center justify-center min-h-[250px] cursor-pointer transition-colors group hover:bg-sky-500/5">
+                    <div onClick={() => { setFormData({
+                      bloodType: currentRecord?.bloodType || '',
+                      allergies: currentRecord?.allergies || '',
+                      medicalHistory: currentRecord?.medicalHistory || '',
+                      emergencyContact: currentRecord?.emergencyContact || '',
+                      emergencyContactPhone: currentRecord?.emergencyContactPhone || '',
+                      dateOfBirth: currentRecord?.dateOfBirth || '',
+                      gender: currentRecord?.gender || '',
+                    }); setRecordFormOpen(true); }}
+                      className="bg-white/[0.01] backdrop-blur-xl border-2 border-dashed border-white/10 hover:border-sky-500/50 rounded-[2rem] p-8 flex flex-col items-center justify-center min-h-[250px] cursor-pointer transition-colors group hover:bg-sky-500/5">
                       <div className="w-16 h-16 bg-white/5 text-white/50 group-hover:bg-sky-500/20 group-hover:text-sky-400 rounded-full flex items-center justify-center mb-4 transition-colors">
                         <FiPlus size={32} />
                       </div>
-                      <span className="font-black text-white/50 group-hover:text-white uppercase tracking-widest text-sm transition-colors">Upload Record</span>
+                      <span className="font-black text-white/50 group-hover:text-white uppercase tracking-widest text-sm transition-colors">{currentRecord ? 'Edit Profile' : 'Upload Record'}</span>
                     </div>
                   )}
                 </div>
@@ -486,6 +612,117 @@ export default function DashboardPage() {
             
           </motion.div>
         </AnimatePresence>
+
+        {selectedApt && (
+          <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedApt(null)}>
+            <div className="bg-slate-900/95 border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-md relative" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setSelectedApt(null)} className="absolute top-4 right-4 text-white/40 hover:text-white"><FiX /></button>
+              <h3 className="text-white font-black text-xl mb-4 flex items-center gap-2"><FiCalendar className="text-sky-400" /> Appointment Details</h3>
+              <div className="space-y-3 text-sm">
+                {[
+                  { label: 'Doctor', value: selectedApt.doctor },
+                  { label: 'Specialty', value: selectedApt.specialty },
+                  { label: 'Hospital', value: selectedApt.hospital || '—' },
+                  { label: 'Date', value: selectedApt.date || '—' },
+                  { label: 'Time', value: selectedApt.time || '—' },
+                  { label: 'Type', value: selectedApt.type },
+                  { label: 'Status', value: selectedApt.status },
+                ].map((row) => (
+                  <div key={row.label} className="flex justify-between items-start gap-4 bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
+                    <span className="text-white/40 font-bold uppercase tracking-widest text-[10px]">{row.label}</span>
+                    <span className="text-white font-bold text-right">{row.value}</span>
+                  </div>
+                ))}
+                {selectedApt.notes && (
+                  <div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
+                    <p className="text-white/40 font-bold uppercase tracking-widest text-[10px] mb-1">Notes / Symptoms</p>
+                    <p className="text-white text-sm">{selectedApt.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {recordView && (
+          <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setRecordView(null)}>
+            <div className="bg-slate-900/95 border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-md relative" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setRecordView(null)} className="absolute top-4 right-4 text-white/40 hover:text-white"><FiX /></button>
+              <h3 className="text-white font-black text-xl mb-6 flex items-center gap-2"><FiFileText className="text-emerald-400" /> Health Profile</h3>
+              <div className="space-y-3 text-sm">
+                {recordFields.map((row) => (
+                  <div key={row.label} className="flex justify-between items-start gap-4 bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
+                    <span className="text-white/40 font-bold uppercase tracking-widest text-[10px]">{row.label}</span>
+                    <span className="text-white font-bold text-right">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => { setFormData({
+                bloodType: currentRecord?.bloodType || '',
+                allergies: currentRecord?.allergies || '',
+                medicalHistory: currentRecord?.medicalHistory || '',
+                emergencyContact: currentRecord?.emergencyContact || '',
+                emergencyContactPhone: currentRecord?.emergencyContactPhone || '',
+                dateOfBirth: currentRecord?.dateOfBirth || '',
+                gender: currentRecord?.gender || '',
+              }); setRecordView(null); setRecordFormOpen(true); }}
+                className="mt-6 w-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 py-3 rounded-xl font-bold text-sm transition">
+                Edit Profile
+              </button>
+            </div>
+          </div>
+        )}
+
+        {recordFormOpen && (
+          <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={() => setRecordFormOpen(false)}>
+            <div className="bg-slate-900/95 border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-lg my-8 relative" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setRecordFormOpen(false)} className="absolute top-4 right-4 text-white/40 hover:text-white"><FiX /></button>
+              <h3 className="text-white font-black text-xl mb-1"><FiFileText className="inline text-emerald-400 mr-2" /> Health Profile</h3>
+              <p className="text-white/40 text-xs mb-6">This powers your dashboard records and emergency contacts.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Blood Type</span>
+                  <select value={formData.bloodType} onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })} className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50">
+                    <option value="">Select</option>
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Gender</span>
+                  <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50">
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Date of Birth</span>
+                  <input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50" />
+                </label>
+                <label className="block">
+                  <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Emergency Contact Name</span>
+                  <input value={formData.emergencyContact} onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })} placeholder="e.g. Mother" className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50" />
+                </label>
+                <label className="block">
+                  <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Emergency Contact Phone</span>
+                  <input value={formData.emergencyContactPhone} onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })} placeholder="10-digit mobile" className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50" />
+                </label>
+              </div>
+              <label className="block mt-4">
+                <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Allergies</span>
+                <input value={formData.allergies} onChange={(e) => setFormData({ ...formData, allergies: e.target.value })} placeholder="e.g. Penicillin, Peanuts" className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50" />
+              </label>
+              <label className="block mt-4">
+                <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Medical History</span>
+                <textarea value={formData.medicalHistory} onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })} placeholder="e.g. Diabetes, Asthma, past surgeries" rows={3} className="mt-1 w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 resize-none" />
+              </label>
+              <button onClick={handleSaveRecord} disabled={savingRecord} className="mt-6 w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white py-4 rounded-2xl font-black text-sm transition flex items-center justify-center gap-2 disabled:opacity-60">
+                {savingRecord ? <><FiLoader className="animate-spin" size={18} /> Saving...</> : <><FiCheck size={18} /> Save Profile</>}
+              </button>
+            </div>
+          </div>
+        )}
         
       </div>
       

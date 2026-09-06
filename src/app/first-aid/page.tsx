@@ -76,7 +76,7 @@ const FIRST_AID_GUIDES: FirstAidGuide[] = [
     severity: 'emergency',
     steps: [
       { step: 1, title: 'Check Response', description: 'Tap shoulders and shout "Are you okay?" Check for normal breathing.' },
-      { step: 2, title: 'Call Emergency', description: 'Call 102 or ask someone to call. Get AED if available.' },
+      { step: 2, title: 'Call Emergency', description: 'Call 112 (national emergency) or 108 (ambulance), or ask someone to call. Get AED if available.' },
       { step: 3, title: 'Position', description: 'Place person on back on firm surface. Kneel beside chest.' },
       { step: 4, title: 'Chest Compressions', description: 'Place hands on center of chest, compress 2 inches deep, 100-120 per minute.' },
       { step: 5, title: 'Rescue Breaths (Optional)', description: 'For trained: Give 2 breaths after every 30 compressions. Continue until help arrives.' },
@@ -192,6 +192,12 @@ export default function FirstAidPage() {
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Step-by-step emergency first aid instructions for common medical situations.
           </p>
+          <div className="mt-6 max-w-2xl mx-auto bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3 text-left">
+            <FiAlertCircle className="text-red-400 shrink-0" size={20} />
+            <p className="text-sm text-gray-300">
+              <span className="text-red-300 font-bold">In an emergency</span>, call <span className="text-white font-bold">112</span> (national emergency) or <span className="text-white font-bold">108</span> (ambulance) immediately. This guide is educational reference only and not a substitute for professional medical care.
+            </p>
+          </div>
         </motion.div>
 
         {!selectedGuide ? (
@@ -317,6 +323,15 @@ export default function FirstAidPage() {
             </div>
           </motion.div>
         )}
+
+        <div className="mt-16 text-center">
+          <div className="max-w-2xl mx-auto bg-slate-900/60 border border-white/10 rounded-2xl p-6 flex items-start gap-3 text-left">
+            <FiAlertCircle className="text-yellow-400 shrink-0 mt-0.5" size={18} />
+            <p className="text-xs text-gray-400 leading-relaxed">
+              <span className="text-yellow-300 font-bold">Educational only.</span> First-aid information follows widely used standard protocols and is provided for educational purposes. It is not a substitute for professional medical advice, diagnosis, or treatment. In any emergency, call 112 / 108 and follow the instructions of trained medical personnel.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

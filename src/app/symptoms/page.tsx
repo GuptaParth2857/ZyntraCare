@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FiActivity, FiAlertTriangle, FiCheckCircle, FiClock, FiSearch, FiList } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { FaStethoscope, FaHeartbeat, FaLungs, FaBrain, FaBone, FaAllergies } from 'react-icons/fa';
+import { FaStethoscope } from 'react-icons/fa';
 
 interface SymptomResult {
   symptoms: string[];
@@ -16,15 +16,9 @@ interface SymptomResult {
 const COMMON_SYMPTOMS = [
   'Fever', 'Cough', 'Headache', 'Chest pain', 'Stomach pain', 'Fatigue',
   'Joint pain', 'Skin rash', 'Dizziness', 'Nausea', 'Shortness of breath',
-  'Back pain', 'Sore throat', 'Runny nose', 'Eye pain', 'Ear pain'
-];
-
-const BODY_AREAS = [
-  { name: 'Head & Brain', icon: <FaBrain />, symptoms: ['Headache', 'Dizziness', 'Vision changes'] },
-  { name: 'Heart & Chest', icon: <FaHeartbeat />, symptoms: ['Chest pain', 'Palpitations', 'Shortness of breath'] },
-  { name: 'Lungs', icon: <FaLungs />, symptoms: ['Cough', 'Breathing difficulty', 'Wheezing'] },
-  { name: 'Bones & Joints', icon: <FaBone />, symptoms: ['Joint pain', 'Back pain', 'Swelling'] },
-  { name: 'Skin', icon: <FaAllergies />, symptoms: ['Rash', 'Itching', 'Bumps'] },
+  'Back pain', 'Sore throat', 'Runny nose', 'Eye pain', 'Ear pain',
+  'Diarrhea', 'Palpitations', 'Anxiety / Stress', 'Weight change',
+  'Numbness / Tingling', 'Wheezing', 'Vomiting', 'Urinary issues',
 ];
 
 export default function SymptomCheckerPage() {
@@ -32,7 +26,9 @@ export default function SymptomCheckerPage() {
   const [duration, setDuration] = useState('few-days');
   const [severity, setSeverity] = useState('moderate');
   const [result, setResult] = useState<SymptomResult | null>(null);
+  const [source, setSource] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const toggleSymptom = (symptom: string) => {
@@ -46,6 +42,7 @@ export default function SymptomCheckerPage() {
   const handleAnalyze = async () => {
     if (selectedSymptoms.length === 0) return;
     setLoading(true);
+    setError('');
     
     try {
       const res = await fetch('/api/symptoms', {
@@ -60,9 +57,12 @@ export default function SymptomCheckerPage() {
       const data = await res.json();
       if (data.success) {
         setResult(data.result);
+        setSource(data.source || '');
+      } else {
+        setError(data.error || 'Analysis failed. Please try again.');
       }
     } catch (err) {
-      console.error('Error:', err);
+      setError('Network error. Please check your connection and try again.');
     }
     
     setLoading(false);
@@ -139,7 +139,9 @@ export default function SymptomCheckerPage() {
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
-                {filteredSymptoms.map((symptom) => (
+                {filteredSymptoms.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No symptoms match &quot;{searchTerm}&quot;</p>
+                ) : filteredSymptoms.map((symptom) => (
                   <button
                     key={symptom}
                     onClick={() => toggleSymptom(symptom)}
@@ -193,6 +195,12 @@ export default function SymptomCheckerPage() {
                 </div>
               </div>
 
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm mb-4">
+                  {error}
+                </div>
+              )}
+
               <button
                 onClick={handleAnalyze}
                 disabled={loading || selectedSymptoms.length === 0}
@@ -200,6 +208,9 @@ export default function SymptomCheckerPage() {
               >
                 {loading ? 'Analyzing...' : 'Analyze Symptoms'}
               </button>
+              <p className="mt-3 text-[11px] text-slate-500 text-center leading-relaxed">
+                ⚠️ Educational guidance only — not a diagnosis. For severe or persistent symptoms, see a doctor.
+              </p>
             </div>
           </motion.div>
 
@@ -210,6 +221,13 @@ export default function SymptomCheckerPage() {
           >
             {result ? (
               <>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center text-[10px] uppercase tracking-wide text-slate-500 bg-white/5 border border-white/10 rounded-full px-2 py-1">
+                    {source === 'gemini' ? '🤖 AI analysis (Gemini)' : '🧬 Clinical rules analysis'}
+                  </span>
+                  <span className="text-[10px] text-slate-600">Educational only</span>
+                </div>
+
                 <div className={`p-6 rounded-3xl border ${getUrgencyColor(result.urgencyLevel)}`}>
                   <h3 className="text-lg font-bold mb-2">{getUrgencyLabel(result.urgencyLevel)}</h3>
                   {result.urgencyLevel === 'emergency' && (

@@ -3,7 +3,55 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiTrendingUp, FiTrendingDown, FiActivity, FiAlertCircle, FiCalendar, FiUsers, FiHeart, FiThermometer, FiDroplet, FiShield } from 'react-icons/fi';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
+import dynamic from 'next/dynamic';
+
+const LazyPredictionChart = dynamic(
+  () => import('recharts').then(mod => {
+    const { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip } = mod;
+    return function PredictionChart({ data }: { data: any[] }) {
+      return (
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="day" stroke="#666" fontSize={12} />
+            <YAxis stroke="#666" fontSize={12} />
+            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #333', borderRadius: '12px' }} labelStyle={{ color: '#fff' }} />
+            <Area type="monotone" dataKey="predicted" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorPred)" name="Predicted" />
+            <Line type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', strokeWidth: 2 }} name="Actual" />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-80 flex items-center justify-center"><div className="animate-spin w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full" /></div> }
+);
+
+const LazyWeeklyBarChart = dynamic(
+  () => import('recharts').then(mod => {
+    const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } = mod;
+    return function WeeklyBarChart({ data }: { data: any[] }) {
+      return (
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="name" stroke="#666" />
+            <YAxis stroke="#666" />
+            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #333', borderRadius: '12px' }} />
+            <Bar dataKey="admissions" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Admissions" />
+            <Bar dataKey="discharges" fill="#10b981" radius={[4, 4, 0, 0]} name="Discharges" />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-70 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full" /></div> }
+);
 
 interface Prediction {
   day: string;
@@ -24,17 +72,23 @@ export default function PredictiveAnalyticsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '14d' | '30d'>('7d');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     setLoading(true);
+    setError('');
     fetch(`/api/predict-flow?range=${timeRange}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load predictions');
+        return res.json();
+      })
       .then(data => {
         setPredictions(data.predictions || []);
         setAlerts(data.alerts || []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err: any) => {
+        setError(err.message || 'Failed to load predictions');
         setLoading(false);
       });
   }, [timeRange]);
@@ -152,6 +206,16 @@ export default function PredictiveAnalyticsPage() {
           </div>
 
           {/* Main Prediction Chart */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+              <FiAlertCircle className="text-red-400 flex-shrink-0" />
+              <div>
+                <p className="text-red-400 text-sm font-bold">Couldn&apos;t load predictions</p>
+                <p className="text-red-400/70 text-xs">{error}</p>
+              </div>
+              <button onClick={() => window.location.reload()} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
@@ -162,39 +226,7 @@ export default function PredictiveAnalyticsPage() {
                   <div className="animate-spin w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full" />
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart data={predictions}>
-                    <defs>
-                      <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                    <XAxis dataKey="day" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{ background: '#1e293b', border: '1px solid #333', borderRadius: '12px' }}
-                      labelStyle={{ color: '#fff' }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="predicted"
-                      stroke="#8b5cf6"
-                      fillOpacity={1}
-                      fill="url(#colorPred)"
-                      name="Predicted"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="actual"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      dot={{ fill: '#10b981', strokeWidth: 2 }}
-                      name="Actual"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <LazyPredictionChart data={predictions} />
               )}
               <div className="flex gap-4 mt-4 text-sm">
                 <div className="flex items-center gap-2">
@@ -258,18 +290,7 @@ export default function PredictiveAnalyticsPage() {
           {/* Weekly Comparison */}
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
             <h3 className="font-bold text-lg mb-4">Weekly Admissions vs Discharges</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={sampleData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip
-                  contentStyle={{ background: '#1e293b', border: '1px solid #333', borderRadius: '12px' }}
-                />
-                <Bar dataKey="admissions" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Admissions" />
-                <Bar dataKey="discharges" fill="#10b981" radius={[4, 4, 0, 0]} name="Discharges" />
-              </BarChart>
-            </ResponsiveContainer>
+            <LazyWeeklyBarChart data={sampleData} />
           </div>
 
           {/* Footer Disclaimer */}

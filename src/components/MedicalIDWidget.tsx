@@ -78,7 +78,7 @@ export default function MedicalIDWidget() {
     if (medicalInfo.name && medicalInfo.bloodType) {
       generateQR(medicalInfo);
     }
-  }, [medicalInfo.name, medicalInfo.bloodType, medicalInfo.allergies, medicalInfo.conditions, medicalInfo.emergencyPhone, medicalInfo.organDonor]);
+  }, [medicalInfo, generateQR]);
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(medicalInfo));

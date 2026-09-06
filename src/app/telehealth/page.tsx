@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toArray } from '@/lib/utils';
 import { FiVideo, FiMic, FiMonitor, FiPhone, FiClock, FiUser, FiCalendar, FiMapPin, FiWifi, FiSmartphone, FiNavigation } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -31,14 +31,6 @@ export default function TelehealthPage() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
 
-  useEffect(() => {
-    getUserLocation();
-  }, []);
-
-  useEffect(() => {
-    loadConsultations();
-  }, [selectedSpecialty, showRural, userLocation]);
-
   const getUserLocation = () => {
     setLocationLoading(true);
     if (navigator.geolocation) {
@@ -62,7 +54,7 @@ export default function TelehealthPage() {
     }
   };
 
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -71,9 +63,9 @@ export default function TelehealthPage() {
               Math.sin(dLng/2) * Math.sin(dLng/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-  };
+  }, []);
 
-  const loadConsultations = async () => {
+  const loadConsultations = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/telehealth?specialty=${selectedSpecialty}&rural=${showRural}`);
@@ -106,7 +98,15 @@ export default function TelehealthPage() {
       setConsultations(fallback.slice(0, 10));
     }
     setLoading(false);
-  };
+  }, [selectedSpecialty, showRural, userLocation, calculateDistance]);
+
+  useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  useEffect(() => {
+    loadConsultations();
+  }, [selectedSpecialty, showRural, userLocation, loadConsultations]);
 
   const specialties = ['all', 'General Physician', 'Cardiologist', 'Dermatologist', 'Pediatrician', 'Psychiatrist', 'Orthopedic', 'Gynecologist'];
 

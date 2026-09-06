@@ -73,8 +73,9 @@ function useStagedLoad() {
 
 /** Inner component — needs session context for the heartbeat hook */
 function AppShell({ children }: { children: React.ReactNode }) {
-  // Disabled heartbeat - was causing lag
-  // useActiveUserHeartbeat();
+  // Tracks signed-in visitors as "online" for the admin dashboard.
+  // One stable session row per browser tab (upsert), not per beat.
+  useActiveUserHeartbeat();
   const loadTier = useStagedLoad();
 
   // Suppress JSON fetch errors globally (not next-auth)

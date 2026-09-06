@@ -19,8 +19,6 @@ export default function Footer() {
       links: [
         { href: '/hospitals', label: '🏥 Hospitals' },
         { href: '/specialists', label: '👨‍⚕️ Specialists' },
-        { href: '/pharmacies', label: '💊 Pharmacies' },
-        { href: '/labs', label: '🧪 Labs' },
         { href: '/emergency', label: '🚑 Emergency' },
         { href: '/telehealth', label: '📹 Telehealth' },
         { href: '/blood-donors', label: '🩸 Blood Donors' },
@@ -56,6 +54,8 @@ export default function Footer() {
     {
       title: 'More',
       links: [
+        { href: '/pharmacies', label: '💊 Pharmacies' },
+        { href: '/labs', label: '🧪 Labs' },
         { href: '/wellness', label: '🌿 Wellness' },
         { href: '/womens-health', label: '🌸 Women Health' },
         { href: '/symptoms', label: '🤒 Symptoms' },

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiTarget, FiUsers, FiAward, FiZap, FiHeart, FiActivity, FiClock, FiStar, FiCheckCircle, FiPlus, FiChevronRight, FiTrendingUp, FiCalendar, FiShield, FiUser, FiXCircle } from 'react-icons/fi';
+import { FiTarget, FiUsers, FiAward, FiZap, FiHeart, FiActivity, FiClock, FiStar, FiCheckCircle, FiPlus, FiChevronRight, FiTrendingUp, FiCalendar, FiShield, FiUser, FiXCircle, FiLoader, FiAlertCircle } from 'react-icons/fi';
 import Link from 'next/link';
 
 interface Challenge {
@@ -88,24 +88,24 @@ export default function HealthChallengesPage() {
   const [totalChallengesCompleted, setTotalChallengesCompleted] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchChallenges = async () => {
       try {
         const res = await fetch('/api/health-challenges');
-        if (res.ok) {
-          const data = await res.json();
-          setChallenges(data.challenges || []);
-          setLeaderboard(data.leaderboard || []);
-          setChallengeHistory(data.history || []);
-          setAchievements(data.achievements || []);
-          setChallengeTemplates(data.templates || []);
-          setUserPoints(data.userPoints || 0);
-          setTotalChallengesCompleted(data.totalCompleted || 0);
-          setCurrentStreak(data.streak || 0);
-        }
-      } catch (e) {
-        console.error('Failed to fetch challenges', e);
+        if (!res.ok) throw new Error('Failed to load challenges');
+        const data = await res.json();
+        setChallenges(data.challenges || []);
+        setLeaderboard(data.leaderboard || []);
+        setChallengeHistory(data.history || []);
+        setAchievements(data.achievements || []);
+        setChallengeTemplates(data.templates || []);
+        setUserPoints(data.userPoints || 0);
+        setTotalChallengesCompleted(data.totalCompleted || 0);
+        setCurrentStreak(data.streak || 0);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load challenges');
       } finally {
         setLoading(false);
       }
@@ -200,6 +200,24 @@ export default function HealthChallengesPage() {
             Compete, earn points, climb the leaderboard. Join challenges with friends and build healthy habits together.
           </p>
         </motion.div>
+
+        {error && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+            <FiAlertCircle className="text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-red-400 text-sm font-bold">Failed to load challenges</p>
+              <p className="text-red-400/70 text-xs">{error}</p>
+            </div>
+            <button onClick={() => { setError(''); setLoading(true); window.location.reload(); }} className="ml-auto px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Retry</button>
+          </motion.div>
+        )}
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <FiLoader className="animate-spin text-amber-400" size={36} />
+            <p className="text-gray-400 text-sm">Loading challenges...</p>
+          </div>
+        )}
 
         {/* Stats Banner */}
         <motion.div
@@ -354,7 +372,16 @@ export default function HealthChallengesPage() {
               exit={{ opacity: 0, y: -20 }}
             >
               <div className="grid md:grid-cols-2 gap-6 mb-8">
-                {challenges.map((challenge, idx) => (
+                {challenges.length === 0 ? (
+                  <div className="md:col-span-2 text-center py-16 bg-slate-900/60 border border-white/10 rounded-[2rem]">
+                    <div className="text-5xl mb-4">🎯</div>
+                    <p className="text-xl font-bold text-white mb-1">No active challenges</p>
+                    <p className="text-gray-400 text-sm">Create a challenge or check back later</p>
+                    <button onClick={() => setActiveTab('create')} className="mt-4 px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl font-bold inline-flex items-center gap-2">
+                      <FiPlus size={16} /> Create Challenge
+                    </button>
+                  </div>
+                ) : challenges.map((challenge, idx) => (
                   <motion.div
                     key={challenge.id}
                     initial={{ opacity: 0, y: 10 }}

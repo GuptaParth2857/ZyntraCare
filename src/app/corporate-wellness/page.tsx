@@ -7,10 +7,43 @@ import {
   FiCheckCircle, FiAlertCircle, FiDownload, FiPlus, FiArrowRight,
   FiUserPlus, FiCopy, FiCheck, FiX, FiSearch, FiFilter, FiChevronDown,
 } from 'react-icons/fi';
-import {
-  PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+const LazyRiskPie = dynamic(
+  () => import('recharts').then(mod => {
+    const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } = mod;
+    return function RiskPie({ data }: { data: any[] }) {
+      return (
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart><Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
+            {data.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip contentStyle={{ background: '#1e1b4b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} /></PieChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-56 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div> }
+);
+
+const LazyTrendArea = dynamic(
+  () => import('recharts').then(mod => {
+    const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = mod;
+    return function TrendArea({ data }: { data: any[] }) {
+      return (
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis dataKey="month" stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 12 }} />
+            <YAxis domain={[60, 100]} stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 12 }} />
+            <Tooltip contentStyle={{ background: '#1e1b4b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
+            <Area type="monotone" dataKey="score" stroke="#818cf8" strokeWidth={2} fill="url(#gradient)" />
+            <defs><linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#818cf8" stopOpacity={0.3} /><stop offset="100%" stopColor="#818cf8" stopOpacity={0} /></linearGradient></defs>
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-56 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" /></div> }
+);
 
 interface CorporateProgram {
   id: string; companyName: string; contactName: string; contactEmail: string;
@@ -227,10 +260,7 @@ export default function CorporateWellnessPage() {
                 <div className="rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6">
                   <h3 className="text-white/80 font-semibold mb-4 flex items-center gap-2"><FiActivity size={14} className="text-indigo-400" />Risk Distribution</h3>
                   <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart><Pie data={riskData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
-                        {riskData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip contentStyle={{ background: '#1e1b4b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} /></PieChart>
-                    </ResponsiveContainer>
+                    <LazyRiskPie data={riskData} />
                   </div>
                   <div className="flex justify-center gap-6 text-sm">
                     {riskData.map((d, i) => (
@@ -245,16 +275,7 @@ export default function CorporateWellnessPage() {
                 <div className="rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-6">
                   <h3 className="text-white/80 font-semibold mb-4 flex items-center gap-2"><FiTrendingUp size={14} className="text-indigo-400" />Health Trend</h3>
                   <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="month" stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 12 }} />
-                        <YAxis domain={[60, 100]} stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 12 }} />
-                        <Tooltip contentStyle={{ background: '#1e1b4b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
-                        <Area type="monotone" dataKey="score" stroke="#818cf8" strokeWidth={2} fill="url(#gradient)" />
-                        <defs><linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#818cf8" stopOpacity={0.3} /><stop offset="100%" stopColor="#818cf8" stopOpacity={0} /></linearGradient></defs>
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    <LazyTrendArea data={trend} />
                   </div>
                 </div>
               </motion.div>

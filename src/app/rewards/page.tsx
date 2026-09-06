@@ -31,6 +31,7 @@ export default function RewardsPage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [levels, setLevels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -45,7 +46,10 @@ export default function RewardsPage() {
         setLevels(data.levels || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setError('Failed to load rewards. Please try again.');
+        setLoading(false);
+      });
   }, []);
 
   return (
@@ -67,6 +71,12 @@ export default function RewardsPage() {
             Earn Health Coins for healthy habits. Redeem for discounts on labs, pharmacies, and more!
           </p>
         </motion.div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6 mb-10">
           <motion.div
@@ -134,7 +144,12 @@ export default function RewardsPage() {
                 <FiTarget className="text-amber-400" /> Today's Tasks
               </h3>
               <div className="space-y-3">
-                {dailyTasks.map((task) => (
+                {dailyTasks.length === 0 ? (
+                  <div className="text-center py-8 bg-white/5 rounded-xl">
+                    <FiTarget className="text-amber-400/40 mx-auto mb-2" size={28} />
+                    <p className="text-gray-500 text-sm">No tasks today</p>
+                  </div>
+                ) : dailyTasks.map((task) => (
                   <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl border ${task.completed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${task.completed ? 'bg-emerald-500 text-white' : 'bg-white/10 text-gray-400'}`}>
                       {task.completed ? <FiCheckCircle size={16} /> : task.icon}
@@ -161,7 +176,12 @@ export default function RewardsPage() {
                 <FiClock className="text-amber-400" /> Recent Transactions
               </h3>
               <div className="space-y-3">
-                {recentTransactions.map((tx) => (
+                {recentTransactions.length === 0 ? (
+                  <div className="text-center py-8 bg-white/5 rounded-xl">
+                    <FiClock className="text-gray-500/40 mx-auto mb-2" size={28} />
+                    <p className="text-gray-500 text-sm">No transactions yet</p>
+                  </div>
+                ) : recentTransactions.map((tx) => (
                   <div key={tx.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'earned' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
@@ -191,7 +211,12 @@ export default function RewardsPage() {
                 <FiAward className="text-amber-400" /> Leaderboard
               </h3>
               <div className="space-y-2">
-                {leaderboard.map((user) => (
+                {leaderboard.length === 0 ? (
+                  <div className="text-center py-8 bg-white/5 rounded-xl">
+                    <FiUsers className="text-gray-500/40 mx-auto mb-2" size={28} />
+                    <p className="text-gray-500 text-sm">No leaderboard data yet</p>
+                  </div>
+                ) : leaderboard.map((user) => (
                   <div key={user.rank} className={`flex items-center gap-3 p-3 rounded-xl ${user.isUser ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-white/5'}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                       user.rank === 1 ? 'bg-yellow-500 text-black' :
@@ -223,7 +248,13 @@ export default function RewardsPage() {
         >
           <h3 className="font-bold text-2xl mb-6 text-center">Redeem Your Coins</h3>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rewards.map((reward) => (
+            {rewards.length === 0 ? (
+              <div className="md:col-span-3 text-center py-16 bg-slate-900/60 border border-white/10 rounded-[2rem]">
+                <FiGift className="text-amber-400/40 mx-auto mb-3" size={40} />
+                <p className="text-white font-bold text-lg mb-1">No rewards available</p>
+                <p className="text-gray-500 text-sm">Check back soon for new redeemable rewards</p>
+              </div>
+            ) : rewards.map((reward) => (
               <div key={reward.id} className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 hover:border-amber-500/30 transition group">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="text-4xl">{reward.icon}</div>
