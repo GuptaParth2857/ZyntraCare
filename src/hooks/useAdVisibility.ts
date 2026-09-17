@@ -8,7 +8,9 @@ import type { AdPlacement } from '@/lib/ads/config';
 export function useAdVisibility() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isPremium = session?.user?.role === 'premium';
+  const subscription = (session?.user as any)?.subscription;
+  const isPremium = session?.user?.role === 'premium' ||
+    (!!subscription && subscription.status === 'active' && ['Premium Monthly', 'Premium Yearly'].includes(subscription.plan));
 
   if (HACKATHON_MODE) {
     return { showAds: false, placements: [] as AdPlacement[], isPremium };

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { FiActivity, FiAlertTriangle, FiCheckCircle, FiClock, FiSearch, FiList } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { FaStethoscope } from 'react-icons/fa';
+import { useSession } from 'next-auth/react';
 
 interface SymptomResult {
   symptoms: string[];
@@ -22,11 +24,14 @@ const COMMON_SYMPTOMS = [
 ];
 
 export default function SymptomCheckerPage() {
+  const { data: session } = useSession();
+  const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1';
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [duration, setDuration] = useState('few-days');
   const [severity, setSeverity] = useState('moderate');
   const [result, setResult] = useState<SymptomResult | null>(null);
   const [source, setSource] = useState('');
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +48,7 @@ export default function SymptomCheckerPage() {
     if (selectedSymptoms.length === 0) return;
     setLoading(true);
     setError('');
+    setSaved(false);
     
     try {
       const res = await fetch('/api/symptoms', {
@@ -51,13 +57,15 @@ export default function SymptomCheckerPage() {
         body: JSON.stringify({ 
           symptoms: selectedSymptoms, 
           duration, 
-          severity 
+          severity,
+          userId: demoMode ? 'demo-user' : (session?.user as any)?.id,
         })
       });
       const data = await res.json();
       if (data.success) {
         setResult(data.result);
         setSource(data.source || '');
+        setSaved(Boolean(data.saved));
       } else {
         setError(data.error || 'Analysis failed. Please try again.');
       }
@@ -227,6 +235,14 @@ export default function SymptomCheckerPage() {
                   </span>
                   <span className="text-[10px] text-slate-600">Educational only</span>
                 </div>
+
+                {saved && (
+                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                    <FiCheckCircle />
+                    <span>Saved to your health history.</span>
+                    <Link href="/health-timeline" className="underline hover:text-emerald-300">View timeline →</Link>
+                  </div>
+                )}
 
                 <div className={`p-6 rounded-3xl border ${getUrgencyColor(result.urgencyLevel)}`}>
                   <h3 className="text-lg font-bold mb-2">{getUrgencyLabel(result.urgencyLevel)}</h3>

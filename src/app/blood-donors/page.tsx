@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiDroplet, FiSearch, FiMapPin, FiPhone, FiUser, FiFilter, FiAlertCircle, FiCheckCircle, FiShare2, FiClock, FiActivity } from 'react-icons/fi';
+import { FiDroplet, FiSearch, FiMapPin, FiPhone, FiUser, FiAlertCircle, FiCheckCircle, FiShare2, FiClock, FiActivity } from 'react-icons/fi';
 import { EK_BLOOD_GROUPS, EK_COMPONENTS } from '@/lib/eraktkosh';
 
 interface BloodDonor {
@@ -55,12 +55,18 @@ export default function BloodDonorsPage() {
   }, []);
 
   useEffect(() => {
+    let attempts = 0;
     const fetchDonors = async () => {
       try {
         setLoading(true);
+        setError('');
         const res = await fetch('/api/blood-donors');
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error || 'Failed to load donors');
+        }
         const data = await res.json();
-        const rawDonors = data.donors || data || [];
+        const rawDonors = Array.isArray(data) ? data : (Array.isArray(data?.donors) ? data.donors : []);
         const mapped = rawDonors.map((d: any) => ({
           id: d.id || String(Math.random()),
           name: d.name || 'Anonymous',
@@ -72,10 +78,16 @@ export default function BloodDonorsPage() {
         setDonors(mapped);
         if (data.stats) setStats({ total: data.stats.total || mapped.length, cities: data.stats.cities || 0, groups: data.stats.groups || 0 });
       } catch (err) {
-        setError('Failed to load donors');
+        attempts += 1;
         console.error('Error fetching donors:', err);
+        if (attempts < 2) {
+          setTimeout(fetchDonors, 2500);
+        } else {
+          setError('Failed to load donors');
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchDonors();
   }, []);
@@ -195,173 +207,152 @@ export default function BloodDonorsPage() {
   };
 
   const bloodTypeColors: Record<string, string> = {
-    'A+': 'bg-red-100 text-red-700 border-red-200',
-    'A-': 'bg-red-50 text-red-600 border-red-100',
-    'B+': 'bg-orange-100 text-orange-700 border-orange-200',
-    'B-': 'bg-orange-50 text-orange-600 border-orange-100',
-    'AB+': 'bg-purple-100 text-purple-700 border-purple-200',
-    'AB-': 'bg-purple-50 text-purple-600 border-purple-100',
-    'O+': 'bg-blue-100 text-blue-700 border-blue-200',
-    'O-': 'bg-blue-50 text-blue-600 border-blue-100',
+    'A+': 'bg-red-500/20 text-red-300 border-red-500/30',
+    'A-': 'bg-red-500/10 text-red-300 border-red-500/20',
+    'B+': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+    'B-': 'bg-orange-500/10 text-orange-300 border-orange-500/20',
+    'AB+': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    'AB-': 'bg-purple-500/10 text-purple-300 border-purple-500/20',
+    'O+': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    'O-': 'bg-blue-500/10 text-blue-300 border-blue-500/20',
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-white">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-red-900 via-slate-900 to-slate-900">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-red-500 rounded-full blur-[100px]" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-red-600 rounded-full blur-[120px]" />
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 py-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 mb-4"
-          >
-            <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center">
-              <FiDroplet className="text-white text-2xl" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black">Blood Donor Network</h1>
-              <p className="text-red-300">Real-time blood donors in your area</p>
-            </div>
-          </motion.div>
+    <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-b from-red-900/15 via-transparent to-red-950/10" />
+        <div className="absolute top-[8%] left-[-10%] w-[600px] h-[600px] bg-red-500/10 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[15%] right-[-10%] w-[500px] h-[500px] bg-rose-600/10 rounded-full blur-[120px]" />
+      </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
-            >
-              <p className="text-3xl font-black text-red-400">{stats.total}</p>
-              <p className="text-xs text-gray-400">Total Donors</p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
-            >
-              <p className="text-3xl font-black text-emerald-400">{stats.cities}</p>
-              <p className="text-xs text-gray-400">Cities Covered</p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
-            >
-              <p className="text-3xl font-black text-blue-400">{stats.groups}</p>
-              <p className="text-xs text-gray-400">Blood Groups</p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4"
-            >
-              <p className="text-3xl font-black text-purple-400">{filteredDonors.length}</p>
-              <p className="text-xs text-gray-400">Showing Now</p>
-            </motion.div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24">
+        {/* Hero */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
+          <div className="inline-flex items-center justify-center p-4 bg-red-500/10 border border-red-500/30 rounded-2xl mb-6">
+            <FiDroplet size={32} className="text-red-400" />
           </div>
+          <h1 className="text-5xl md:text-6xl font-black mb-4">
+            Blood Donor <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-400">Network</span>
+          </h1>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Real donors, government blood banks and live e-RaktKosh stock across India.
+          </p>
+        </motion.div>
 
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 flex flex-col md:flex-row gap-4"
-          >
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: <FiDroplet className="text-red-400" />, value: stats.total, label: 'Total Donors' },
+            { icon: <FiMapPin className="text-emerald-400" />, value: stats.cities, label: 'Cities Covered' },
+            { icon: <FiActivity className="text-blue-400" />, value: stats.groups, label: 'Blood Groups' },
+            { icon: <FiUser className="text-purple-400" />, value: filteredDonors.length, label: 'Showing Now' },
+          ].map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.08 }}
+              className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5"
+            >
+              <div className="flex items-center gap-2 mb-1">{s.icon}<span className="text-xs text-gray-400">{s.label}</span></div>
+              <p className="text-3xl font-black">{s.value}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Search + Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 mb-8"
+        >
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name or location..."
+                placeholder="Search donors by name or location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/10 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
+                className="w-full bg-slate-900/60 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
               />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {BLOOD_GROUPS.map(blood => (
-                <button
-                  key={blood}
-                  onClick={() => setSelectedBlood(selectedBlood === blood ? '' : blood)}
-                  className={`px-4 py-3 rounded-xl font-bold transition ${
-                    selectedBlood === blood
-                      ? 'bg-red-500 text-white'
-                      : 'bg-white/10 text-white/70 hover:bg-white/20'
-                  }`}
-                >
-                  {blood}
-                </button>
-              ))}
             </div>
             <button
               onClick={() => setShowRegister(true)}
-              className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl font-bold flex items-center gap-2"
+              className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 rounded-xl font-bold flex items-center justify-center gap-2 transition"
             >
               <FiUser /> Register as Donor
             </button>
             <button
               onClick={() => setShowRequest(true)}
-              className="px-6 py-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl font-bold flex items-center gap-2"
+              className="px-6 py-4 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-400 hover:to-pink-500 rounded-xl font-bold flex items-center justify-center gap-2 transition"
             >
               <FiAlertCircle /> Request Blood
             </button>
-          </motion.div>
-        </div>
-      </div>
+          </div>
+          <div className="flex gap-2 flex-wrap mt-4">
+            {BLOOD_GROUPS.map(blood => (
+              <button
+                key={blood}
+                onClick={() => setSelectedBlood(selectedBlood === blood ? '' : blood)}
+                className={`px-4 py-2 rounded-xl font-bold transition ${
+                  selectedBlood === blood
+                    ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white'
+                    : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                {blood}
+              </button>
+            ))}
+          </div>
+        </motion.div>
 
-      {/* Donors List */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+        {/* Tabs + Content */}
         <div className="flex gap-2 mb-6 flex-wrap">
-          <button
-            onClick={() => setActiveTab('donors')}
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'donors' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            🩸 Blood Donors
-          </button>
-          <button
-            onClick={() => setActiveTab('banks')}
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'banks' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            🏥 Blood Banks (Government Directory)
-          </button>
-          <button
-            onClick={() => setActiveTab('stock')}
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'stock' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            📦 Live Blood Stock (e-RaktKosh)
-          </button>
+          {[
+            { id: 'donors', label: 'Blood Donors' },
+            { id: 'banks', label: 'Blood Banks' },
+            { id: 'stock', label: 'Live Stock (e-RaktKosh)' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/20'
+                  : 'bg-slate-900/80 border border-white/10 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {activeTab === 'banks' && (
           <div>
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center mb-4">
-              <input
-                type="text"
-                value={bankCity}
-                onChange={(e) => setBankCity(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchBanks(bankCity)}
-                placeholder="Search blood banks by city (e.g. Delhi, Mumbai, Pune)..."
-                className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-              />
-              <button
-                onClick={() => fetchBanks(bankCity)}
-                disabled={banksLoading}
-                className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl font-bold disabled:opacity-50"
-              >
-                {banksLoading ? 'Searching...' : 'Search Banks'}
-              </button>
+            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 mb-4">
+              <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                <input
+                  type="text"
+                  value={bankCity}
+                  onChange={(e) => setBankCity(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchBanks(bankCity)}
+                  placeholder="Search blood banks by city (e.g. Delhi, Mumbai, Pune)..."
+                  className="flex-1 bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+                />
+                <button
+                  onClick={() => fetchBanks(bankCity)}
+                  disabled={banksLoading}
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 rounded-xl font-bold disabled:opacity-50 transition"
+                >
+                  {banksLoading ? 'Searching...' : 'Search Banks'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Source: data.gov.in — National Blood Bank Directory (NACO, Ministry of Health &amp; Family Welfare, Govt. of India)
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mb-6">
-              Source: data.gov.in — National Blood Bank Directory (NACO, Ministry of Health &amp; Family Welfare, Govt. of India)
-            </p>
 
             {banksMeta && !banksMeta.live && (
               <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-xs text-amber-300">
@@ -393,7 +384,7 @@ export default function BloodDonorsPage() {
                 <p className="text-sm text-gray-400 mb-4">{banksTotal} verified blood banks found</p>
                 <div className="grid md:grid-cols-2 gap-4">
                   {banks.map((bank: any) => (
-                    <div key={bank.id} className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-5 hover:border-red-500/30 transition">
+                    <div key={bank.id} className="bg-slate-900/80 backdrop-blur-xl rounded-[2rem] border border-white/10 p-5 hover:border-red-500/40 transition">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="font-bold flex items-center gap-2"><FiMapPin className="text-red-400 shrink-0" /> {bank.name}</h3>
                         {bank.category && <span className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-red-500/15 text-red-300">{bank.category}</span>}
@@ -437,7 +428,7 @@ export default function BloodDonorsPage() {
               <select
                 value={stockState}
                 onChange={(e) => { setStockState(e.target.value); loadDistricts(e.target.value); }}
-                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                className="bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none"
               >
                 <option value="">Select State</option>
                 <option value="97">Delhi</option>
@@ -467,7 +458,7 @@ export default function BloodDonorsPage() {
               <select
                 value={stockDistrict}
                 onChange={(e) => setStockDistrict(e.target.value)}
-                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                className="bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none"
               >
                 <option value="">Select District</option>
                 {stockDistricts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
@@ -475,14 +466,14 @@ export default function BloodDonorsPage() {
               <select
                 value={stockGroup}
                 onChange={(e) => setStockGroup(e.target.value)}
-                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                className="bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none"
               >
                 {EK_BLOOD_GROUPS.map(g => <option key={g.code} value={g.code}>{g.name}</option>)}
               </select>
               <select
                 value={stockComponent}
                 onChange={(e) => setStockComponent(e.target.value)}
-                className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                className="bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none"
               >
                 {EK_COMPONENTS.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
               </select>
@@ -491,7 +482,7 @@ export default function BloodDonorsPage() {
               <button
                 onClick={fetchStock}
                 disabled={stockLoading || !stockState || !stockDistrict}
-                className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl font-bold disabled:opacity-50"
+                className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 rounded-xl font-bold disabled:opacity-50 transition"
               >
                 {stockLoading ? 'Checking stock...' : 'Check Live Stock'}
               </button>
@@ -525,7 +516,7 @@ export default function BloodDonorsPage() {
             ) : (
               <div className="grid md:grid-cols-2 gap-4">
                 {stockBanks.map((bank, idx) => (
-                  <div key={`${bank.name}-${idx}`} className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-5 hover:border-red-500/30 transition">
+                  <div key={`${bank.name}-${idx}`} className="bg-slate-900/80 backdrop-blur-xl rounded-[2rem] border border-white/10 p-5 hover:border-red-500/40 transition">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <h4 className="font-bold text-white">{bank.name}</h4>
@@ -562,12 +553,9 @@ export default function BloodDonorsPage() {
 
         {activeTab === 'donors' && (
         <>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">Nearby Donors ({filteredDonors.length})</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <FiFilter /> Filtered
-          </div>
-        </div>
+        <h2 className="text-2xl font-black mb-6">
+          Nearby Donors <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-400">({filteredDonors.length})</span>
+        </h2>
 
         {loading ? (
           <div className="text-center py-16">
@@ -584,13 +572,14 @@ export default function BloodDonorsPage() {
           </div>
         ) : (<>
           <AnimatePresence>
+            <div className="grid md:grid-cols-2 gap-4">
             {filteredDonors.map((donor, index) => (
               <motion.div
                 key={donor.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-5 hover:border-red-500/30 transition"
+                className="bg-slate-900/80 backdrop-blur-xl rounded-[2rem] border border-white/10 p-5 hover:border-red-500/40 transition"
               >
                 <div className="flex items-start gap-4">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl ${bloodTypeColors[donor.bloodType]}`}>
@@ -623,6 +612,7 @@ export default function BloodDonorsPage() {
                 </div>
               </motion.div>
             ))}
+            </div>
           </AnimatePresence>
 
         {filteredDonors.length === 0 && !loading && !error && (
@@ -674,7 +664,7 @@ export default function BloodDonorsPage() {
                         type="text"
                         value={registerForm.name}
                         onChange={(e) => setRegisterForm({...registerForm, name: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         placeholder="Your name"
                       />
                     </div>
@@ -684,7 +674,7 @@ export default function BloodDonorsPage() {
                         type="tel"
                         value={registerForm.phone}
                         onChange={(e) => setRegisterForm({...registerForm, phone: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         placeholder="10-digit phone"
                       />
                     </div>
@@ -694,7 +684,7 @@ export default function BloodDonorsPage() {
                         type="email"
                         value={registerForm.email}
                         onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         placeholder="email@example.com"
                       />
                     </div>
@@ -704,7 +694,7 @@ export default function BloodDonorsPage() {
                         <select
                           value={registerForm.bloodGroup}
                           onChange={(e) => setRegisterForm({...registerForm, bloodGroup: e.target.value})}
-                          className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                          className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         >
                           <option value="">Select</option>
                           {BLOOD_GROUPS.map(b => <option key={b} value={b}>{b}</option>)}
@@ -716,7 +706,7 @@ export default function BloodDonorsPage() {
                           type="text"
                           value={registerForm.city}
                           onChange={(e) => setRegisterForm({...registerForm, city: e.target.value})}
-                          className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                          className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                           placeholder="Your city"
                         />
                       </div>
@@ -782,7 +772,7 @@ export default function BloodDonorsPage() {
                         type="text"
                         value={requestForm.name}
                         onChange={(e) => setRequestForm({...requestForm, name: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         placeholder="Patient's name"
                       />
                     </div>
@@ -792,7 +782,7 @@ export default function BloodDonorsPage() {
                         <select
                           value={requestForm.bloodType}
                           onChange={(e) => setRequestForm({...requestForm, bloodType: e.target.value})}
-                          className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                          className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         >
                           <option value="">Select</option>
                           {BLOOD_GROUPS.map(b => <option key={b} value={b}>{b}</option>)}
@@ -803,7 +793,7 @@ export default function BloodDonorsPage() {
                         <select
                           value={requestForm.urgency}
                           onChange={(e) => setRequestForm({...requestForm, urgency: e.target.value})}
-                          className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                          className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         >
                           <option value="normal">Normal</option>
                           <option value="urgent">Urgent</option>
@@ -817,7 +807,7 @@ export default function BloodDonorsPage() {
                         type="text"
                         value={requestForm.location}
                         onChange={(e) => setRequestForm({...requestForm, location: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         placeholder="Hospital/Address"
                       />
                     </div>
@@ -827,7 +817,7 @@ export default function BloodDonorsPage() {
                         type="tel"
                         value={requestForm.phone}
                         onChange={(e) => setRequestForm({...requestForm, phone: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
                         placeholder="10-digit phone"
                       />
                     </div>
@@ -836,7 +826,7 @@ export default function BloodDonorsPage() {
                       <textarea
                         value={requestForm.message}
                         onChange={(e) => setRequestForm({...requestForm, message: e.target.value})}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white h-24"
+                        className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 h-24 focus:border-red-500 focus:outline-none"
                         placeholder="Additional details..."
                       />
                     </div>

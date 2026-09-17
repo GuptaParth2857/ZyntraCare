@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import { generateSymptomAnalysis } from '@/lib/gemini';
+import { saveTriageToHistory } from '@/lib/patientHistory';
 
 interface SymptomResult {
   symptoms: string[];
@@ -471,7 +473,28 @@ export async function POST(req: NextRequest) {
     if (!result) result = ruleBasedAnalysis(symptoms, duration || 'few-days', severity || 'moderate');
     if (result) result.urgencyLevel = escalateWithSeverity(result.urgencyLevel, severity, duration);
 
-    return NextResponse.json({ success: true, result, source });
+    // Persist to the patient's health history (real DB record)
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const requestedUserId = String(body?.userId || '');
+    const userId = token?.sub || (requestedUserId === 'demo-user' ? 'demo-user' : '');
+    let saved = false;
+    if (userId && result) {
+      const topConditions = result.possibleConditions.slice(0, 3).map((c) => c.name).join(', ');
+      saved = await saveTriageToHistory({
+        userId,
+        title: `Symptom check: ${symptoms.slice(0, 3).join(', ')}`,
+        category: result.urgencyLevel === 'emergency' ? 'emergency' : 'diagnosis',
+        summary: `Urgency: ${result.urgencyLevel}. Possible conditions: ${topConditions || 'N/A'}.`,
+        symptoms,
+        urgencyLevel: result.urgencyLevel,
+        recommendedAction: result.possibleConditions[0]?.recommendation,
+        possibleConditions: result.possibleConditions.map((c) => c.name),
+        redFlags: result.redFlags,
+        source,
+      });
+    }
+
+    return NextResponse.json({ success: true, result, source, saved });
   } catch (error) {
     console.error('Symptom analysis error:', error);
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });

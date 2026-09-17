@@ -18,11 +18,13 @@ export default function BlockchainRecordsPage() {
   const [records, setRecords] = useState<RecordBlock[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<RecordBlock | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chainValid, setChainValid] = useState(true);
 
   useEffect(() => {
     fetch('/api/blockchain-records')
       .then(res => res.json())
       .then(data => {
+        setChainValid(Boolean(data.chainValid));
         const chain = (data.records || []).map((r: any) => ({
           id: r.id,
           type: r.type || r.title || 'Record',
@@ -30,7 +32,7 @@ export default function BlockchainRecordsPage() {
           hospital: r.hospital || 'Unknown',
           hash: r.hash ? `0x${r.hash.slice(0, 4)}...${r.hash.slice(-4)}` : '0x0000...0000',
           previousHash: r.previousHash ? `0x${r.previousHash.slice(0, 4)}...${r.previousHash.slice(-4)}` : '0000...0000',
-          verified: true,
+          verified: r.verified !== false,
         }));
         setRecords(chain);
       })
@@ -54,12 +56,18 @@ export default function BlockchainRecordsPage() {
           </div>
 
           {/* Security Info */}
-          <div className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl border border-indigo-500/30 p-4 mb-6">
+          <div className={`rounded-2xl border p-4 mb-6 ${
+            chainValid ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-500/30' : 'bg-amber-500/10 border-amber-500/30'
+          }`}>
             <div className="flex items-center gap-3">
-              <FiShield className="text-indigo-400 text-2xl" />
+              <FiShield className={chainValid ? 'text-indigo-400 text-2xl' : 'text-amber-400 text-2xl'} />
               <div>
-                <p className="font-bold">Blockchain Secured</p>
-                <p className="text-sm text-gray-400">Records are cryptographically signed and cannot be altered</p>
+                <p className="font-bold">{chainValid ? 'Chain Verified' : 'Chain Integrity Issues'}</p>
+                <p className="text-sm text-gray-400">
+                  {chainValid
+                    ? `${records.length} block${records.length === 1 ? '' : 's'} integrity-checked with SHA-256 hash chaining`
+                    : 'One or more records do not match the stored chain hashes and require review'}
+                </p>
               </div>
             </div>
           </div>
@@ -151,9 +159,9 @@ export default function BlockchainRecordsPage() {
                     <p className="text-gray-400 mb-1">Previous Hash</p>
                     <p className="text-xs font-mono bg-black/30 p-2 rounded">{selectedRecord.previousHash}</p>
                   </div>
-                  <div className="flex items-center gap-2 mt-3 text-emerald-400">
-                    <FiCheckCircle />
-                    <span>Verified on Blockchain</span>
+                  <div className={`flex items-center gap-2 mt-3 ${selectedRecord.verified ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {selectedRecord.verified ? <FiCheckCircle /> : <FiLock />}
+                    <span>{selectedRecord.verified ? 'Verified against chain' : 'Hash mismatch — review required'}</span>
                   </div>
                 </div>
 
@@ -166,7 +174,7 @@ export default function BlockchainRecordsPage() {
 
           {/* Footer */}
           <p className="text-xs text-gray-500 text-center mt-8">
-            🔒 Records secured with cryptographic hashing • Patient-owned data
+            🔒 Records integrity-checked with SHA-256 hash chaining • Patient-owned data
           </p>
         </motion.div>
       </div>

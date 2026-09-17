@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 const OPENCPS_URL = 'https://api.open-cps.org/v1/medicines';
 const OPENFDA_URL = 'https://api.fda.gov/drug/label.json';
@@ -31,6 +32,51 @@ const INDIAN_MEDICINES: Record<string, { name: string; manufacturer: string; cat
   'PUMPC': { name: 'Pumpkin C', manufacturer: 'Himalaya', category: 'Supplement' },
 };
 
+interface RegistryEntry {
+  code: string;
+  name: string;
+  manufacturer: string;
+  category: string;
+  batchNumber: string | null;
+  expiryDate: string | null;
+  source: string;
+  verified: boolean;
+}
+
+async function getRegistry(): Promise<RegistryEntry[]> {
+  const dbRecords = await prisma.medicineRecord.findMany();
+  const dbMap = new Map(dbRecords.map((r) => [r.code, r]));
+  const merged: RegistryEntry[] = [];
+
+  for (const [code, med] of Object.entries(INDIAN_MEDICINES)) {
+    const db = dbMap.get(code);
+    merged.push({
+      code,
+      name: db?.name || med.name,
+      manufacturer: db?.manufacturer || med.manufacturer,
+      category: db?.category || med.category,
+      batchNumber: db?.batchNumber ?? null,
+      expiryDate: db?.expiryDate ?? null,
+      source: db ? 'ZyntraCare Medicine Registry' : 'Indian Medicines Database',
+      verified: true,
+    });
+    dbMap.delete(code);
+  }
+  for (const db of dbMap.values()) {
+    merged.push({
+      code: db.code,
+      name: db.name,
+      manufacturer: db.manufacturer,
+      category: db.category,
+      batchNumber: db.batchNumber,
+      expiryDate: db.expiryDate,
+      source: 'Community Verified',
+      verified: true,
+    });
+  }
+  return merged;
+}
+
 async function lookupOpenFDA(medicineName: string) {
   try {
     const res = await fetch(`${OPENFDA_URL}?search=openfda.brand_name:${encodeURIComponent(medicineName)}&limit=3`, {
@@ -44,11 +90,10 @@ async function lookupOpenFDA(medicineName: string) {
       name: r.openfda?.brand_name?.[0] || r.openfda?.generic_name?.[0] || medicineName,
       manufacturer: r.openfda?.manufacturer_name?.[0] || 'Unknown',
       category: r.openfda?.product_type?.[0] || 'Medicine',
-      purpose: r.purpose?.[0] || '',
-      warnings: r.warnings?.[0] || '',
-      dosage: r.dosage_and_administration?.[0] || '',
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function lookupOpenCPS(medicineName: string) {
@@ -60,62 +105,67 @@ async function lookupOpenCPS(medicineName: string) {
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.data?.length) return null;
-    return data.data[0];
-  } catch { return null; }
+    const r = data.data[0];
+    return { name: r.name || medicineName, manufacturer: r.manufacturer || 'Unknown', category: r.category || 'Medicine' };
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get('search')?.trim() || '';
+    const search = searchParams.get('search')?.trim().toLowerCase() || '';
     const code = searchParams.get('code')?.trim().toUpperCase() || '';
+    const registry = await getRegistry();
 
     if (code) {
-      const indian = INDIAN_MEDICINES[code];
-      if (indian) {
+      const match = registry.find((r) => r.code === code);
+      if (match) {
         return NextResponse.json({
-          success: true, verified: true,
-          medicine: { code, ...indian, timestamp: Date.now(), source: 'Indian Medicines Database' },
+          success: true,
+          verified: true,
+          medicine: { ...match, timestamp: Date.now() },
         });
       }
 
       const fda = await lookupOpenFDA(code);
       if (fda) {
         return NextResponse.json({
-          success: true, verified: true,
-          medicine: { code, ...fda, timestamp: Date.now(), source: 'US FDA OpenData' },
+          success: true,
+          verified: true,
+          medicine: { code, ...fda, batchNumber: null, expiryDate: null, timestamp: Date.now(), source: 'US FDA OpenData' },
         });
       }
 
       return NextResponse.json({
-        success: true, verified: false,
-        medicine: { code, name: code, manufacturer: 'Unknown', category: 'Unverified', timestamp: Date.now(), source: 'No match found' },
+        success: true,
+        verified: false,
+        medicine: {
+          code, name: code, manufacturer: 'Not found', category: 'Not in registry',
+          batchNumber: null, expiryDate: null, timestamp: Date.now(),
+          source: 'No match in registry — this does not mean the medicine is fake',
+        },
       });
     }
 
     if (search) {
-      const q = search.toLowerCase();
-      const localMatches = Object.entries(INDIAN_MEDICINES)
-        .filter(([code, med]) => code.toLowerCase().includes(q) || med.name.toLowerCase().includes(q) || med.manufacturer.toLowerCase().includes(q))
-        .map(([code, med]) => ({ code, ...med, verified: true }));
-
-      const fda = await lookupOpenFDA(search);
-      const openCPS = await lookupOpenCPS(search);
-
+      const matches = registry.filter((r) =>
+        r.code.toLowerCase().includes(search) ||
+        r.name.toLowerCase().includes(search) ||
+        r.manufacturer.toLowerCase().includes(search)
+      );
+      const liveRes = await Promise.allSettled([lookupOpenFDA(search), lookupOpenCPS(search)]);
       return NextResponse.json({
         success: true,
-        medicines: localMatches,
-        fdaResult: fda,
-        openCPSResult: openCPS,
-        total: localMatches.length,
+        medicines: matches,
+        fdaResult: liveRes[0].status === 'fulfilled' ? liveRes[0].value : null,
+        openCPSResult: liveRes[1].status === 'fulfilled' ? liveRes[1].value : null,
+        total: matches.length,
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      medicines: Object.entries(INDIAN_MEDICINES).map(([code, med]) => ({ code, ...med, verified: true })),
-      total: Object.keys(INDIAN_MEDICINES).length,
-    });
+    return NextResponse.json({ success: true, medicines: registry, total: registry.length });
   } catch (error) {
     console.error('Medicine Verify error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -124,24 +174,41 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const prisma = (await import('@/lib/prisma')).default;
     const body = await req.json();
-    const { code, name, manufacturer } = body;
+    const { code, name, manufacturer, category, batchNumber, expiryDate } = body;
     if (!code) return NextResponse.json({ error: 'Medicine code is required' }, { status: 400 });
 
     const upperCode = code.toUpperCase();
     const record = await prisma.medicineRecord.upsert({
       where: { code: upperCode },
-      update: { name: name || '', manufacturer: manufacturer || '', verified: true },
-      create: { code: upperCode, name: name || 'Unknown', manufacturer: manufacturer || 'Unknown', composition: '', category: 'User-Submitted', verified: true },
+      update: {
+        name: name || undefined,
+        manufacturer: manufacturer || undefined,
+        category: category || undefined,
+        batchNumber: batchNumber || undefined,
+        expiryDate: expiryDate || undefined,
+      },
+      create: {
+        code: upperCode,
+        name: name || 'Unknown',
+        manufacturer: manufacturer || 'Unknown',
+        composition: '',
+        category: category || 'User-Submitted',
+        batchNumber: batchNumber || null,
+        expiryDate: expiryDate || null,
+        verified: true,
+      },
     });
-
-    INDIAN_MEDICINES[upperCode] = { name: record.name, manufacturer: record.manufacturer, category: 'User-Submitted' };
 
     return NextResponse.json({
-      success: true, verified: true,
-      medicine: { code: upperCode, name: record.name, manufacturer: record.manufacturer, category: 'User-Submitted', timestamp: Date.now(), source: 'Community Verified' },
-    });
+      success: true,
+      verified: true,
+      medicine: {
+        code: upperCode, name: record.name, manufacturer: record.manufacturer, category: record.category,
+        batchNumber: record.batchNumber, expiryDate: record.expiryDate, timestamp: Date.now(),
+        source: 'Community Verified',
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error('Medicine POST error:', error);
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });

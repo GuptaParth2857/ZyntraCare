@@ -1620,6 +1620,134 @@ export default function Home() {
 
       <AdSlot placement={AD_PLACEMENTS.HOME_AFTER_FEATURES} size="LEADERBOARD" className="py-4" />
 
+      <section className="py-20 relative z-10">
+        <div className="max-w-7xl mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center text-center mb-12"
+          >
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500/20 to-amber-500/20 border border-red-500/30 text-red-300 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
+              <FiZap /> Hackathon Demo — Quick Launch
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-3">
+              Demo <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-amber-400">Flows</span>
+            </h2>
+            <p className="text-slate-400 text-lg max-w-2xl">Click to jump straight into the two featured problem statements.</p>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -8, scale: 1.02 }}
+            >
+              <Link href="/campus-emergency?demo=1" className="block relative p-6 bg-gradient-to-br from-red-950/80 to-slate-900 border border-red-500/30 rounded-3xl overflow-hidden group h-full">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-red-600/20 blur-3xl rounded-full group-hover:bg-red-600/30 transition" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center mb-4 text-white shadow-lg"><FiPhone size={22} /></div>
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-red-300">Campus Emergency</h3>
+                  <p className="text-sm text-red-200/70 mb-3">One-tap report → AI priority → nearest first-aid</p>
+                  <span className="inline-flex items-center gap-2 text-red-400 font-bold text-sm">Report Incident <FiArrowRight className="group-hover:translate-x-1 transition-transform" /></span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.06 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+            >
+              <Link href="/symptoms" className="block relative p-6 bg-gradient-to-br from-purple-950/80 to-slate-900 border border-purple-500/30 rounded-3xl overflow-hidden group h-full">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-purple-600/20 blur-3xl rounded-full group-hover:bg-purple-600/30 transition" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center mb-4 text-white shadow-lg"><FaStethoscope size={22} /></div>
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-purple-300">Smart Triage — Symptom Checker</h3>
+                  <p className="text-sm text-purple-200/70 mb-3">Multi-symptom → Emergency/Urgent/Normal + AI analysis</p>
+                  <span className="inline-flex items-center gap-2 text-purple-400 font-bold text-sm">Check Symptoms <FiArrowRight className="group-hover:translate-x-1 transition-transform" /></span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.12 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+            >
+              <Link href="/emergency/triage?demo=1" className="block relative p-6 bg-gradient-to-br from-amber-950/80 to-slate-900 border border-amber-500/30 rounded-3xl overflow-hidden group h-full">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-amber-600/20 blur-3xl rounded-full group-hover:bg-amber-600/30 transition" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center mb-4 text-white shadow-lg"><FaHeartbeat size={22} /></div>
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-amber-300">Emergency Priority Check</h3>
+                  <p className="text-sm text-amber-200/70 mb-3">Type symptoms → HIGH / MEDIUM / LOW priority</p>
+                  <span className="inline-flex items-center gap-2 text-amber-400 font-bold text-sm">Get Priority <FiArrowRight className="group-hover:translate-x-1 transition-transform" /></span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.18 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+            >
+              <Link href="/doctor-dashboard?demo=1" className="block relative p-6 bg-gradient-to-br from-sky-950/80 to-slate-900 border border-sky-500/30 rounded-3xl overflow-hidden group h-full">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-sky-600/20 blur-3xl rounded-full group-hover:bg-sky-600/30 transition" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-sky-600 flex items-center justify-center mb-4 text-white shadow-lg"><FiShield size={22} /></div>
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-sky-300">Doctor / Incident Dashboard</h3>
+                  <p className="text-sm text-sky-200/70 mb-3">Live incident queue — Emergency / Urgent / Normal counts</p>
+                  <span className="inline-flex items-center gap-2 text-sky-400 font-bold text-sm">Open Dashboard <FiArrowRight className="group-hover:translate-x-1 transition-transform" /></span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.24 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+            >
+              <Link href="/auth/signin" className="block relative p-6 bg-gradient-to-br from-emerald-950/80 to-slate-900 border border-emerald-500/30 rounded-3xl overflow-hidden group h-full">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-600/20 blur-3xl rounded-full group-hover:bg-emerald-600/30 transition" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center mb-4 text-white shadow-lg"><FiLock size={22} /></div>
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-emerald-300">Sign In / Register</h3>
+                  <p className="text-sm text-emerald-200/70 mb-3">Login (Email / GitHub) — patient, doctor & admin roles</p>
+                  <span className="inline-flex items-center gap-2 text-emerald-400 font-bold text-sm">Sign In <FiArrowRight className="group-hover:translate-x-1 transition-transform" /></span>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+            >
+              <Link href="/emergency" className="block relative p-6 bg-gradient-to-br from-rose-950/80 to-slate-900 border border-rose-500/30 rounded-3xl overflow-hidden group h-full">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-rose-600/20 blur-3xl rounded-full group-hover:bg-rose-600/30 transition" />
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-rose-600 flex items-center justify-center mb-4 text-white shadow-lg"><FiActivity size={22} /></div>
+                  <h3 className="text-lg font-black text-white mb-1 group-hover:text-rose-300">One-Tap SOS + Emergency</h3>
+                  <p className="text-sm text-rose-200/70 mb-3">Quick-dial numbers, first-aid guide, ambulance ETA</p>
+                  <span className="inline-flex items-center gap-2 text-rose-400 font-bold text-sm">Open SOS <FiArrowRight className="group-hover:translate-x-1 transition-transform" /></span>
+                </div>
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

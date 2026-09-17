@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getToken } from 'next-auth/jwt';
 import { authRateLimit } from '@/lib/rate-limit';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 const healthRiskSchema = z.object({
   age: z.number().int().min(1).max(120),
@@ -11,7 +15,7 @@ const healthRiskSchema = z.object({
   cholesterol: z.number().int().min(100).max(400),
   smoking: z.enum(['yes', 'no', 'occasional']).optional().default('no'),
   alcohol: z.enum(['yes', 'no', 'occasional']).optional().default('no'),
-  exercise: z.enum(['daily', 'weekly', 'rarely', 'never']).optional().default('weekly'),
+  exercise: z.enum(['never', 'rarely', 'regular', 'weekly', 'daily']).optional().default('weekly'),
   stress: z.enum(['low', 'medium', 'high']).optional().default('medium'),
   sleep: z.number().min(0).max(24).optional().default(7),
   familyHistory: z.enum(['yes', 'no', 'partial']).optional().default('no'),
@@ -34,12 +38,199 @@ interface RiskResult {
   diseases: { name: string; probability: number; category: string }[];
 }
 
+function resolveUserId(token: any, requested: string | null): string {
+  if (token?.sub) return token.sub;
+  if (requested === 'demo-user') return 'demo-user';
+  return '';
+}
+
+function computeRisk(parsed: z.infer<typeof healthRiskSchema>): RiskResult {
+  const {
+    age, gender, bmi, bloodPressure, bloodSugar, cholesterol,
+    smoking, alcohol, exercise, stress, sleep, familyHistory
+  } = parsed;
+
+  const factors: RiskFactor[] = [];
+  let totalScore = 0;
+  let maxTotalScore = 0;
+
+  // BMI Risk
+  const bmiScore = bmi >= 30 ? 20 : bmi >= 25 ? 12 : bmi >= 18.5 ? 5 : 10;
+  factors.push({
+    category: 'BMI',
+    score: bmiScore,
+    maxScore: 20,
+    risk: bmi >= 30 ? 'high' : bmi >= 25 ? 'medium' : 'low'
+  });
+  totalScore += bmiScore;
+  maxTotalScore += 20;
+
+  // Blood Pressure Risk
+  const bpScore = bloodPressure >= 160 ? 20 : bloodPressure >= 140 ? 12 : bloodPressure >= 120 ? 6 : 4;
+  factors.push({
+    category: 'Blood Pressure',
+    score: bpScore,
+    maxScore: 20,
+    risk: bloodPressure >= 160 ? 'high' : bloodPressure >= 140 ? 'medium' : 'low'
+  });
+  totalScore += bpScore;
+  maxTotalScore += 20;
+
+  // Blood Sugar Risk
+  const sugarScore = bloodSugar >= 200 ? 20 : bloodSugar >= 140 ? 12 : bloodSugar >= 100 ? 6 : 3;
+  factors.push({
+    category: 'Blood Sugar',
+    score: sugarScore,
+    maxScore: 20,
+    risk: bloodSugar >= 200 ? 'high' : bloodSugar >= 140 ? 'medium' : 'low'
+  });
+  totalScore += sugarScore;
+  maxTotalScore += 20;
+
+  // Cholesterol
+  const cholScore = cholesterol >= 240 ? 15 : cholesterol >= 200 ? 10 : cholesterol >= 190 ? 5 : 3;
+  factors.push({
+    category: 'Cholesterol',
+    score: cholScore,
+    maxScore: 15,
+    risk: cholesterol >= 240 ? 'high' : cholesterol >= 200 ? 'medium' : 'low'
+  });
+  totalScore += cholScore;
+  maxTotalScore += 15;
+
+  // Age risk
+  const ageScore = age > 60 ? 15 : age > 45 ? 10 : age > 35 ? 5 : 2;
+  factors.push({
+    category: 'Age',
+    score: ageScore,
+    maxScore: 15,
+    risk: age > 60 ? 'high' : age > 45 ? 'medium' : 'low'
+  });
+  totalScore += ageScore;
+  maxTotalScore += 15;
+
+  // Lifestyle Factors
+  const lifestyleScore =
+    (smoking === 'yes' ? 15 : smoking === 'occasional' ? 8 : 0) +
+    (alcohol === 'yes' ? 12 : alcohol === 'occasional' ? 6 : 0) +
+    (exercise === 'never' ? 10 : exercise === 'rarely' ? 5 : 0) +
+    (stress === 'high' ? 10 : stress === 'medium' ? 5 : 0) +
+    (sleep < 6 ? 8 : sleep < 7 ? 4 : 0);
+
+  factors.push({
+    category: 'Lifestyle',
+    score: lifestyleScore,
+    maxScore: 55,
+    risk: lifestyleScore > 35 ? 'high' : lifestyleScore > 20 ? 'medium' : 'low'
+  });
+  totalScore += lifestyleScore;
+  maxTotalScore += 55;
+
+  // Family History
+  const familyScore = familyHistory === 'yes' ? 15 : familyHistory === 'partial' ? 8 : 0;
+  factors.push({
+    category: 'Family History',
+    score: familyScore,
+    maxScore: 15,
+    risk: familyHistory === 'yes' ? 'high' : familyHistory === 'partial' ? 'medium' : 'low'
+  });
+  totalScore += familyScore;
+  maxTotalScore += 15;
+
+  const riskPercent = Math.round((totalScore / maxTotalScore) * 100);
+  const overallRisk = riskPercent >= 60 ? 'very_high' : riskPercent >= 40 ? 'high' : riskPercent >= 20 ? 'medium' : 'low';
+
+  // Generate disease probabilities
+  const diseases: { name: string; probability: number; category: string }[] = [];
+  if (bmi >= 25) {
+    diseases.push({ name: 'Type 2 Diabetes', probability: Math.min(95, 40 + (bmi - 25) * 5), category: 'Metabolic' });
+    diseases.push({ name: 'Hypertension', probability: Math.min(90, 30 + (bmi - 25) * 4), category: 'Cardiovascular' });
+  }
+  if (bloodPressure >= 140) {
+    diseases.push({ name: 'Heart Disease', probability: Math.min(85, 30 + (bloodPressure - 140) * 0.8), category: 'Cardiovascular' });
+    diseases.push({ name: 'Stroke Risk', probability: Math.min(70, 20 + (bloodPressure - 140) * 0.5), category: 'Cardiovascular' });
+  }
+  if (bloodSugar >= 140) {
+    diseases.push({ name: 'Diabetes Complications', probability: Math.min(80, 25 + (bloodSugar - 140) * 0.5), category: 'Metabolic' });
+  }
+  if (smoking === 'yes') {
+    diseases.push({ name: 'Lung Cancer', probability: Math.min(75, 35), category: 'Respiratory' });
+    diseases.push({ name: 'COPD', probability: Math.min(70, 30), category: 'Respiratory' });
+  }
+  if (cholesterol >= 200) {
+    diseases.push({ name: 'Atherosclerosis', probability: Math.min(80, 25 + (cholesterol - 200) * 0.3), category: 'Cardiovascular' });
+  }
+
+  diseases.sort((a, b) => b.probability - a.probability);
+
+  // Generate recommendations
+  const recommendations: string[] = [];
+  if (bmi >= 25) recommendations.push('Maintain healthy weight through balanced diet');
+  if (bloodPressure >= 140) recommendations.push('Monitor blood pressure regularly, reduce sodium intake');
+  if (bloodSugar >= 100) recommendations.push('Limit sugar intake, increase physical activity');
+  if (cholesterol >= 200) recommendations.push('Reduce fatty foods, increase fiber intake');
+  if (smoking === 'yes') recommendations.push('Consider smoking cessation programs');
+  if (exercise === 'never' || exercise === 'rarely') recommendations.push('Start with 30 min daily walking or moderate exercise');
+  if (sleep < 6) recommendations.push('Prioritize 7-8 hours of sleep for recovery');
+  if (stress === 'high') recommendations.push('Practice stress management techniques');
+  if (age > 50) recommendations.push('Schedule regular health checkups every 6 months');
+  if (diseases.length === 0) recommendations.push('Maintain a balanced diet and regular physical activity');
+
+  return {
+    overallRisk,
+    overallScore: totalScore,
+    maxScore: maxTotalScore,
+    riskPercent,
+    factors,
+    recommendations,
+    diseases: diseases.slice(0, 5)
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const { searchParams } = new URL(req.url);
+  const userId = resolveUserId(token, searchParams.get('userId'));
+  if (!userId) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
+  try {
+    const list = await prisma.healthRiskAssessment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const history = list.map(a => ({
+      id: a.id,
+      overallRisk: a.overallRisk,
+      riskPercent: a.riskPercent,
+      overallScore: a.overallScore,
+      maxScore: a.maxScore,
+      createdAt: a.createdAt,
+      diseases: (() => { try { return JSON.parse(a.diseases); } catch { return []; } })(),
+      factors: (() => { try { return JSON.parse(a.factors); } catch { return []; } })(),
+      recommendations: (() => { try { return JSON.parse(a.recommendations); } catch { return []; } })(),
+    }));
+
+    return NextResponse.json({ success: true, history });
+  } catch (error) {
+    console.error('Health risk history error:', error);
+    return NextResponse.json({ error: 'Failed to load assessment history' }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const rateLimitCheck = await authRateLimit(req, 20, 60000);
   if (rateLimitCheck) return rateLimitCheck;
 
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const body = await req.json().catch(() => ({}));
+  const requested = String(body.userId || '');
+  const userId = resolveUserId(token, requested === 'demo-user' ? 'demo-user' : null);
+
   try {
-    const body = await req.json();
     const parsed = healthRiskSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -49,147 +240,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const {
-      age, gender, bmi, bloodPressure, bloodSugar, cholesterol,
-      smoking, alcohol, exercise, stress, sleep, familyHistory
-    } = parsed.data;
+    const result = computeRisk(parsed.data);
 
-    const factors: RiskFactor[] = [];
-    let totalScore = 0;
-    let maxTotalScore = 0;
-
-    // BMI Risk
-    const bmiScore = bmi >= 30 ? 20 : bmi >= 25 ? 12 : bmi >= 18.5 ? 5 : 10;
-    factors.push({
-      category: 'BMI',
-      score: bmiScore,
-      maxScore: 20,
-      risk: bmi >= 30 ? 'high' : bmi >= 25 ? 'medium' : 'low'
-    });
-    totalScore += bmiScore;
-    maxTotalScore += 20;
-
-    // Blood Pressure Risk
-    const bpScore = bloodPressure >= 160 ? 20 : bloodPressure >= 140 ? 12 : bloodPressure >= 120 ? 6 : 4;
-    factors.push({
-      category: 'Blood Pressure',
-      score: bpScore,
-      maxScore: 20,
-      risk: bloodPressure >= 160 ? 'high' : bloodPressure >= 140 ? 'medium' : 'low'
-    });
-    totalScore += bpScore;
-    maxTotalScore += 20;
-
-    // Blood Sugar Risk
-    const sugarScore = bloodSugar >= 200 ? 20 : bloodSugar >= 140 ? 12 : bloodSugar >= 100 ? 6 : 3;
-    factors.push({
-      category: 'Blood Sugar',
-      score: sugarScore,
-      maxScore: 20,
-      risk: bloodSugar >= 200 ? 'high' : bloodSugar >= 140 ? 'medium' : 'low'
-    });
-    totalScore += sugarScore;
-    maxTotalScore += 20;
-
-    // Cholesterol
-    const cholScore = cholesterol >= 240 ? 15 : cholesterol >= 200 ? 10 : cholesterol >= 190 ? 5 : 3;
-    factors.push({
-      category: 'Cholesterol',
-      score: cholScore,
-      maxScore: 15,
-      risk: cholesterol >= 240 ? 'high' : cholesterol >= 200 ? 'medium' : 'low'
-    });
-    totalScore += cholScore;
-    maxTotalScore += 15;
-
-    // Age risk
-    const ageScore = age > 60 ? 15 : age > 45 ? 10 : age > 35 ? 5 : 2;
-    factors.push({
-      category: 'Age',
-      score: ageScore,
-      maxScore: 15,
-      risk: age > 60 ? 'high' : age > 45 ? 'medium' : 'low'
-    });
-    totalScore += ageScore;
-    maxTotalScore += 15;
-
-    // Lifestyle Factors
-    const lifestyleScore =
-      (smoking === 'yes' ? 15 : smoking === 'occasional' ? 8 : 0) +
-      (alcohol === 'yes' ? 12 : alcohol === 'occasional' ? 6 : 0) +
-      (exercise === 'never' ? 10 : exercise === 'rarely' ? 5 : 0) +
-      (stress === 'high' ? 10 : stress === 'medium' ? 5 : 0) +
-      (sleep < 6 ? 8 : sleep < 7 ? 4 : 0);
-
-    factors.push({
-      category: 'Lifestyle',
-      score: lifestyleScore,
-      maxScore: 55,
-      risk: lifestyleScore > 35 ? 'high' : lifestyleScore > 20 ? 'medium' : 'low'
-    });
-    totalScore += lifestyleScore;
-    maxTotalScore += 55;
-
-    // Family History
-    const familyScore = familyHistory === 'yes' ? 15 : familyHistory === 'partial' ? 8 : 0;
-    factors.push({
-      category: 'Family History',
-      score: familyScore,
-      maxScore: 15,
-      risk: familyHistory === 'yes' ? 'high' : familyHistory === 'partial' ? 'medium' : 'low'
-    });
-    totalScore += familyScore;
-    maxTotalScore += 15;
-
-    const riskPercent = Math.round((totalScore / maxTotalScore) * 100);
-    const overallRisk = riskPercent >= 60 ? 'very_high' : riskPercent >= 40 ? 'high' : riskPercent >= 20 ? 'medium' : 'low';
-
-    // Generate disease probabilities
-    const diseases: { name: string; probability: number; category: string }[] = [];
-    if (bmi >= 25) {
-      diseases.push({ name: 'Type 2 Diabetes', probability: Math.min(95, 40 + (bmi - 25) * 5), category: 'Metabolic' });
-      diseases.push({ name: 'Hypertension', probability: Math.min(90, 30 + (bmi - 25) * 4), category: 'Cardiovascular' });
+    let saved = false;
+    let assessmentId: string | null = null;
+    if (userId) {
+      try {
+        const record = await prisma.healthRiskAssessment.create({
+          data: {
+            userId,
+            overallRisk: result.overallRisk,
+            riskPercent: result.riskPercent,
+            overallScore: result.overallScore,
+            maxScore: result.maxScore,
+            input: JSON.stringify(parsed.data),
+            factors: JSON.stringify(result.factors),
+            diseases: JSON.stringify(result.diseases),
+            recommendations: JSON.stringify(result.recommendations),
+          },
+        });
+        saved = true;
+        assessmentId = record.id;
+      } catch (saveError) {
+        console.error('Health risk save error:', saveError);
+      }
     }
-    if (bloodPressure >= 140) {
-      diseases.push({ name: 'Heart Disease', probability: Math.min(85, 30 + (bloodPressure - 140) * 0.8), category: 'Cardiovascular' });
-      diseases.push({ name: 'Stroke Risk', probability: Math.min(70, 20 + (bloodPressure - 140) * 0.5), category: 'Cardiovascular' });
-    }
-    if (bloodSugar >= 140) {
-      diseases.push({ name: 'Diabetes Complications', probability: Math.min(80, 25 + (bloodSugar - 140) * 0.5), category: 'Metabolic' });
-    }
-    if (smoking === 'yes') {
-      diseases.push({ name: 'Lung Cancer', probability: Math.min(75, 35), category: 'Respiratory' });
-      diseases.push({ name: 'COPD', probability: Math.min(70, 30), category: 'Respiratory' });
-    }
-    if (cholesterol >= 200) {
-      diseases.push({ name: 'Atherosclerosis', probability: Math.min(80, 25 + (cholesterol - 200) * 0.3), category: 'Cardiovascular' });
-    }
-
-    diseases.sort((a, b) => b.probability - a.probability);
-
-    // Generate recommendations
-    const recommendations: string[] = [];
-    if (bmi >= 25) recommendations.push('Maintain healthy weight through balanced diet');
-    if (bloodPressure >= 140) recommendations.push('Monitor blood pressure regularly, reduce sodium intake');
-    if (bloodSugar >= 100) recommendations.push('Limit sugar intake, increase physical activity');
-    if (cholesterol >= 200) recommendations.push('Reduce fatty foods, increase fiber intake');
-    if (smoking === 'yes') recommendations.push('Consider smoking cessation programs');
-    if (exercise === 'never' || exercise === 'rarely') recommendations.push('Start with 30 min daily walking or moderate exercise');
-    if (sleep < 6) recommendations.push('Prioritize 7-8 hours of sleep for recovery');
-    if (stress === 'high') recommendations.push('Practice stress management techniques');
-    if (age > 50) recommendations.push('Schedule regular health checkups every 6 months');
 
     return NextResponse.json({
       success: true,
-      result: {
-        overallRisk,
-        overallScore: totalScore,
-        maxScore: maxTotalScore,
-        riskPercent,
-        factors,
-        recommendations,
-        diseases: diseases.slice(0, 5)
-      }
+      saved,
+      assessmentId,
+      result
     });
 
   } catch (error) {

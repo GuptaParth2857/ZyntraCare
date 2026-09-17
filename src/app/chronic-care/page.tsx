@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { FiPlus, FiTrash2, FiCheckCircle, FiClock, FiTarget, FiActivity, FiCalendar } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiCheckCircle, FiClock, FiTarget, FiActivity, FiCalendar, FiLock, FiInfo, FiLoader } from 'react-icons/fi';
 import { FaHeartbeat, FaTint, FaLungs, FaShieldAlt } from 'react-icons/fa';
+import Link from 'next/link';
 
 interface Goal { text: string; target: string; unit: string; }
 interface ScheduleItem { day: string; time: string; task: string; }
@@ -56,23 +57,33 @@ export default function ChronicCarePage() {
     description: 'Personalized care plan for managing diabetes.',
   });
 
-  const userId = (session?.user as any)?.id || 'demo-user';
+  const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1';
+  const userId = demoMode ? 'demo-user' : (session?.user as any)?.id || '';
+  const isAuthenticated = demoMode || status === 'authenticated';
+
+  const parsePlan = (p: any): CarePlan => ({
+    ...p,
+    goals: typeof p.goals === 'string' ? (p.goals ? JSON.parse(p.goals) : []) : p.goals,
+    schedule: typeof p.schedule === 'string' ? (p.schedule ? JSON.parse(p.schedule) : []) : p.schedule,
+  });
 
   useEffect(() => {
-    fetch(`/api/chronic-care?userId=${userId}`)
+    if (!isAuthenticated) return;
+    fetch(`/api/chronic-care${demoMode ? '?userId=demo-user' : ''}`)
       .then(r => r.json())
       .then(data => {
         if (data.plans) {
-          setPlans(data.plans.map((p: any) => ({
-            ...p,
-            goals: typeof p.goals === 'string' ? (p.goals ? JSON.parse(p.goals) : []) : p.goals,
-            schedule: typeof p.schedule === 'string' ? (p.schedule ? JSON.parse(p.schedule) : []) : p.schedule,
-          })));
+          setPlans(data.plans.map(parsePlan));
+        } else if (data.error) {
+          setError(data.error);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [userId]);
+      .catch(() => {
+        setError('Failed to load care plans');
+        setLoading(false);
+      });
+  }, [isAuthenticated, demoMode]);
 
   const handleCreate = async () => {
     setError('');
@@ -89,13 +100,13 @@ export default function ChronicCarePage() {
           schedule: DEFAULT_SCHEDULE,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Failed to create care plan');
+        return;
+      }
       if (data.plan) {
-        setPlans(prev => [{
-          ...data.plan,
-          goals: DEFAULT_GOALS[data.plan.condition as string],
-          schedule: DEFAULT_SCHEDULE,
-        }, ...prev]);
+        setPlans(prev => [parsePlan(data.plan), ...prev]);
         setShowForm(false);
       }
     } catch (err) {
@@ -104,8 +115,18 @@ export default function ChronicCarePage() {
   };
 
   const handleDelete = async (id: string) => {
-    await fetch(`/api/chronic-care?id=${id}`, { method: 'DELETE' });
-    setPlans(prev => prev.filter(p => p.id !== id));
+    setError('');
+    try {
+      const res = await fetch(`/api/chronic-care?id=${id}${demoMode ? '&userId=demo-user' : ''}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Failed to delete care plan');
+        return;
+      }
+      setPlans(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      setError('Failed to delete care plan');
+    }
   };
 
   return (
@@ -128,13 +149,42 @@ export default function ChronicCarePage() {
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Structured, disease-specific care plans with daily goals, monitoring schedules, and milestone tracking.
           </p>
-          <button
-            onClick={() => setShowForm(v => !v)}
-            className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-xl font-bold inline-flex items-center gap-2 hover:opacity-90 transition"
-          >
-            <FiPlus /> {showForm ? 'Cancel' : 'Create Care Plan'}
-          </button>
         </motion.div>
+
+        {!isAuthenticated && status !== 'loading' ? (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto bg-white/[0.03] border border-white/10 rounded-[2rem] p-10 text-center backdrop-blur-xl">
+            <div className="w-14 h-14 mx-auto bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-5">
+              <FiLock className="text-blue-400" size={24} />
+            </div>
+            <h2 className="text-2xl font-black mb-2">Private to your account</h2>
+            <p className="text-white/50 text-sm mb-8">Care plans are tied to your account. Sign in to create and manage your chronic care plans.</p>
+            <Link href="/auth/signin" className="inline-flex px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-2xl font-black text-sm hover:from-blue-500 hover:to-emerald-500 transition">
+              Sign In
+            </Link>
+            <p className="text-white/20 text-xs mt-4">Hot preview at <span className="font-mono text-white/40">/chronic-care?demo=1</span></p>
+          </motion.div>
+        ) : status === 'loading' ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <FiLoader className="animate-spin text-blue-400" size={32} />
+            <p className="text-white/40 text-sm">Loading your care plans…</p>
+          </div>
+        ) : (
+          <>
+            {demoMode && (
+              <div className="max-w-3xl mx-auto mb-6 flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-sm font-bold">
+                <FiInfo size={16} className="flex-shrink-0" />
+                Viewing demo dataset. Sign in to manage your own care plans.
+              </div>
+            )}
+
+            <div className="text-center mb-8">
+              <button
+                onClick={() => setShowForm(v => !v)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-xl font-bold inline-flex items-center gap-2 hover:opacity-90 transition"
+              >
+                <FiPlus /> {showForm ? 'Cancel' : 'Create Care Plan'}
+              </button>
+            </div>
 
         {showForm && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto mb-10 bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6">
@@ -249,6 +299,9 @@ export default function ChronicCarePage() {
               );
             })}
           </div>
+        )}
+
+          </>
         )}
       </div>
     </div>

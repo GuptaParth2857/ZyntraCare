@@ -13,6 +13,8 @@ interface VerificationResult {
   verified: boolean;
   timestamp: number;
   source: string;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
 }
 
 export default function MedicineVerifyPage() {
@@ -53,7 +55,7 @@ export default function MedicineVerifyPage() {
     }
   };
 
-  const sampleCodes = ['COVAS', 'COVAX', 'AMOX500', 'PARA500', 'MET500', 'AMLOD10', 'ATOR20'];
+  const sampleCodes = ['COVAS', 'COVSH', 'AMOX500', 'PARA500', 'METFOR500', 'AMLOD5', 'ATOR10'];
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
@@ -78,7 +80,7 @@ export default function MedicineVerifyPage() {
             </span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Verify medicine authenticity using blockchain-based supply chain tracking.
+            Look up and cross-check medicine details from registered sources.
           </p>
         </motion.div>
 
@@ -129,20 +131,20 @@ export default function MedicineVerifyPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`mt-6 p-6 rounded-2xl border ${
-                result.verified 
-                  ? 'bg-green-500/10 border-green-500/30' 
-                  : 'bg-red-500/10 border-red-500/30'
+                result.verified
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-amber-500/10 border-amber-500/30'
               }`}
             >
               <div className="flex items-center gap-3 mb-4">
                 {result.verified ? (
                   <FiCheckCircle size={32} className="text-green-400" />
                 ) : (
-                  <FiAlertCircle size={32} className="text-red-400" />
+                  <FiAlertCircle size={32} className="text-amber-400" />
                 )}
                 <div>
                   <h3 className="text-lg font-bold">
-                    {result.verified ? 'Verified Authentic' : 'Verification Required'}
+                    {result.verified ? 'Found in Registry' : 'No Match in Registry'}
                   </h3>
                   <p className="text-sm text-gray-400">{result.source}</p>
                 </div>
@@ -165,6 +167,18 @@ export default function MedicineVerifyPage() {
                   <span className="text-gray-400">Category:</span>
                   <p className="font-bold">{result.category}</p>
                 </div>
+                {result.batchNumber && (
+                  <div>
+                    <span className="text-gray-400">Batch:</span>
+                    <p className="font-bold">{result.batchNumber}</p>
+                  </div>
+                )}
+                {result.expiryDate && (
+                  <div>
+                    <span className="text-gray-400">Expiry:</span>
+                    <p className="font-bold">{result.expiryDate}</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -212,28 +226,32 @@ export default function MedicineVerifyPage() {
           )}
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid md:grid-cols-3 gap-6"
-        >
+<motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="grid md:grid-cols-3 gap-6 mb-6"
+          >
           <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 text-center">
             <FaShieldAlt size={40} className="text-purple-400 mx-auto mb-4" />
-            <h3 className="font-bold mb-2">Blockchain Tracking</h3>
-            <p className="text-gray-400 text-sm">Every transaction is recorded on immutable blockchain</p>
+            <h3 className="font-bold mb-2">Manufacturer Registry</h3>
+            <p className="text-gray-400 text-sm">Real manufacturer details for common Indian and international medicines</p>
           </div>
           <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 text-center">
             <FaLock size={40} className="text-cyan-400 mx-auto mb-4" />
-            <h3 className="font-bold mb-2">Anti-Counterfeit</h3>
-            <p className="text-gray-400 text-sm">Advanced verification prevents fake medicines</p>
+            <h3 className="font-bold mb-2">Live Cross-checks</h3>
+            <p className="text-gray-400 text-sm">Falls back to US FDA OpenData when available for additional detail</p>
           </div>
           <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 text-center">
             <FaPills size={40} className="text-blue-400 mx-auto mb-4" />
-            <h3 className="font-bold mb-2">Verified Database</h3>
-            <p className="text-gray-400 text-sm">Connected to authorized pharmaceutical database</p>
+            <h3 className="font-bold mb-2">Community Registry</h3>
+            <p className="text-gray-400 text-sm">User-submitted medicines are saved to the registry for future lookups</p>
           </div>
         </motion.div>
+
+          <p className="text-xs text-gray-500 text-center">
+            Registry lookup is informational only — it does not replace licensed track-and-trace verification, a pharmacist&apos;s advice, or a doctor&apos;s guidance.
+          </p>
       </div>
     </div>
   );

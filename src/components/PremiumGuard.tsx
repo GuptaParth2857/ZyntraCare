@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { FiStar, FiZap } from 'react-icons/fi';
 
 interface PremiumGuardProps {
@@ -9,11 +10,18 @@ interface PremiumGuardProps {
   fallback?: React.ReactNode;
 }
 
+const PREMIUM_PLANS = ['Premium Monthly', 'Premium Yearly'];
+
 export default function PremiumGuard({ children, fallback }: PremiumGuardProps) {
   const router = useRouter();
+  const { data: session, status } = useSession();
 
-  // Guest mode - show premium upgrade for subscription features
-  const isPremium = false;
+  const subscription = (session?.user as any)?.subscription;
+  const isPremium = !!subscription && subscription.status === 'active' && PREMIUM_PLANS.includes(subscription.plan);
+
+  if (status === 'loading') {
+    return null;
+  }
 
   if (isPremium) {
     return <>{children}</>;
@@ -51,23 +59,19 @@ export default function PremiumGuard({ children, fallback }: PremiumGuardProps) 
           <ul className="text-left text-slate-300 text-sm space-y-2">
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              Advanced AI Symptom Analysis
+              AI-powered health insights
             </li>
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              Priority Hospital Booking
+              Family health monitoring &amp; profiles
             </li>
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              Unlimited Teleconsultations
+              Health records vault &amp; management
             </li>
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              Family Health Monitoring
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-              Ad-free Experience
+              Your plan is applied instantly after payment
             </li>
           </ul>
         </div>

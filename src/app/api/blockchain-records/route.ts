@@ -1,24 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
-
-const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
-
-async function sha256(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function getPreviousHash(userId: string): Promise<string> {
-  const last = await prisma.healthRecord.findFirst({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, createdAt: true },
-  });
-  if (!last) return GENESIS_HASH;
-  return sha256(`${last.id}-${last.createdAt.getTime()}`);
-}
+import { verifyChain, backfillMissingHashes, contentValue, sha256 } from '@/lib/blockchain';
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
@@ -27,32 +10,26 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const records = await prisma.healthRecord.findMany({
-      where: { userId: token.sub },
-      orderBy: { createdAt: 'desc' },
-    });
+    const userId = token.sub;
+    await backfillMissingHashes(userId);
+    const { records, links, chainValid } = await verifyChain(userId);
 
-    let chainHash = GENESIS_HASH;
-    const chain: any[] = [];
-    for (const record of records) {
-      const hash = await sha256(`${record.id}-${record.createdAt.getTime()}`);
-      chain.push({
-        id: record.id,
-        title: record.title,
-        type: record.type,
-        fileUrl: record.fileUrl,
-        notes: record.notes,
-        date: record.date,
-        hospital: record.hospital,
-        doctor: record.doctor,
-        hash,
-        previousHash: chainHash,
-        timestamp: record.createdAt.getTime(),
-      });
-      chainHash = hash;
-    }
+    const chain = links.map(({ record, link }) => ({
+      id: record.id,
+      title: record.title,
+      type: record.type,
+      fileUrl: record.fileUrl,
+      notes: record.notes,
+      date: record.date,
+      hospital: record.hospital,
+      doctor: record.doctor,
+      hash: link.hash,
+      previousHash: link.previousHash,
+      timestamp: record.createdAt.getTime(),
+      verified: link.storedHash === link.hash && link.storedPreviousHash === link.previousHash,
+    }));
 
-    return NextResponse.json({ success: true, records: chain });
+    return NextResponse.json({ success: true, records: chain, chainValid, totalRecords: records.length });
   } catch (error) {
     console.error('Blockchain records GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 });
@@ -86,8 +63,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const previousHash = await getPreviousHash(token.sub);
-    const hash = await sha256(`${record.id}-${record.createdAt.getTime()}`);
+    await backfillMissingHashes(token.sub);
+    const { links } = await verifyChain(token.sub);
+    const link = links.find((l) => l.record.id === record.id);
 
     return NextResponse.json({
       success: true,
@@ -100,8 +78,8 @@ export async function POST(req: NextRequest) {
         date: record.date,
         hospital: record.hospital,
         doctor: record.doctor,
-        hash,
-        previousHash,
+        hash: link?.link.hash,
+        previousHash: link?.link.previousHash,
         timestamp: record.createdAt.getTime(),
       },
     }, { status: 201 });

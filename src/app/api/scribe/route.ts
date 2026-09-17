@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { geminiGenerate } from '@/lib/gemini';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
@@ -43,10 +43,7 @@ export async function POST(req: NextRequest) {
     // Try Gemini
     if (GEMINI_API_KEY) {
       try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        const result = await model.generateContent(prompt + '\n\n' + transcript);
-        const text = (await result.response).text();
+        const text = await geminiGenerate({ prompt: prompt + '\n\n' + transcript, json: true });
         if (text) {
           const parsed = JSON.parse(text);
           return NextResponse.json(parsed);

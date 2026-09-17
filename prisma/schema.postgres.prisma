@@ -34,8 +34,17 @@ model User {
   otpTokens       OtpToken[]
   sessions        UserSession[]
   healthMetrics  HealthMetric[]
+  healthRiskAssessments HealthRiskAssessment[]
   favorites      FavoriteHospital[]
   notifications  Notification[]
+  ambulanceBookings AmbulanceBooking[]
+  medicineReminders MedicineReminder[]
+  medicineOrders    MedicineOrder[]
+  createdTeamChallenges TeamChallenge[]
+  teamChallengeMembers TeamChallengeMember[]
+  medicationAdherences MedicationAdherence[]
+  medicationDoseLogs   MedicationDoseLog[]
+  rewardRedemptions    RewardRedemption[]
 }
 
 model OtpToken {
@@ -152,6 +161,8 @@ model HealthRecord {
   date       String
   hospital   String   @default("")
   doctor     String   @default("")
+  hash       String   @default("")
+  previousHash String @default("")
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -185,6 +196,24 @@ model HealthMetric {
   oxygenLevel   Float?
   notes         String   @default("")
   createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── HEALTH RISK ASSESSMENT ────────────────────────────────
+
+model HealthRiskAssessment {
+  id              String   @id @default(cuid())
+  userId          String
+  overallRisk     String // low | medium | high | very_high
+  riskPercent     Int
+  overallScore    Int
+  maxScore        Int
+  input           String   @default("") // JSON of submitted parameters
+  factors         String   @default("") // JSON of factor breakdown
+  diseases        String   @default("") // JSON of disease probabilities
+  recommendations String   @default("") // JSON array
+  createdAt       DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -243,4 +272,156 @@ model AmbulanceBooking {
 
   user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   ambulance Ambulance? @relation(fields: [ambulanceId], references: [id], onDelete: SetNull)
+}
+
+model MedicineReminder {
+  id        String   @id @default(cuid())
+  userId    String
+  medicine  String
+  dosage    String
+  frequency String   // daily | twice_daily | weekly | custom
+  times     String   // JSON array of times ["08:00","20:00"]
+  days      String   @default("[]") // JSON array of weekdays ["Mon","Tue",...]
+  startDate String
+  endDate   String?
+  notes     String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([isActive])
+}
+
+model MedicineOrder {
+  id         String   @id @default(cuid())
+  userId     String
+  trackingId String
+  items      String   // JSON array of { name, dosage, frequency, quantity, price }
+  pharmacy   String   // JSON object { name, address, deliveryTime, deliveryFee }
+  address    String
+  total      Float
+  payment    String   @default("cod") // cod | upi | card
+  status     String   @default("placed") // placed | processing | out_for_delivery | delivered
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model TeamChallenge {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  type        String
+  icon        String   @default("")
+  color       String   @default("from-blue-500 to-cyan-500")
+  dailyGoal   String   @default("")
+  target      Float    @default(0)
+  duration    Int      @default(7)
+  daysLeft    Int      @default(7)
+  reward      Int      @default(500)
+  maxMembers  Int      @default(5)
+  progress    Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  members TeamChallengeMember[]
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([createdBy])
+}
+
+model TeamChallengeMember {
+  id           String   @id @default(cuid())
+  challengeId  String
+  userId       String
+  userName     String   @default("")
+  contribution Float    @default(0)
+  avatar       String   @default("")
+  joinedAt     DateTime @default(now())
+
+  challenge TeamChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, userId])
+  @@index([challengeId])
+}
+
+model RewardItem {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @default("")
+  coinsRequired Int      @default(0)
+  category      String   @default("labs")
+  icon          String   @default("🎁")
+  discount      String?
+  brand         String   @default("")
+  originalPrice String   @default("")
+  stock         Int      @default(0)
+  bestSeller    Boolean  @default(false)
+  kind          String   @default("reward")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  redemptions RewardRedemption[]
+}
+
+model RewardRedemption {
+  id         String   @id @default(cuid())
+  itemId     String
+  userId     String
+  coinsSpent Int      @default(0)
+  code       String   @unique
+  status     String   @default("redeemed")
+  redeemedAt DateTime @default(now())
+
+  item RewardItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([itemId])
+}
+
+model MedicationAdherence {
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  dosage           String   @default("")
+  frequency        String   @default("")
+  times            String   @default("[]")
+  startDate        String   @default("")
+  endDate          String   @default("")
+  remainingDoses   Int      @default(0)
+  totalDoses       Int      @default(0)
+  stockLevel       Int      @default(0)
+  autoReorder      Boolean  @default(false)
+  reorderThreshold Int      @default(10)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs MedicationDoseLog[]
+
+  @@index([userId])
+}
+
+model MedicationDoseLog {
+  id          String   @id @default(cuid())
+  adherenceId String
+  userId      String
+  date        String
+  status      String
+  doses       Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  adherence MedicationAdherence @relation(fields: [adherenceId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([adherenceId])
+  @@index([userId])
+  @@index([date])
 }

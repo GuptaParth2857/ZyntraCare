@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import RoleGuard from '@/components/RoleGuard';
@@ -96,12 +96,7 @@ export default function HospitalDashboardPage() {
   const [notifCount, setNotifCount] = useState(3);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [beds, setBeds] = useState(EMPTY_BEDS);
-  const [emergencyCases, setEmergencyCases] = useState([
-    { id: 'EM-1049', type: 'Cardiac Arrest', patient: 'Male, ~55 yrs', priority: 'Critical', eta: '4 min', location: 'Connaught Place', unit: 'AMB-02', timestamp: new Date().toISOString() },
-    { id: 'EM-1048', type: 'Road Accident', patient: 'Female, ~28 yrs', priority: 'High', eta: '12 min', location: 'Ring Road, Lajpat', unit: 'AMB-01', timestamp: new Date().toISOString() },
-    { id: 'EM-1047', type: 'Stroke', patient: 'Male, ~68 yrs', priority: 'Critical', eta: '8 min', location: 'Defence Colony', unit: 'AMB-04', timestamp: new Date().toISOString() },
-    { id: 'EM-1046', type: 'Fracture', patient: 'Child, ~10 yrs', priority: 'Medium', eta: '18 min', location: 'Saket', unit: 'AMB-03', timestamp: new Date().toISOString() },
-  ]);
+  const [emergencyCases, setEmergencyCases] = useState<any[]>([]);
   const [ambulances, setAmbulances] = useState<any[]>([]);
 
   // Pulse animation
@@ -110,42 +105,31 @@ export default function HospitalDashboardPage() {
     return () => clearInterval(iv);
   }, []);
 
-  // Fetch real bed availability from API on mount
-  useEffect(() => {
-    const fetchBeds = async () => {
-      try {
-        const res = await fetch('/api/beds');
-        const data = await res.json();
-        const list = data.hospitals || [];
-        const h = list.find((x: any) => x.id === HOSPITAL_ID) || list[0];
-        if (h?.beds) {
-          const b = h.beds;
-          setBeds({
-            general: { total: b.total || 0, occupied: b.occupied || 0, available: b.available || 0 },
-            icu: { total: b.icu?.total || 0, occupied: b.icu?.occupied || 0, available: b.icu?.available || 0 },
-            emergency: { total: 0, occupied: 0, available: 0 },
-            pediatric: { total: 0, occupied: 0, available: 0 },
-          });
-          setLastRefresh(new Date());
-        }
-      } catch {}
-    };
-    fetchBeds();
+  // Load real bed availability from the database (refreshes every 15s)
+  const loadBeds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/beds');
+      const data = await res.json();
+      const list = data.hospitals || [];
+      const h = list.find((x: any) => x.id === HOSPITAL_ID) || list[0];
+      if (h?.beds) {
+        const b = h.beds;
+        setBeds({
+          general: { total: b.total || 0, occupied: b.occupied || 0, available: b.available || 0 },
+          icu: { total: b.icu?.total || 0, occupied: b.icu?.occupied || 0, available: b.icu?.available || 0 },
+          emergency: { total: b.emergency?.total || 0, occupied: b.emergency?.occupied || 0, available: b.emergency?.available || 0 },
+          pediatric: { total: b.pediatric?.total || 0, occupied: b.pediatric?.occupied || 0, available: b.pediatric?.available || 0 },
+        });
+        setLastRefresh(new Date());
+      }
+    } catch {}
   }, []);
 
-  // Simulate real-time bed updates
   useEffect(() => {
-    const iv = setInterval(() => {
-      setBeds(prev => ({
-        general: { ...prev.general, occupied: Math.max(0, prev.general.occupied + Math.floor(Math.random() * 3) - 1) },
-        icu: { ...prev.icu, occupied: Math.max(0, prev.icu.occupied + (Math.random() > 0.7 ? 1 : 0)) },
-        emergency: { ...prev.emergency, occupied: Math.max(0, prev.emergency.occupied + Math.floor(Math.random() * 3) - 1) },
-        pediatric: { ...prev.pediatric },
-      }));
-      setLastRefresh(new Date());
-    }, 10000);
+    loadBeds();
+    const iv = setInterval(loadBeds, 15000);
     return () => clearInterval(iv);
-  }, []);
+  }, [loadBeds]);
 
   // Fetch fresh emergency cases from API (every 15s)
   useEffect(() => {
@@ -205,7 +189,7 @@ export default function HospitalDashboardPage() {
               <span className="text-emerald-400 text-xs font-bold">LIVE</span>
             </div>
             <button
-              onClick={() => setLastRefresh(new Date())}
+              onClick={loadBeds}
               className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition"
               title="Refresh data"
             >
@@ -247,7 +231,7 @@ export default function HospitalDashboardPage() {
                   <StatCard label="Total Patients Today" value={289} sub="+14 from yesterday" color="bg-blue-500" icon={<FiUsers size={18} />} />
                   <StatCard label="Available Beds" value={beds.general.available + beds.icu.available + beds.emergency.available} sub="Across all wards" color="bg-emerald-500" icon={<FiActivity size={18} />} />
                   <StatCard label="Active Ambulances" value={ambulances.filter(a => a.status !== 'maintenance').length} sub="Ready to deploy" color="bg-orange-500" icon={<FiTruck size={18} />} />
-                  <StatCard label="Emergency Cases" value={emergencyCases.length} sub="2 Critical inbound" color="bg-red-500" icon={<FiAlertCircle size={18} />} />
+                  <StatCard label="Emergency Cases" value={emergencyCases.length} sub={`${emergencyCases.filter(e => e.priority === 'Critical').length} Critical inbound`} color="bg-red-500" icon={<FiAlertCircle size={18} />} />
                 </div>
 
                 {/* Bed Overview */}

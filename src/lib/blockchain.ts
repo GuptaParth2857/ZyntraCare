@@ -1,187 +1,90 @@
-/**
- * Blockchain Simulation for Patient Data
- * 
- * Provides secure, tamper-proof storage for:
- * - Health records
- * - Medical prescriptions
- * - Lab results
- * - Supply chain data
- * 
- * Each record is hashed with previous hash creating a chain.
- */
+import { prisma } from '@/lib/prisma';
 
-import { useAppStore, type BlockchainRecord } from '@/store/useAppStore';
-import { useCallback, useEffect } from 'react';
+export const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
-const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
-
-async function sha256(data: string): Promise<string> {
+export async function sha256(data: string): Promise<string> {
   const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function calculateHash(index: number, previousHash: string, timestamp: number, data: string): Promise<string> {
-  const payload = `${index}${previousHash}${timestamp}${data}`;
-  return sha256(payload);
+interface ChainSource {
+  id: string;
+  createdAt: Date;
+  title: string;
+  type: string;
+  fileUrl: string;
+  notes: string;
+  date: string;
+  hospital: string;
+  doctor: string;
+  hash?: string | null;
+  previousHash?: string | null;
 }
 
-export function generateRecordId(): string {
-  return `REC_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+export function contentValue(
+  r: Pick<ChainSource, 'id' | 'createdAt' | 'title' | 'type' | 'fileUrl' | 'notes' | 'date' | 'hospital' | 'doctor'>,
+  previousHash: string
+): string {
+  return `${r.id}|${r.createdAt.getTime()}|${r.title}|${r.type}|${r.fileUrl}|${r.notes}|${r.date}|${r.hospital}|${r.doctor}|${previousHash}`;
 }
 
-export async function createRecord(
-  type: string,
-  data: string,
-  previousHash: string = GENESIS_HASH
-): Promise<BlockchainRecord> {
-  const timestamp = Date.now();
-  const index = 0;
-  const hash = await calculateHash(index, previousHash, timestamp, data);
-  
-  return {
-    id: generateRecordId(),
-    type,
-    dataHash: hash,
-    previousHash,
-    timestamp,
-    data
-  };
-}
-
-export async function verifyChain(records: BlockchainRecord[]): Promise<boolean> {
-  if (records.length === 0) return true;
-  
-  let previousHash = GENESIS_HASH;
-  
-  for (const record of records) {
-    const expectedHash = await calculateHash(0, previousHash, record.timestamp, record.data);
-    
-    if (record.dataHash !== expectedHash) {
-      console.error('Chain verification failed:', record.id);
-      return false;
-    }
-    
-    previousHash = record.dataHash;
+export async function computeChainedHashes(records: ChainSource[]): Promise<
+  { id: string; hash: string; previousHash: string; storedHash: string; storedPreviousHash: string }[]
+> {
+  let prev = GENESIS_HASH;
+  const chain: { id: string; hash: string; previousHash: string; storedHash: string; storedPreviousHash: string }[] = [];
+  for (const r of records) {
+    const hash = await sha256(contentValue(r, prev));
+    chain.push({
+      id: r.id,
+      hash,
+      previousHash: prev,
+      storedHash: r.hash || '',
+      storedPreviousHash: r.previousHash || '',
+    });
+    prev = hash;
   }
-  
-  return true;
+  return chain;
 }
 
-export function useBlockchain() {
-  const { blockchainRecords, addBlockchainRecord } = useAppStore();
+export async function verifyChain(userId: string) {
+  const records = await prisma.healthRecord.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'asc' },
+  });
 
-  const addRecord = useCallback(async (type: string, data: string) => {
-    const previousHash = blockchainRecords.length > 0
-      ? blockchainRecords[blockchainRecords.length - 1].dataHash
-      : GENESIS_HASH;
-    
-    const record = await createRecord(type, data, previousHash);
-    addBlockchainRecord(record);
-    
-    return record;
-  }, [blockchainRecords, addBlockchainRecord]);
+  const chain = await computeChainedHashes(records);
+  const links = records.map((r, i) => ({ record: r, link: chain[i] }));
+  const verified = links.map(({ record, link }) => ({
+    record,
+    verified: link.storedHash === link.hash && link.storedPreviousHash === link.previousHash,
+  }));
+  const chainValid = verified.every((v) => v.verified);
 
-  const addHealthRecord = useCallback(async (record: {
-    patientId: string;
-    type: string;
-    content: string;
-    hospital: string;
-    doctor: string;
-  }) => {
-    const data = JSON.stringify({
-      patientId: record.patientId,
-      type: record.type,
-      content: record.content,
-      hospital: record.hospital,
-      doctor: record.doctor,
-      date: new Date().toISOString()
-    });
-    
-    return addRecord('health_record', data);
-  }, [addRecord]);
-
-  const addPrescription = useCallback(async (prescription: {
-    patientId: string;
-    medicines: string[];
-    dosage: string;
-    doctor: string;
-    hospital: string;
-  }) => {
-    const data = JSON.stringify({
-      patientId: prescription.patientId,
-      medicines: prescription.medicines,
-      dosage: prescription.dosage,
-      doctor: prescription.doctor,
-      hospital: prescription.hospital,
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    });
-    
-    return addRecord('prescription', data);
-  }, [addRecord]);
-
-  const addSupplyChainRecord = useCallback(async (record: {
-    medicineId: string;
-    batchNumber: string;
-    manufacturer: string;
-    distributor: string;
-    pharmacy: string;
-    status: string;
-  }) => {
-    const data = JSON.stringify({
-      medicineId: record.medicineId,
-      batchNumber: record.batchNumber,
-      manufacturer: record.manufacturer,
-      distributor: record.distributor,
-      pharmacy: record.pharmacy,
-      status: record.status,
-      timestamp: new Date().toISOString()
-    });
-    
-    return addRecord('supply_chain', data);
-  }, [addRecord]);
-
-  const verifyRecord = useCallback(async (recordId: string): Promise<boolean> => {
-    const record = blockchainRecords.find(r => r.id === recordId);
-    if (!record) return false;
-    
-    const index = blockchainRecords.findIndex(r => r.id === recordId);
-    const previousHash = index === 0 ? GENESIS_HASH : blockchainRecords[index - 1].dataHash;
-    
-    const expectedHash = await calculateHash(0, previousHash, record.timestamp, record.data);
-    return record.dataHash === expectedHash;
-  }, [blockchainRecords]);
-
-const getChainStats = useCallback(async () => {
-    const recordsByType = blockchainRecords.reduce<Record<string, number>>((acc, record) => {
-      acc[record.type] = (acc[record.type] || 0) + 1;
-      return acc;
-    }, {});
-    
-    return {
-      totalRecords: blockchainRecords.length,
-      recordsByType,
-      isValid: await verifyChain(blockchainRecords),
-      latestHash: blockchainRecords.length > 0
-        ? blockchainRecords[blockchainRecords.length - 1].dataHash
-        : GENESIS_HASH
-    };
-  }, [blockchainRecords]);
-
-  return {
-    records: blockchainRecords,
-    addRecord,
-    addHealthRecord,
-    addPrescription,
-    addSupplyChainRecord,
-    verifyRecord,
-    verifyChain: () => verifyChain(blockchainRecords),
-    getChainStats
-  };
+  return { records, links, verified, chainValid };
 }
 
-export async function hashData(data: Record<string, unknown>): Promise<string> {
-  return sha256(JSON.stringify(data));
+export async function backfillMissingHashes(userId: string) {
+  const { links } = await verifyChain(userId);
+  const missing = links.filter(({ record, link }) => (record.hash || '') === '' || (record.previousHash || '') === '');
+  for (const { record, link } of missing) {
+    await prisma.healthRecord.update({
+      where: { id: record.id },
+      data: { hash: link.hash, previousHash: link.previousHash },
+    });
+  }
+  return missing.length;
+}
+
+export async function rechainAllHashes(userId: string) {
+  const { links } = await verifyChain(userId);
+  for (const { record, link } of links) {
+    if ((record.hash || '') !== link.hash || (record.previousHash || '') !== link.previousHash) {
+      await prisma.healthRecord.update({
+        where: { id: record.id },
+        data: { hash: link.hash, previousHash: link.previousHash },
+      });
+    }
+  }
 }

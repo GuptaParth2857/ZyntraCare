@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 interface Benchmark {
   metric: string;
   value: number;
   unit: string;
-  percentile: number;
+  matchPercent: number;
   status: 'good' | 'warning' | 'poor';
   ideal: string;
 }
@@ -17,11 +20,21 @@ const POPULATION_BENCHMARKS: Record<string, { unit: string; idealMin: number; id
   bloodSugar: { unit: 'mg/dL', idealMin: 70, idealMax: 99 },
 };
 
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId') || 'demo-user';
+function resolveUserId(token: any, requested: string | null): string {
+  if (token?.sub) return token.sub;
+  if (requested === 'demo-user') return 'demo-user';
+  return '';
+}
 
+export async function GET(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const { searchParams } = new URL(req.url);
+  const userId = resolveUserId(token, searchParams.get('userId'));
+  if (!userId) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
+  try {
     const metrics = await prisma.healthMetric.findMany({
       where: { userId },
       orderBy: { date: 'asc' },
@@ -41,12 +54,12 @@ export async function GET(req: NextRequest) {
     const pushBenchmark = (metric: string, value: number | null | undefined, idealMin: number, idealMax: number, unit: string) => {
       if (value === null || value === undefined) return;
       const b = POPULATION_BENCHMARKS[metric];
-      const percentile = Math.max(0, Math.min(100, Math.round(100 - Math.abs(value - (idealMin + idealMax) / 2) / (idealMax - idealMin) * 100)));
+      const matchPercent = Math.max(0, Math.min(100, Math.round(100 - Math.abs(value - (idealMin + idealMax) / 2) / (idealMax - idealMin) * 50)));
       let status: Benchmark['status'] = 'good';
       if (value < idealMin * 0.85 || value > idealMax * 1.15) status = 'poor';
       else if (value < idealMin || value > idealMax) status = 'warning';
       benchmarks.push({
-        metric, value, unit: b?.unit || unit, percentile,
+        metric, value, unit: b?.unit || unit, matchPercent,
         status, ideal: `${idealMin}-${idealMax} ${unit}`,
       });
     };
@@ -62,12 +75,13 @@ export async function GET(req: NextRequest) {
     }
 
     const healthScore = benchmarks.length
-      ? Math.round(benchmarks.reduce((s, b) => s + b.percentile, 0) / benchmarks.length)
+      ? Math.round(benchmarks.reduce((s, b) => s + b.matchPercent, 0) / benchmarks.length)
       : 0;
 
     return NextResponse.json({
       benchmarks,
       healthScore,
+      hasData: benchmarks.length > 0,
       latestDate: latest?.date || null,
       trend,
       demographicMatch: 'Compares your readings against healthy adult reference ranges.',

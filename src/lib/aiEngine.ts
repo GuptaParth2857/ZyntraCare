@@ -19,6 +19,7 @@ export interface AIRequest {
   mode?: 'chat' | 'symptom_checker' | 'medicine_info' | 'first_aid' | 'emergency';
   language?: 'en' | 'hi';
   userSymptoms?: string[];
+  patientContext?: string;
 }
 
 export interface AIResponse {
@@ -324,7 +325,8 @@ export async function processAIRequest(request: AIRequest, context?: Conversatio
     const allSymptoms = [...(request.userSymptoms || []), ...extractedSymptoms];
     
     // Build search context
-    const fullQuery = buildContext(context, query);
+    const patientCtx = (request.patientContext || '').trim();
+    const fullQuery = buildContext(context, query) + (patientCtx ? ` Known user health data: ${patientCtx}` : '');
     
     // Search knowledge base
     let results: HealthKnowledge[] = [];
@@ -360,9 +362,13 @@ export async function processAIRequest(request: AIRequest, context?: Conversatio
     // Calculate severity
     const severity = assessSeverity(allSymptoms, uniqueResults);
     
+    const finalResponse = patientCtx && (mode === 'chat' || mode === 'symptom_checker')
+      ? `${response}\n\n⚡ Referencing your latest readings: ${patientCtx}`
+      : response;
+
     return {
       success: true,
-      response,
+      response: finalResponse,
       sources: uniqueResults.slice(0, 3),
       suggestions,
       isEmergency: isEmergency || severity === 'emergency',

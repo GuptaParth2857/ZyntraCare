@@ -9,7 +9,7 @@ import { PLANS } from '@/lib/plans';
 import { createOrder, processPayment } from '@/lib/payment';
 
 export default function SubscriptionPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [currentPlan, setCurrentPlan] = useState('Free');
   const [loading, setLoading] = useState(false);
@@ -42,6 +42,7 @@ export default function SubscriptionPage() {
         if (res.ok) {
           setCurrentPlan('Free');
           setSuccess('Switched to Free plan successfully!');
+          await update({ subscription: { plan: 'Free', status: 'active' } }).catch(() => {});
         } else {
           const err = await res.json();
           setError(err.error || 'Failed to switch plan');
@@ -102,6 +103,7 @@ export default function SubscriptionPage() {
         if (subRes.ok) {
           setCurrentPlan(plan.name);
           setSuccess(`Subscribed to ${plan.name} successfully!`);
+          await update({ subscription: { plan: plan.name, status: 'active' } }).catch(() => {});
         } else {
           const err = await subRes.json();
           throw new Error(err.error || 'Subscription activation failed');
@@ -230,7 +232,7 @@ export default function SubscriptionPage() {
         </div>
 
         <div className="mt-16 text-center text-gray-500 text-sm max-w-2xl mx-auto bg-slate-900/40 p-6 rounded-2xl backdrop-blur-md border border-white/5">
-          <FiShield className="inline mr-2 mb-1" /> Payments are processed securely via Razorpay. All plans are non-refundable. Premium features become available instantly after a successful transaction.
+          <FiShield className="inline mr-2 mb-1" /> Payments go through Razorpay — checkout currently runs in test/demo mode until live keys are configured. All plans are non-refundable. Your selected plan is applied to your account right after a successful transaction.
         </div>
       </div>
     </div>

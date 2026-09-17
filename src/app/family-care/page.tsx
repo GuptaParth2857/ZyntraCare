@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiUsers, FiPlus, FiBell, FiPhone, FiCalendar, FiClock, FiActivity, FiHeart, FiAlertCircle, FiMapPin, FiStar } from 'react-icons/fi';
+import { useSession } from 'next-auth/react';
+import { FiUsers, FiPlus, FiBell, FiPhone, FiCalendar, FiClock, FiActivity, FiHeart, FiAlertCircle, FiMapPin, FiStar, FiLock, FiLoader } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
@@ -20,6 +21,10 @@ interface FamilyMember {
 }
 
 export default function FamilyDashboardPage() {
+  const { data: session, status } = useSession();
+  const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1';
+  const isAuthenticated = demoMode || status === 'authenticated';
+  const userId = demoMode ? 'demo-user' : (session?.user as any)?.id || 'demo-user';
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +34,7 @@ export default function FamilyDashboardPage() {
   const currentMember = familyMembers.find(m => m.id === selectedMember);
 
   useEffect(() => {
-    fetch('/api/family-members')
+      fetch(`/api/family-members?userId=${userId}`)
       .then(r => r.json())
       .then(data => {
         setFamilyMembers(data.familyMembers || []);

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
@@ -9,15 +9,34 @@ export async function GET(req: NextRequest) {
     const where: any = {};
     if (userId) where.userId = userId;
 
+    if (userId === 'demo-user') {
+      const count = await prisma.familyMember.count({ where: { userId: 'demo-user' } });
+      if (count === 0) {
+        await prisma.familyMember.createMany({
+          data: [
+            { userId: 'demo-user', name: 'Parth Sharma', relation: 'Self', age: 30, bloodGroup: 'O+', gender: 'Male', conditions: '["None"]', medications: '["None"]', isEmergency: true },
+            { userId: 'demo-user', name: 'Suresh Sharma', relation: 'Father', age: 62, bloodGroup: 'A+', gender: 'Male', conditions: '["Hypertension"]', medications: '["Amlodipine"]' },
+            { userId: 'demo-user', name: 'Meena Sharma', relation: 'Mother', age: 58, bloodGroup: 'B+', gender: 'Female', conditions: '["Hypertension"]', medications: '["Telmisartan"]' },
+            { userId: 'demo-user', name: 'Aarav Sharma', relation: 'Son', age: 6, bloodGroup: 'AB+', gender: 'Male', conditions: '["None"]', medications: '["None"]' },
+          ],
+        });
+      }
+    }
+
     const members = await prisma.familyMember.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ members });
+    const withType = members.map(m => ({
+      ...m,
+      type: m.age != null ? (m.age >= 58 ? 'senior' : m.age <= 12 ? 'child' : 'adult') : 'adult',
+    }));
+
+    return NextResponse.json({ members: withType });
   } catch (error) {
     console.error('Family members GET error:', error);
-    return NextResponse.json({ members: [] }, { status: 500 });
+    return NextResponse.json({ members: [] }, { status: 200 });
   }
 }
 

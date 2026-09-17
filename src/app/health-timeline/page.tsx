@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiX, FiCalendar, FiFilter, FiClock, FiMapPin, FiUser, FiFileText, FiCheck, FiChevronDown, FiAlertCircle, FiActivity, FiShare2, FiCopy, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiX, FiCalendar, FiFilter, FiClock, FiMapPin, FiUser, FiFileText, FiCheck, FiChevronDown, FiAlertCircle, FiActivity, FiShare2, FiCopy, FiCheckCircle, FiLock, FiInfo, FiLoader } from 'react-icons/fi';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 interface HealthEvent {
   id: string;
@@ -38,7 +39,10 @@ const EVENT_TYPE_CONFIG = {
 
 const INITIAL_EVENTS: HealthEvent[] = [];
 
+const FALLBACK_CONFIG = { label: 'Medical Event', color: 'text-gray-300', bg: 'bg-white/5', border: 'border-white/10', dot: 'bg-gray-400', emoji: '⚪' };
+
 export default function HealthTimelinePage() {
+  const { data: session, status } = useSession();
   const [events, setEvents] = useState<HealthEvent[]>([]);
   const [filterType, setFilterType] = useState<HealthEvent['type'] | 'all'>('all');
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
@@ -47,15 +51,25 @@ export default function HealthTimelinePage() {
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1';
+  const userId = demoMode ? 'demo-user' : (session?.user as any)?.id || '';
+  const isAuthenticated = demoMode || status === 'authenticated';
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     setLoading(true);
-    fetch('/api/health-timeline?userId=demo-user')
+    fetch(`/api/health-timeline${demoMode ? '?userId=demo-user' : ''}`)
       .then(res => res.json())
-      .then(data => setEvents(data.events || data || []))
-      .catch(() => setEvents([]))
+      .then(data => {
+        const arr = data.events;
+        setEvents(Array.isArray(arr) ? arr : []);
+        if (!Array.isArray(arr)) setError(data.error || 'Could not load your timeline');
+      })
+      .catch(() => { setEvents([]); setError('Could not load your timeline'); })
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAuthenticated, demoMode]);
 
 
   const filteredEvents = useMemo(() => {
@@ -88,21 +102,26 @@ export default function HealthTimelinePage() {
     return { totalVisits, lastCheckup, upcomingVaccinations, emergencies, totalLabs, uniqueHospitals: hospitals.length };
   }, [events]);
 
-  const addEvent = () => {
+  const addEvent = async () => {
     if (!newEvent.title || !newEvent.hospital) return;
-    const event: HealthEvent = {
-      id: Date.now().toString(),
-      ...newEvent,
-    };
-    setEvents(prev => [event, ...prev]);
-    setShowAddForm(false);
-    setNewEvent({ type: 'hospital', title: '', date: new Date().toISOString().split('T')[0], hospital: '', doctor: '', summary: '', details: '' });
-
-    fetch('/api/health-timeline', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: 'demo-user', event }),
-    }).catch(() => {});
+    setError('');
+    try {
+      const res = await fetch('/api/health-timeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...newEvent }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.event) {
+        setError(data.error || 'Failed to save event');
+        return;
+      }
+      setEvents(prev => [data.event, ...prev]);
+      setShowAddForm(false);
+      setNewEvent({ type: 'hospital', title: '', date: new Date().toISOString().split('T')[0], hospital: '', doctor: '', summary: '', details: '' });
+    } catch (err) {
+      setError('Failed to save event');
+    }
   };
 
   const generateShareText = () => {
@@ -112,7 +131,7 @@ export default function HealthTimelinePage() {
       const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
       text += `--- ${monthName} ---\n`;
       monthEvents.forEach(event => {
-        const cfg = EVENT_TYPE_CONFIG[event.type];
+        const cfg = EVENT_TYPE_CONFIG[event.type] || FALLBACK_CONFIG;
         text += `\n${cfg.emoji} ${event.title}\n`;
         text += `  Date: ${new Date(event.date).toLocaleDateString('en-IN')}\n`;
         text += `  ${event.hospital} | ${event.doctor}\n`;
@@ -153,6 +172,40 @@ export default function HealthTimelinePage() {
             Your complete chronological health journey. Every visit, report, and milestone in one place.
           </p>
         </motion.div>
+
+        {!isAuthenticated && status !== 'loading' ? (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto bg-white/[0.03] border border-white/10 rounded-[2rem] p-10 text-center backdrop-blur-xl">
+            <div className="w-14 h-14 mx-auto bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-5">
+              <FiLock className="text-indigo-400" size={24} />
+            </div>
+            <h2 className="text-2xl font-black mb-2">Private to your account</h2>
+            <p className="text-white/50 text-sm mb-8">Your health timeline is personal data. Sign in to view and add events.</p>
+            <Link href="/auth/signin" className="inline-flex px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black text-sm hover:from-indigo-500 hover:to-violet-500 transition">
+              Sign In
+            </Link>
+            <p className="text-white/20 text-xs mt-4">Hot preview at <span className="font-mono text-white/40">/health-timeline?demo=1</span></p>
+          </motion.div>
+        ) : status === 'loading' ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <FiLoader className="animate-spin text-indigo-400" size={32} />
+            <p className="text-white/40 text-sm">Loading…</p>
+          </div>
+        ) : (
+          <>
+            {demoMode && (
+              <div className="max-w-6xl mx-auto mb-6 flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-sm font-bold">
+                <FiInfo size={16} className="flex-shrink-0" />
+                Viewing demo dataset. Sign in to manage your own timeline.
+              </div>
+            )}
+
+            {error && (
+              <div className="max-w-6xl mx-auto mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-3">
+                <FiAlertCircle className="text-red-400 flex-shrink-0" />
+                <p className="text-red-400/90 text-sm font-medium flex-1">{error}</p>
+                <button onClick={() => setError('')} className="px-3 py-1 bg-red-500/20 rounded-lg text-red-400 text-xs font-bold hover:bg-red-500/30 transition">Dismiss</button>
+              </div>
+            )}
 
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Stats Sidebar */}
@@ -293,7 +346,7 @@ export default function HealthTimelinePage() {
                       {/* Events */}
                       <div className="space-y-3 ml-5 border-l-2 border-white/10 pl-8">
                         {monthEvents.map((event, idx) => {
-                          const cfg = EVENT_TYPE_CONFIG[event.type];
+                          const cfg = EVENT_TYPE_CONFIG[event.type] || FALLBACK_CONFIG;
                           return (
                             <motion.div key={event.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: idx * 0.05 }}
@@ -363,8 +416,11 @@ export default function HealthTimelinePage() {
                 })}
               </div>
             )}
+</div>
           </div>
-        </div>
+          </>
+        )}
+
       </div>
 
       {/* Add Event Modal */}

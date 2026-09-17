@@ -19,8 +19,7 @@ import SplashScreen from './SplashScreen';
 import { useState, useEffect } from 'react';
 
 import { NotificationProvider } from '@/components/Notifications';
-import { AdProvider, AdSlot, AdsterraMobileBanner, AdsterraNativeWidget, PageAdsInjector } from '@/components/ads';
-import { AD_PLACEMENTS, ADSTERRA_CONFIG } from '@/lib/ads/config';
+
 
 // Suppress harmless Three.js warnings (deprecations, shader precision, etc.)
 if (typeof console !== 'undefined') {
@@ -101,20 +100,19 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <CanvasBackground />
       </ClientOnly>
 
-      {/* Adsterra Mobile Banner (#10) — sticky bottom on mobile */}
-      <AdsterraMobileBanner />
+
 
       {/* Tier 1: Always-visible chrome */}
       <EmergencyBanner />
       <Navbar />
-      <AdSlot placement={AD_PLACEMENTS.GLOBAL_HEADER} size="LEADERBOARD" className="py-2" />
+
       <EmergencyCallWidget />
       <VoiceEmergencyAssistant />
       <main id="main-content" className="flex-1 relative z-10" role="main">
         {children}
-        <PageAdsInjector />
+
       </main>
-      <AdSlot placement={AD_PLACEMENTS.GLOBAL_FOOTER} size="LEADERBOARD" className="py-2" />
+
       <Footer />
       <Analytics />
       <CookieConsent />
@@ -126,11 +124,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <EmergencyScrollMonitor />
           <ActiveTheoryCursor />
           <FeedbackModal />
-          <AdsterraNativeWidget
-            invokeUrl={ADSTERRA_CONFIG.nativeWidgetInvoke}
-            containerId={ADSTERRA_CONFIG.nativeWidgetContainer}
-            className="my-4"
-          />
+
         </ClientOnly>
       )}
 
@@ -146,9 +140,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
         <NotificationProvider>
           <SelfHealingSystem>
             <GlobalErrorHandler>
-              <AdProvider>
-                <AppShell>{children}</AppShell>
-              </AdProvider>
+              <AppShell>{children}</AppShell>
             </GlobalErrorHandler>
           </SelfHealingSystem>
         </NotificationProvider>

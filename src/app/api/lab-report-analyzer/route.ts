@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { geminiGenerate } from '@/lib/gemini';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -19,6 +19,24 @@ const REFERENCE_RANGES: Record<string, { unit: string; low: number; high: number
   alt: { unit: 'U/L', low: 7, high: 56 },
   ast: { unit: 'U/L', low: 5, high: 40 },
   tsh: { unit: 'µIU/mL', low: 0.4, high: 4.0 },
+};
+
+const PARAMETER_LABELS: Record<string, string> = {
+  hemoglobin: 'Hemoglobin',
+  rbcCount: 'RBC Count',
+  wbcCount: 'WBC Count',
+  platelets: 'Platelets',
+  fastingGlucose: 'Fasting Glucose',
+  hba1c: 'HbA1c',
+  totalCholesterol: 'Total Cholesterol',
+  ldl: 'LDL Cholesterol',
+  hdl: 'HDL Cholesterol',
+  triglycerides: 'Triglycerides',
+  creatinine: 'Creatinine',
+  bun: 'BUN',
+  alt: 'ALT',
+  ast: 'AST',
+  tsh: 'TSH',
 };
 
 function parseNumber(val: string | number): number | null {
@@ -41,7 +59,7 @@ function analyzeParams(parameters: any[]) {
     let status = 'normal';
     if (value < range.low) status = 'low';
     else if (value > range.high) status = 'high';
-    results.push({ ...p, value, unit: p.unit || range.unit, status, range: `${range.low}-${range.high}` });
+    results.push({ ...p, label: PARAMETER_LABELS[p.name] || p.label || p.name, value, unit: p.unit || range.unit, status, range: `${range.low}-${range.high}` });
   }
   return results;
 }
@@ -63,11 +81,12 @@ function localAnalyze(parameters: any[]) {
   const normalCount = analyzed.filter(r => r.status === 'normal').length;
   const { flags, recommendations } = buildRecommendations(analyzed);
   return {
-    overall: abnormal.length === 0 ? 'normal' : abnormal.length <= 2 ? 'warning' : 'critical',
-    summary: `${normalCount} of ${analyzed.length} parameters in normal range. ${flags.length ? flags.length + ' abnormal finding(s): ' + flags.join('; ') : 'No abnormal findings.'}`,
+    overall: abnormal.length === 0 ? 'normal' : abnormal.length <= 2 ? 'attention' : 'review',
+    summary: `${normalCount} of ${analyzed.length} parameters measured. ${flags.length ? flags.length + ' abnormal finding(s): ' + flags.join('; ') : 'No abnormal findings.'}`,
     analyzed,
     flags,
     recommendations,
+    mode: 'local',
   };
 }
 
@@ -76,12 +95,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { parameters, reportText } = body;
 
+    if (!Array.isArray(parameters) || parameters.length === 0) {
+      return NextResponse.json({ success: false, error: 'At least one lab parameter is required' }, { status: 400 });
+    }
+    if (parameters.length > 25) {
+      return NextResponse.json({ success: false, error: 'Too many parameters (max 25)' }, { status: 400 });
+    }
+
     let finalResult: any = null;
 
     if (GEMINI_API_KEY && parameters && parameters.length > 0) {
       try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
         const prompt = `You are a medical lab report analyzer. Analyze these lab parameters and return JSON.
 Parameters: ${JSON.stringify(parameters)}${reportText ? `\nRaw report text: ${reportText}` : ''}
 Return JSON with shape:
@@ -91,26 +115,10 @@ Return JSON with shape:
   "flags": ["short flag for each abnormal value"],
   "recommendations": ["up to 5 actionable, non-diagnostic recommendations"]
 }`;
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }] as any,
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: SchemaType.OBJECT,
-              properties: {
-                summary: { type: SchemaType.STRING },
-                overall: { type: SchemaType.STRING },
-                flags: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-                recommendations: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-              },
-            },
-          },
-        });
-        const text = (await result.response).text();
+        const text = await geminiGenerate({ prompt, json: true });
         if (text) {
           const parsed = JSON.parse(text);
-          finalResult = { ...parsed, analyzed: analyzeParams(parameters) };
+          finalResult = { ...parsed, analyzed: analyzeParams(parameters), mode: 'ai' };
         }
       } catch (err) {
         console.error('Gemini lab analysis failed, using local:', err);

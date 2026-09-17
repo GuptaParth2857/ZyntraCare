@@ -6,10 +6,11 @@ export async function GET(req: NextRequest) {
   try {
     const token = await getToken({ req });
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId') || token?.sub || '';
+    const requested = searchParams.get('userId') || '';
+    const userId = token?.sub || (requested === 'demo-user' ? 'demo-user' : '');
 
     if (!userId) {
-      return NextResponse.json({ wallet: null, transactions: [] });
+      return NextResponse.json({ wallet: null, transactions: [], error: 'Authentication required' }, { status: 401 });
     }
 
     let wallet = await prisma.healthWallet.findUnique({
@@ -33,19 +34,34 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const token = await getToken({ req });
     const body = await req.json();
-    const { userId, amount, type, category, description, referenceId } = body;
+    const userId = token?.sub || (body.userId === 'demo-user' ? 'demo-user' : '');
 
-    if (!userId || !amount || !type) {
-      return NextResponse.json({ error: 'userId, amount, and type are required' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const balanceChange = type === 'credit' ? amount : -amount;
+    const { amount, type, category, description, referenceId } = body;
+    const numeric = Number(amount);
 
-    const [wallet, transaction] = await prisma.$transaction(async (tx) => {
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      return NextResponse.json({ error: 'A valid positive amount is required' }, { status: 400 });
+    }
+    if (type !== 'credit' && type !== 'debit') {
+      return NextResponse.json({ error: 'type must be credit or debit' }, { status: 400 });
+    }
+
+    const balanceChange = type === 'credit' ? numeric : -numeric;
+
+    const result = await prisma.$transaction(async (tx) => {
       let wallet = await tx.healthWallet.findUnique({ where: { userId } });
       if (!wallet) {
         wallet = await tx.healthWallet.create({ data: { userId } });
+      }
+
+      if (type === 'debit' && wallet.balance < numeric) {
+        throw new Error('INSUFFICIENT_BALANCE');
       }
 
       const updated = await tx.healthWallet.update({
@@ -56,20 +72,24 @@ export async function POST(req: NextRequest) {
       const txn = await tx.healthTransaction.create({
         data: {
           walletId: wallet.id,
-          amount,
+          amount: numeric,
           type,
           category: category || 'general',
           description: description || '',
           referenceId: referenceId || null,
+          status: 'completed',
         },
       });
 
-      return [updated, txn];
+      return { wallet: updated, transaction: txn };
     });
 
-    return NextResponse.json({ transaction, balance: wallet.balance }, { status: 201 });
+    return NextResponse.json({ transaction: result.transaction, balance: result.wallet.balance }, { status: 201 });
   } catch (error) {
     console.error('Health wallet POST error:', error);
+    if (error instanceof Error && error.message === 'INSUFFICIENT_BALANCE') {
+      return NextResponse.json({ error: 'Insufficient wallet balance' }, { status: 402 });
+    }
     return NextResponse.json({ error: 'Failed to process transaction' }, { status: 500 });
   }
 }

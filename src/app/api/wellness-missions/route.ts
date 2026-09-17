@@ -78,14 +78,36 @@ export async function POST(req: NextRequest) {
       if (body.completed) {
         const mission = await prisma.wellnessMission.findUnique({ where: { id: body.missionId } });
         if (mission) {
-          await prisma.reward.create({
-            data: {
-              userId: body.userId,
-              points: mission.points,
-              source: 'mission',
-              description: `Completed: ${mission.title}`,
-            },
+          const description = `Completed: ${mission.title}`;
+          const existing = await prisma.reward.findFirst({
+            where: { userId: body.userId, source: 'mission', description },
           });
+          if (!existing) {
+            await prisma.$transaction(async tx => {
+              let wallet = await tx.healthWallet.findUnique({ where: { userId: body.userId } });
+              if (!wallet) {
+                wallet = await tx.healthWallet.create({ data: { userId: body.userId } });
+              }
+              await tx.healthWallet.update({
+                where: { id: wallet!.id },
+                data: { balance: { increment: mission.points } },
+              });
+              await tx.healthTransaction.create({
+                data: {
+                  walletId: wallet!.id,
+                  amount: mission.points,
+                  type: 'credit',
+                  category: 'reward',
+                  description,
+                  referenceId: mission.id,
+                  status: 'completed',
+                },
+              });
+              await tx.reward.create({
+                data: { userId: body.userId, points: mission.points, source: 'mission', description },
+              });
+            });
+          }
         }
       }
 

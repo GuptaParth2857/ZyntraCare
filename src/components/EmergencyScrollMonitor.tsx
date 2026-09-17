@@ -23,22 +23,18 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const fallbackHospitals: NearbyHospital[] = [
-  { id: 'fb1', name: 'Government Hospital', phone: '102', address: 'Emergency Services, Your Area', distance: 0, lat: 0, lng: 0 },
-  { id: 'fb2', name: 'City Hospital', phone: '102', address: '24/7 Emergency Care', distance: 0, lat: 0, lng: 0 },
-  { id: 'fb3', name: 'Multi-Specialty Hospital', phone: '102', address: 'Trauma & Emergency Center', distance: 0, lat: 0, lng: 0 },
-];
+const SEARCH_RADIUS_KM = 25;
 
 async function fetchHospitals(lat: number, lng: number): Promise<NearbyHospital[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const r = await fetch(`/api/hospitals/nearby?lat=${lat}&lng=${lng}&radius=20000`, { signal: controller.signal });
+    const r = await fetch(`/api/hospitals/nearby?lat=${lat}&lng=${lng}&radius=${SEARCH_RADIUS_KM * 1000}`, { signal: controller.signal });
     clearTimeout(timeout);
     if (!r.ok) throw new Error('API error');
     const d = await r.json();
     const list = Array.isArray(d?.hospitals) ? d.hospitals : [];
-    const result: NearbyHospital[] = list
+    return list
       .filter((p: any) => p?.type === 'hospital' || p?.facilityType === 'hospital' || p?.emergency)
       .map((p: any) => ({
         id: String(p.id || p.name + p.location?.lat),
@@ -49,32 +45,15 @@ async function fetchHospitals(lat: number, lng: number): Promise<NearbyHospital[
         lat: p.location?.lat,
         lng: p.location?.lng,
       }))
-      .filter((h: NearbyHospital) => typeof h.lat === 'number' && typeof h.lng === 'number')
+      .filter((h: NearbyHospital) =>
+        Number.isFinite(h.lat) && Number.isFinite(h.lng) && Number.isFinite(h.distance)
+      )
       .sort((a: NearbyHospital, b: NearbyHospital) => a.distance - b.distance)
       .slice(0, 10);
-    return result.length > 0 ? result : getFallbackWithDistance(lat, lng);
   } catch {
     clearTimeout(timeout);
-    return getFallbackWithDistance(lat, lng);
+    return [];
   }
-}
-
-function getFallbackWithDistance(userLat: number, userLng: number): NearbyHospital[] {
-  const offsets = [
-    { dlat: 0.01, dlng: 0.01 },
-    { dlat: -0.008, dlng: 0.015 },
-    { dlat: 0.012, dlng: -0.009 },
-  ];
-  return fallbackHospitals.map((h, i) => {
-    const hLat = userLat + offsets[i].dlat;
-    const hLng = userLng + offsets[i].dlng;
-    return {
-      ...h,
-      lat: hLat,
-      lng: hLng,
-      distance: haversine(userLat, userLng, hLat, hLng),
-    };
-  });
 }
 
 export default function EmergencyScrollMonitor() {
@@ -122,6 +101,7 @@ export default function EmergencyScrollMonitor() {
 
   const handleYes = useCallback(async () => {
     setShowHospitals(true);
+    setLocationError(false);
     setLoadingHospitals(true);
 
     let loc = userLocRef.current;
@@ -138,7 +118,7 @@ export default function EmergencyScrollMonitor() {
     }
 
     if (!loc) {
-      setHospitals(getFallbackWithDistance(28.6139, 77.2090));
+      setLocationError(true);
       setLoadingHospitals(false);
       return;
     }
@@ -225,8 +205,37 @@ export default function EmergencyScrollMonitor() {
                     <div className="w-16 h-16 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
                   </div>
                   <p className="text-lg font-black text-white">Finding nearest hospitals...</p>
-                  <p className="text-gray-500 text-sm mt-2">Searching within 10km radius</p>
+                  <p className="text-gray-500 text-sm mt-2">Searching within {SEARCH_RADIUS_KM}km radius</p>
                 </div>
+              ) : locationError ? (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-6">
+                  <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                    <FiMapPin size={30} className="text-gray-400" />
+                  </div>
+                  <h3 className="text-white font-bold text-base mb-2">Location access needed</h3>
+                  <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                    To show the hospitals closest to you, please allow location access.
+                    <br />
+                    Open this app on <span className="text-white font-bold">localhost / HTTPS</span> and make sure GPS is on.
+                  </p>
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={handleYes}
+                      className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 text-white py-3 rounded-2xl font-black text-sm transition"
+                    >
+                      📍 Retry Location
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleDismiss}
+                      className="flex-1 bg-white/5 border border-white/10 text-gray-300 py-3 rounded-2xl font-bold text-sm hover:bg-white/10 transition"
+                    >
+                      Close
+                    </motion.button>
+                  </div>
+                </motion.div>
               ) : (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-4">
@@ -234,8 +243,22 @@ export default function EmergencyScrollMonitor() {
                       <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                       <span className="font-black text-emerald-400 text-sm">Hospitals Near You</span>
                     </div>
-                    <p className="text-gray-400 text-xs">{hospitals.length} hospital{hospitals.length !== 1 ? 's' : ''} found within 10km</p>
+                    <p className="text-gray-400 text-xs">{hospitals.length} hospital{hospitals.length !== 1 ? 's' : ''} found within {SEARCH_RADIUS_KM}km</p>
                   </div>
+                  {hospitals.length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="text-3xl mb-3">🏥</div>
+                      <h3 className="text-white font-bold text-base mb-1">No hospitals found</h3>
+                      <p className="text-gray-400 text-sm">No hospitals were found within {SEARCH_RADIUS_KM}km of your location.</p>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={handleYes}
+                        className="mt-5 bg-white/5 border border-white/10 text-gray-300 py-2.5 px-5 rounded-xl font-bold text-sm hover:bg-white/10 transition"
+                      >
+                        ↻ Try Again
+                      </motion.button>
+                    </div>
+                  ) : (
                   <div className="space-y-3 max-h-[300px] overflow-y-auto">
                     {hospitals.map((h, i) => (
                       <motion.div
@@ -273,6 +296,7 @@ export default function EmergencyScrollMonitor() {
                       </motion.div>
                     ))}
                   </div>
+                  )}
                   <button onClick={handleDismiss} className="w-full mt-4 text-gray-600 hover:text-gray-400 py-2 transition text-sm">
                     Close
                   </button>

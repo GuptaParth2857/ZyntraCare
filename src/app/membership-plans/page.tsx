@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { FiCheck, FiX, FiAward, FiUsers, FiMaximize, FiShield } from 'react-icons/fi';
+import { FiCheck, FiX, FiAward, FiUsers, FiShield } from 'react-icons/fi';
 import { PLANS } from '@/lib/plans';
 
 export default function MembershipPlansPage() {
@@ -24,7 +24,7 @@ export default function MembershipPlansPage() {
             {' '}Plans
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Choose a ZyntraCare membership for unlimited family consultations, priority access, and complete care.
+            Compare Free, Premium Monthly and Premium Yearly — start free and upgrade anytime.
           </p>
         </motion.div>
 
@@ -48,16 +48,16 @@ export default function MembershipPlansPage() {
 
               <div className="grid grid-cols-3 gap-2 mb-5 text-center">
                 <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+                  <p className="text-sm font-bold">{plan.period}</p>
+                  <p className="text-[10px] text-gray-500">Billing</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-2">
                   <p className="text-sm font-bold">{plan.coverage}</p>
                   <p className="text-[10px] text-gray-500">Coverage</p>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-2">
-                  <p className="text-sm font-bold">{plan.consultsPerMonth || '—'}</p>
-                  <p className="text-[10px] text-gray-500">Consults/mo</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-2">
                   <p className="text-sm font-bold">{plan.familyMembers || '—'}</p>
-                  <p className="text-[10px] text-gray-500">Family</p>
+                  <p className="text-[10px] text-gray-500">Family profiles</p>
                 </div>
               </div>
 
@@ -83,20 +83,25 @@ export default function MembershipPlansPage() {
         <div className="mt-8 grid md:grid-cols-3 gap-4 text-center">
           <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4">
             <FiShield className="text-amber-400 mx-auto mb-2" />
-            <p className="text-sm font-bold">Secure Payments</p>
-            <p className="text-xs text-gray-500">All payments are processed securely via Razorpay with signature verification.</p>
+            <p className="text-sm font-bold">Razorpay Checkout</p>
+            <p className="text-xs text-gray-500">Plans are paid through Razorpay's order flow. Checkout currently runs in test/demo mode until live keys are configured.</p>
           </div>
           <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4">
-            <FiMaximize className="text-emerald-400 mx-auto mb-2" />
-            <p className="text-sm font-bold">Priority Access</p>
-            <p className="text-xs text-gray-500">Connect with top doctors faster than pay-per-use users.</p>
+            <FiUsers className="text-emerald-400 mx-auto mb-2" />
+            <p className="text-sm font-bold">Family Coverage</p>
+            <p className="text-xs text-gray-500">Premium plans add family member profiles — invite and manage the whole family from one dashboard.</p>
           </div>
           <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4">
-            <FiUsers className="text-violet-400 mx-auto mb-2" />
-            <p className="text-sm font-bold">Fair Usage</p>
-            <p className="text-xs text-gray-500">Membership consults capped per day/month to prevent abuse.</p>
+            <FiCheck className="text-violet-400 mx-auto mb-2" />
+            <p className="text-sm font-bold">Applied Instantly</p>
+            <p className="text-xs text-gray-500">Your selected plan is saved to your account right after payment and shown on your dashboard.</p>
           </div>
         </div>
+
+        <p className="mt-6 text-center text-xs text-gray-500">
+          Plans listed here are the product catalog. Feature availability is subject to ongoing development; consult a doctor
+          for medical advice. In an emergency, call 108.
+        </p>
       </div>
     </div>
   );

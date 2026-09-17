@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiUsers, FiPlus, FiBell, FiActivity, FiHeart, FiAlertCircle, FiTrendingUp, FiUser, FiShield, FiCpu, FiRefreshCw, FiCheckCircle, FiClock } from 'react-icons/fi';
+import { FiUsers, FiPlus, FiBell, FiActivity, FiHeart, FiAlertCircle, FiTrendingUp, FiUser, FiShield, FiCpu, FiRefreshCw, FiCheckCircle, FiClock, FiLock, FiLoader } from 'react-icons/fi';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface FamilyMember {
@@ -50,16 +51,41 @@ export default function EnhancedFamilyDashboardPage() {
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [fallDetections, setFallDetections] = useState<FallDetectionData[]>([]);
   const [vitalsTrends, setVitalsTrends] = useState<VitalsTrend[]>([]);
-  const [showFallDetection, setShowFallDetection] = useState(false);
+  const { data: session, status } = useSession();
+  const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1';
+  const isAuthenticated = demoMode || status === 'authenticated';
+  const userId = demoMode ? 'demo-user' : (session?.user as any)?.id || 'demo-user';
 
   useEffect(() => {
-    const mockMembers: FamilyMember[] = [
-      { id: '1', name: 'Parth Gupta', relation: 'Self', age: 28, bloodType: 'O+', gender: 'Male', type: 'adult' },
-      { id: '2', name: 'Suresh Gupta', relation: 'Father', age: 62, bloodType: 'A+', gender: 'Male', type: 'senior' },
-      { id: '3', name: 'Meena Gupta', relation: 'Mother', age: 58, bloodType: 'B+', gender: 'Female', type: 'senior' },
-      { id: '4', name: 'Aarav Gupta', relation: 'Son', age: 6, bloodType: 'AB+', gender: 'Male', type: 'child' },
-    ];
-    setFamilyMembers(mockMembers);
+    const loadMembers = async () => {
+      try {
+        const res = await fetch(`/api/family-members?userId=${userId}`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        const members: FamilyMember[] = (data.members || []).map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          relation: m.relation,
+          age: m.age || 30,
+          bloodType: m.bloodGroup || 'O+',
+          gender: m.gender || 'Male',
+          type: m.age != null ? (m.age >= 58 ? 'senior' : m.age <= 12 ? 'child' : 'adult') : 'adult',
+        }));
+        if (members.length > 0) {
+          setFamilyMembers(members);
+          setSelectedMember(members[0].id);
+        }
+      } catch (err) {
+        const mockMembers: FamilyMember[] = [
+          { id: '1', name: 'Parth Gupta', relation: 'Self', age: 28, bloodType: 'O+', gender: 'Male', type: 'adult' },
+          { id: '2', name: 'Suresh Gupta', relation: 'Father', age: 62, bloodType: 'A+', gender: 'Male', type: 'senior' },
+          { id: '3', name: 'Meena Gupta', relation: 'Mother', age: 58, bloodType: 'B+', gender: 'Female', type: 'senior' },
+          { id: '4', name: 'Aarav Gupta', relation: 'Son', age: 6, bloodType: 'AB+', gender: 'Male', type: 'child' },
+        ];
+        setFamilyMembers(mockMembers);
+      }
+    };
+    loadMembers();
 
     setGrowthData([
       { month: 'Jan', weight: 18, height: 105, bmi: 16.3 },
@@ -128,13 +154,55 @@ export default function EnhancedFamilyDashboardPage() {
     setFallDetections(prev => prev.map(f => f.id === id ? { ...f, status: 'resolved' } : f));
   };
 
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white p-4">
+        <div className="flex flex-col items-center gap-4">
+          <FiLoader size={36} className="text-pink-400 animate-spin" />
+          <p className="text-white/40 text-sm">Loading your family care hub&hellip;</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 text-white bg-transparent relative overflow-hidden">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full bg-slate-900/80 border border-white/10 rounded-[2rem] p-10 text-center backdrop-blur-xl">
+          <div className="w-14 h-14 mx-auto bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-5">
+            <FiLock className="text-pink-400" size={24} />
+          </div>
+          <h2 className="text-2xl font-black mb-4">Your family health is private</h2>
+          <p className="text-white/50 text-sm mb-8">Sign in to see real-time vitals, fall alerts, and care plans for your loved ones.</p>
+          <Link href="/auth/signin" className="inline-flex px-6 py-3 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-2xl font-black text-sm hover:from-pink-500 hover:to-rose-500 transition">
+            Sign In
+          </Link>
+          <p className="text-white/20 text-xs mt-4">Demo: <span className="font-mono text-white/40">/family-dashboard?demo=1</span></p>
+        </motion.div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-transparent relative overflow-hidden font-inter pb-24 text-white">
-      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-900/40 group-hover:scale-105 transition-transform">
+              <FiShield size={18} className="text-white" />
+            </div>
+            <span className="text-lg font-black tracking-tight">
+              Zyntra<span className="text-pink-400">Care</span>
+            </span>
+          </Link>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white/5 border border-white/10">
+            <FiUsers size={12} className="text-pink-400" /> Family Hub
+          </span>
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-10"
+          className="text-center mb-8"
         >
           <div className="inline-flex items-center justify-center p-4 bg-pink-500/10 border border-pink-500/30 rounded-2xl mb-6">
             <FiUsers size={32} className="text-pink-400" />

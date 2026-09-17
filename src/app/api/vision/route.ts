@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { geminiGenerate } from '@/lib/gemini';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
@@ -59,18 +59,12 @@ This is informational only, never a definitive diagnosis.`;
     // Try Gemini (proven text+image pattern)
     if (GEMINI_API_KEY) {
       try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        const result = await model.generateContent({
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: prompt },
-              { inlineData: { data: base64Data, mimeType: image.includes('image/png') ? 'image/png' : 'image/jpeg' } },
-            ],
-          }],
+        const text = await geminiGenerate({
+          prompt,
+          json: true,
+          imageData: base64Data,
+          imageMimeType: image.includes('image/png') ? 'image/png' : 'image/jpeg',
         });
-        const text = result.response.text();
         if (text) {
           try {
             const parsed = JSON.parse(text);

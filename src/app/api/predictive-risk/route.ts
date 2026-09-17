@@ -1,37 +1,155 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { geminiGenerate } from '@/lib/gemini';
+import { z } from 'zod';
+import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
+const profileSchema = z.object({
+  age: z.number().int().min(1).max(120).default(35),
+  bmi: z.number().min(10).max(60).default(22),
+  smoking: z.enum(['yes', 'no', 'occasional']).default('no'),
+  alcohol: z.enum(['yes', 'no', 'occasional']).default('no'),
+  stress: z.enum(['low', 'medium', 'high']).default('low'),
+  sleep: z.number().min(0).max(24).default(7),
+  familyHistory: z.enum(['yes', 'no', 'partial']).default('no'),
+  exercise: z.enum(['never', 'rarely', 'regular', 'weekly', 'daily']).default('regular'),
+});
+
+function resolveUserId(token: any, requested: string | null): string {
+  if (token?.sub) return token.sub;
+  if (requested === 'demo-user') return 'demo-user';
+  return '';
+}
+
+function getTrend(metrics: any[]): any[] {
+  return metrics.map(m => ({
+    date: m.date,
+    bloodSugar: m.bloodSugar,
+    heartRate: m.heartRate,
+    systolicBP: m.bloodPressure ? parseFloat(m.bloodPressure.split('/')[0]) || null : null,
+  }));
+}
+
+function computeTrajectory(trending: any[]): 'improving' | 'stable' | 'declining' {
+  const sugar = trending.map(t => t.bloodSugar).filter((v: any) => v != null);
+  const sys = trending.map(t => t.systolicBP).filter((v: any) => v != null);
+
+  const dirs: string[] = [];
+  if (sugar.length >= 2) dirs.push(sugar[sugar.length - 1] > sugar[0] ? 'worse' : sugar[sugar.length - 1] < sugar[0] ? 'better' : 'same');
+  if (sys.length >= 2) dirs.push(sys[sys.length - 1] > sys[0] ? 'worse' : sys[sys.length - 1] < sys[0] ? 'better' : 'same');
+
+  if (dirs.length === 0) return 'stable';
+  const worse = dirs.filter(d => d === 'worse').length;
+  const better = dirs.filter(d => d === 'better').length;
+  if (worse > better) return 'declining';
+  if (better > worse) return 'improving';
+  return 'stable';
+}
+
+function localRisk(profile: any, trending: any[]) {
+  const age = profile.age || 35;
+  const bmi = profile.bmi || 22;
+  const ageScore = age > 50 ? 30 : age > 40 ? 20 : 10;
+  const bmiScore = bmi >= 30 ? 30 : bmi >= 25 ? 18 : 8;
+  const lifestyleScore =
+    (profile.smoking === 'yes' ? 15 : profile.smoking === 'occasional' ? 8 : 0) +
+    (profile.familyHistory === 'yes' ? 15 : profile.familyHistory === 'partial' ? 8 : 0) +
+    (profile.alcohol === 'yes' ? 8 : profile.alcohol === 'occasional' ? 4 : 0) +
+    (profile.stress === 'high' ? 8 : 0) +
+    ((profile.sleep || 7) < 6 ? 8 : 0) +
+    (profile.exercise === 'never' ? 6 : profile.exercise === 'rarely' ? 3 : 0);
+
+  const predictiveScore = Math.min(100, ageScore + bmiScore + lifestyleScore);
+  const riskLevel = predictiveScore >= 60 ? 'high' : predictiveScore >= 35 ? 'medium' : 'low';
+
+  const trendDir = computeTrajectory(trending);
+
+  const diseaseRisks: { name: string; probability: number; reason: string }[] = [];
+  if (bmi >= 25) {
+    let p = Math.min(80, 30 + bmiScore);
+    if (trendDir === 'declining') p = Math.min(85, p + 5);
+    diseaseRisks.push({ name: 'Type 2 Diabetes', probability: p, reason: bmi >= 30 ? 'Obese BMI' : 'Overweight BMI' });
+  } else {
+    diseaseRisks.push({ name: 'Type 2 Diabetes', probability: 15, reason: 'BMI within healthy range' });
+  }
+  {
+    let p = Math.min(75, 25 + ageScore * 0.5);
+    if (trendDir === 'declining') p = Math.min(80, p + 5);
+    diseaseRisks.push({ name: 'Hypertension', probability: p, reason: 'Age and lifestyle factors' });
+  }
+  if (profile.smoking === 'yes') {
+    diseaseRisks.push({ name: 'COPD', probability: 40, reason: 'Active smoker' });
+  }
+
+  const sugar = trending.map(t => t.bloodSugar).filter((v: any) => v != null);
+  const sys = trending.map(t => t.systolicBP).filter((v: any) => v != null);
+
+  const insights: string[] = [];
+  if (sugar.length >= 2) {
+    insights.push(`Blood sugar ${sugar[sugar.length - 1] >= sugar[0] ? 'has trended up' : 'has trended down'} from ${sugar[0]} to ${sugar[sugar.length - 1]} mg/dL across ${sugar.length} readings.`);
+  }
+  if (sys.length >= 2) {
+    insights.push(`Systolic blood pressure ${sys[sys.length - 1] >= sys[0] ? 'has trended up' : 'has trended down'} from ${sys[0]} to ${sys[sys.length - 1]} mmHg across ${sys.length} readings.`);
+  }
+  if (trending.length === 0) {
+    insights.push('No vitals readings on record — this forecast is based on your profile only.');
+  } else {
+    insights.push(`Forecast combines your profile with ${trending.length} logged vitals reading${trending.length === 1 ? '' : 's'}.`);
+  }
+  if (trendDir === 'declining') insights.push('Your vitals trend is moving in a riskier direction — schedule a doctor visit.');
+
+  const recommendations: string[] = [];
+  if (bmi >= 25) recommendations.push('Aim to reduce BMI toward 18.5-24.9 through diet and activity');
+  if (profile.smoking !== 'no') recommendations.push('Consider a structured smoking cessation program');
+  if (profile.stress === 'high') recommendations.push('Practice stress management — 10 min of breathing exercises daily');
+  if ((profile.sleep || 7) < 6) recommendations.push('Prioritize 7-8 hours of sleep for recovery');
+  if (sugar.length >= 2 && sugar[sugar.length - 1] >= sugar[0]) recommendations.push('Your blood sugar is trending up — limit refined sugar and exercise regularly');
+  if (sys.length >= 2 && sys[sys.length - 1] >= sys[0]) recommendations.push('Your blood pressure is trending up — reduce sodium and monitor weekly');
+  if (trending.length === 0) recommendations.push('Log vitals regularly in Health Tracker to enable trend signals');
+  recommendations.push('Schedule an annual preventive health checkup');
+
+  return {
+    predictiveScore,
+    riskLevel,
+    trajectory: trendDir,
+    diseaseRisks,
+    insights: insights.slice(0, 4),
+    recommendations: recommendations.slice(0, 5),
+    mode: 'local',
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const userId = body.userId || 'demo-user';
-    const profile = body.profile || {};
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const body = await req.json().catch(() => ({}));
+    const requested = String(body.userId || '');
+    const userId = resolveUserId(token, requested === 'demo-user' ? 'demo-user' : null);
+    if (!userId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const parsed = profileSchema.safeParse(body.profile || {});
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: 'Invalid profile', details: parsed.error.issues }, { status: 400 });
+    }
 
     const metrics = await prisma.healthMetric.findMany({
       where: { userId },
       orderBy: { date: 'asc' },
       take: 30,
     });
+    const trending = getTrend(metrics);
 
-    const trending = metrics.map(m => ({
-      date: m.date,
-      bloodSugar: m.bloodSugar,
-      heartRate: m.heartRate,
-      systolicBP: m.bloodPressure ? parseFloat(m.bloodPressure.split('/')[0]) || null : null,
-    }));
-
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json({ success: true, result: localRisk(profile, trending) });
-    }
-
-    try {
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      const prompt = `Analyze future health risk based on the profile and longitudinal vitals trend. Return JSON only.
-Profile: ${JSON.stringify(profile)}
+    let usedAI = false;
+    if (GEMINI_API_KEY) {
+      try {
+        const prompt = `Analyze future health risk based on the profile and longitudinal vitals trend. Return JSON only.
+Profile: ${JSON.stringify(parsed.data)}
 Vitals trend: ${JSON.stringify(trending)}
 Return JSON:
 {
@@ -42,58 +160,20 @@ Return JSON:
  "insights": ["up to 4 plain-language insights"],
  "recommendations": ["up to 4 preventive actions"]
 }`;
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any,
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: SchemaType.OBJECT,
-            properties: {
-              predictiveScore: { type: SchemaType.NUMBER },
-              riskLevel: { type: SchemaType.STRING },
-              diseaseRisks: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { name: { type: SchemaType.STRING }, probability: { type: SchemaType.NUMBER }, reason: { type: SchemaType.STRING } } } },
-              trajectory: { type: SchemaType.STRING },
-              insights: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-              recommendations: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-            },
-          },
-        },
-      });
-      const text = (await result.response).text();
-      if (text) {
-        return NextResponse.json({ success: true, result: JSON.parse(text) });
+        const text = await geminiGenerate({ prompt, json: true });
+        if (text) {
+          const parsedJson = JSON.parse(text);
+          return NextResponse.json({ success: true, result: { ...parsedJson, mode: 'ai' } });
+        }
+      } catch (err) {
+        console.error('Gemini predictive risk failed, using local model:', err);
       }
-    } catch (err) {
-      console.error('Gemini predictive risk failed:', err);
     }
 
-    return NextResponse.json({ success: true, result: localRisk(profile, trending) });
+    const result = localRisk(parsed.data, trending);
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Predictive risk error:', error);
     return NextResponse.json({ success: false, error: 'Failed to assess risk' }, { status: 500 });
   }
-}
-
-function localRisk(profile: any, trending: any[]) {
-  const ageScore = (profile.age || 35) > 50 ? 30 : (profile.age || 35) > 40 ? 20 : 10;
-  const bmiScore = (profile.bmi || 22) >= 30 ? 30 : (profile.bmi || 22) >= 25 ? 18 : 8;
-  const lifestyleScore =
-    (profile.smoking === 'yes' ? 15 : 0) + (profile.familyHistory === 'yes' ? 15 : 0) +
-    (profile.stress === 'high' ? 8 : 0) + ((profile.sleep || 7) < 6 ? 8 : 0);
-
-  const predictiveScore = Math.min(100, ageScore + bmiScore + lifestyleScore);
-  const riskLevel = predictiveScore >= 60 ? 'high' : predictiveScore >= 35 ? 'medium' : 'low';
-
-  return {
-    predictiveScore,
-    riskLevel,
-    trajectory: 'stable',
-    diseaseRisks: [
-      { name: 'Type 2 Diabetes', probability: Math.min(80, 30 + bmiScore), reason: profile.bmi >= 25 ? 'Elevated BMI' : 'Within normal BMI' },
-      { name: 'Hypertension', probability: Math.min(75, 25 + ageScore * 0.5), reason: 'Age and lifestyle factors' },
-    ],
-    insights: ['Your current vitals trend is being monitored for preventive planning.'],
-    recommendations: ['Maintain a balanced diet', 'Exercise 30 minutes daily', 'Schedule regular checkups', 'Manage stress levels'],
-  };
 }

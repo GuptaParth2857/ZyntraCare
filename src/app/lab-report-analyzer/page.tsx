@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiPlus, FiTrash2, FiActivity, FiAlertCircle, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiActivity, FiAlertCircle, FiCheckCircle, FiInfo, FiCpu } from 'react-icons/fi';
 import { FaFlask, FaStethoscope } from 'react-icons/fa';
 
 interface Param { name: string; label: string; value: string; unit: string; }
@@ -12,6 +12,7 @@ interface Analysis {
   flags: string[];
   recommendations: string[];
   analyzed: (Param & { status: string; range: string })[];
+  mode?: 'ai' | 'local';
 }
 
 const COMMON_TESTS: Record<string, string> = {
@@ -102,7 +103,7 @@ export default function LabReportAnalyzerPage() {
             <FaFlask size={32} className="text-cyan-400" />
           </div>
           <h1 className="text-5xl md:text-6xl font-black mb-4">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">AI Lab Report</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">Lab Report</span>
             {' '}Analyzer
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -156,10 +157,15 @@ export default function LabReportAnalyzerPage() {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             {result ? (
               <>
-                <div className={`bg-slate-900/60 backdrop-blur-xl border rounded-3xl p-6 ${result.overall === 'normal' ? 'border-emerald-500/30' : result.overall === 'warning' ? 'border-amber-500/30' : 'border-red-500/30'}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    {result.overall === 'normal' ? <FiCheckCircle className="text-emerald-400" /> : <FiAlertCircle className={result.overall === 'warning' ? 'text-amber-400' : 'text-red-400'} />}
-                    <h3 className="font-bold capitalize">Overall: {result.overall}</h3>
+                <div className={`bg-slate-900/60 backdrop-blur-xl border rounded-3xl p-6 ${result.overall === 'normal' ? 'border-emerald-500/30' : result.overall === 'attention' ? 'border-amber-500/30' : 'border-red-500/30'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      {result.overall === 'normal' ? <FiCheckCircle className="text-emerald-400" /> : <FiAlertCircle className={result.overall === 'attention' ? 'text-amber-400' : 'text-red-400'} />}
+                      <h3 className="font-bold capitalize">Overall: {result.overall === 'attention' ? 'needs attention' : result.overall}</h3>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${result.mode === 'ai' ? 'text-violet-300 bg-violet-500/10 border-violet-500/30' : 'text-sky-300 bg-sky-500/10 border-sky-500/30'}`}>
+                      <FiCpu size={10} /> {result.mode === 'ai' ? 'AI model' : 'Rule-based model'}
+                    </span>
                   </div>
                   <p className="text-gray-300 text-sm">{result.summary}</p>
                 </div>
@@ -193,7 +199,7 @@ export default function LabReportAnalyzerPage() {
             ) : (
               <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center">
                 <FiActivity size={64} className="text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">Enter your lab parameters to get an AI-powered analysis</p>
+                <p className="text-gray-400">Enter your lab parameters to get an analysis</p>
               </div>
             )}
           </motion.div>
